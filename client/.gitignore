@@ -2,3 +2,8 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# Local env files; .env.example is committed.
+.env
+.env.local
+.env.*.local
