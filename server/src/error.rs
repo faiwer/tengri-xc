@@ -67,6 +67,13 @@ impl IntoResponse for AppError {
             other => other.to_string(),
         };
 
-        (status, Json(ErrorBody { error: code, message })).into_response()
+        (
+            status,
+            Json(ErrorBody {
+                error: code,
+                message,
+            }),
+        )
+            .into_response()
     }
 }

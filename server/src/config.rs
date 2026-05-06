@@ -30,6 +30,8 @@ where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
     let raw = env::var(var).unwrap_or_else(|_| default.to_owned());
-    raw.parse::<T>()
-        .map_err(|e| ConfigError::InvalidValue { var, source: Box::new(e) })
+    raw.parse::<T>().map_err(|e| ConfigError::InvalidValue {
+        var,
+        source: Box::new(e),
+    })
 }

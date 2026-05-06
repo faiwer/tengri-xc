@@ -27,7 +27,11 @@ async fn greet(
         return Err(AppError::BadRequest("name must not be empty".into()));
     }
 
-    let punct = if payload.excited.unwrap_or(false) { "!" } else { "." };
+    let punct = if payload.excited.unwrap_or(false) {
+        "!"
+    } else {
+        "."
+    };
 
     Ok(Json(GreetResponse {
         message: format!("Hello, {}{}", payload.name, punct),
