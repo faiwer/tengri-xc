@@ -1,3 +1,8 @@
+// Shared test harness: each `tests/*.rs` integration test is its own crate,
+// so any helper not used by a given test trips `dead_code` for that crate.
+// Silence at the module level.
+#![allow(dead_code)]
+
 //! Shared test harness for integration tests that need a real Postgres.
 //!
 //! ## How it works

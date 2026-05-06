@@ -4,6 +4,7 @@ use crate::AppState;
 
 mod health;
 mod tracks;
+mod tracks_md;
 
 /// Top-level router. Mount sub-routers here as the API grows; group related
 /// handlers into their own modules and expose a `pub fn router() -> Router<AppState>`
@@ -12,4 +13,5 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .merge(health::router())
         .merge(tracks::router())
+        .merge(tracks_md::router())
 }
