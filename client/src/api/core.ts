@@ -41,6 +41,21 @@ function formatIssues(issues: z.core.$ZodIssue[]): string {
     .join('; ');
 }
 
+/** Issue the GET, normalize transport/HTTP failures into `ApiError` subclasses. */
+async function fetchOk(path: string): Promise<Response> {
+  const url = SERVER_URL + path;
+  let response: Response;
+  try {
+    response = await fetch(url, { method: 'GET' });
+  } catch (cause) {
+    throw new NetworkError(`GET ${url} failed`, { cause });
+  }
+  if (!response.ok) {
+    throw new HttpError(response.status);
+  }
+  return response;
+}
+
 /**
  * GET `path` (resolved against `VITE_SERVER_URL`) and validate the JSON body
  * against `schema`. Returns the decoded value on success; throws an
@@ -50,29 +65,26 @@ export async function apiGet<T extends z.ZodTypeAny>(
   path: string,
   schema: T,
 ): Promise<z.infer<T>> {
-  const url = SERVER_URL + path;
-
-  let response: Response;
-  try {
-    response = await fetch(url, { method: 'GET' });
-  } catch (cause) {
-    throw new NetworkError(`GET ${url} failed`, { cause });
-  }
-
-  if (!response.ok) {
-    throw new HttpError(response.status);
-  }
-
+  const response = await fetchOk(path);
   let body: unknown;
   try {
     body = await response.json();
   } catch (cause) {
     throw new DecodeError([], cause);
   }
-
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     throw new DecodeError(parsed.error.issues, body);
   }
   return parsed.data;
+}
+
+/**
+ * GET `path` and return the raw response body as a `Blob`. The browser
+ * transparently honors `Content-Encoding`, so a gzipped response is already
+ * decompressed by the time it reaches the Blob.
+ */
+export async function apiGetBlob(path: string): Promise<Blob> {
+  const response = await fetchOk(path);
+  return response.blob();
 }

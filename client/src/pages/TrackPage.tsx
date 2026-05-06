@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { getTrackMetadata } from '../api/tracks';
+import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
 
 type LoadState =
@@ -26,6 +26,19 @@ export function TrackPage() {
           const message = err instanceof Error ? err.message : String(err);
           setState({ status: 'error', message });
         }
+      });
+
+    getTrack(id)
+      .then((track) => {
+        if (!cancelled) {
+          console.log('track', track);
+          console.log(
+            `track summary: version=${track.version} start_time=${track.track.start_time} interval=${track.track.interval} time_fixes=${track.track.time_fixes.length}`,
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('track decode failed', err);
       });
 
     return () => {

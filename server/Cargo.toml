@@ -2,6 +2,9 @@
 name = "tengri-server"
 version = "0.1.0"
 edition = "2024"
+# `cargo run` (no --bin) starts the HTTP server. The other binary (`tengri`)
+# is a one-shot CLI; reach it explicitly with `cargo run --bin tengri ...`.
+default-run = "tengri-server"
 
 [dependencies]
 anyhow = "1.0.102"
