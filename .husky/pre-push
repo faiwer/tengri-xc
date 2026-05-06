@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -e
+
+# Run the full Rust test suite before pushing. Skip with `git push --no-verify`
+# when intentionally pushing WIP branches.
+if [ -d server ]; then
+  echo "Running cargo test on server/..."
+  cargo test --manifest-path server/Cargo.toml --all-targets --quiet
+fi

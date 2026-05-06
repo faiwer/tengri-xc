@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+set -e
+
+# 1. Refuse to commit env / secret files even if someone runs `git add -f`.
+secrets=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -E '(^|/)\.env(\.[^.]+)?$|\.(pem|key|p12|pfx)$' || true)
+if [ -n "$secrets" ]; then
+  echo "Refusing to commit potential secret files:"
+  echo "$secrets" | sed 's/^/  /'
+  echo "Remove them from the index, or rename if intentional."
+  exit 1
+fi
+
+# 2. Per-file formatters via lint-staged (rustfmt today; eslint/prettier later).
+npx --no-install lint-staged
+
+# 3. Crate-level checks: clippy is whole-crate, so run it once if any Rust file
+#    in server/ is staged. Same logic will extend for client/ later.
+rust_changed=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -E '^server/.*\.rs$' || true)
+
+if [ -n "$rust_changed" ]; then
+  echo "Running cargo clippy on server/..."
+  cargo clippy \
+    --manifest-path server/Cargo.toml \
+    --all-targets \
+    --quiet \
+    -- -D warnings
+fi
