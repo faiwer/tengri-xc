@@ -1,4 +1,4 @@
-//! `.tengri` file format: a framed archive carrying a [`CompactTrack`] plus
+//! `.tengri` file format: a framed envelope carrying a [`CompactTrack`] plus
 //! sibling metadata. See [`format`] for the on-disk layout.
 //!
 //! [`CompactTrack`]: super::compact::CompactTrack

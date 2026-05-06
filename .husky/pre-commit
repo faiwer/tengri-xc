@@ -2,8 +2,11 @@
 set -e
 
 # 1. Refuse to commit env / secret files even if someone runs `git add -f`.
+#    Templates (`.env.example`, `.env.sample`) are intentionally let through;
+#    they document required variables and never carry secrets.
 secrets=$(git diff --cached --name-only --diff-filter=AM \
-  | grep -E '(^|/)\.env(\.[^.]+)?$|\.(pem|key|p12|pfx)$' || true)
+  | grep -E '(^|/)\.env(\.[^.]+)?$|\.(pem|key|p12|pfx)$' \
+  | grep -vE '(^|/)\.env\.(example|sample)$' || true)
 if [ -n "$secrets" ]; then
   echo "Refusing to commit potential secret files:"
   echo "$secrets" | sed 's/^/  /'

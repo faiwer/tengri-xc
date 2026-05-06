@@ -1,4 +1,4 @@
-//! Off-track metadata that travels with a flight in a `.tengri` archive.
+//! Off-track metadata that travels with a flight in a `.tengri` envelope.
 //!
 //! Deliberately a sibling of [`CompactTrack`](super::compact::CompactTrack),
 //! never nested inside it: the compact format stays strictly about time and

@@ -31,9 +31,22 @@ CREATE INDEX flights_created_idx ON flights (created_at DESC);
 
 
 -- Hot path: compact-format track blobs (full + preview) per flight.
+--
+-- `bytes` stores the HTTP wire form: `gzip(bincode(TengriFile))`. We serve it
+-- straight to the client with `Content-Encoding: gzip`, so the on-disk row is
+-- byte-identical to the response body — zero CPU per request.
+--
+-- `version` mirrors `TengriFile::VERSION` at the time `bytes` was written.
+-- It's queryable so a re-encoding cron task can find rows that lag behind the
+-- current build (`WHERE version < $current`) without touching the blob.
+--
+-- `etag` is xxh3-64 of `bytes` (16 hex chars), regenerated on every write.
+-- Used as the HTTP `ETag` for `If-None-Match` / 304 handling.
 CREATE TABLE flight_tracks (
     flight_id text              NOT NULL REFERENCES flights(id) ON DELETE CASCADE,
     kind      flight_track_kind NOT NULL,
+    version   smallint          NOT NULL,
+    etag      text              NOT NULL,
     bytes     bytea             NOT NULL,
     PRIMARY KEY (flight_id, kind)
 );

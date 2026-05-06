@@ -1,7 +1,7 @@
 //! `tengri` — flight-file tooling.
 //!
 //! Currently a single subcommand: `convert`, which parses a flight log
-//! (today: IGC; later: GPX, KML, …) and writes a `.tengri` archive holding
+//! (today: IGC; later: GPX, KML, …) and writes a `.tengri` envelope holding
 //! the compact track plus a sibling metadata block.
 
 use std::{
@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// Convert a flight log into a `.tengri` archive.
+    /// Convert a flight log into a `.tengri` envelope.
     Convert {
         /// Input file (.igc).
         input: PathBuf,
@@ -33,7 +33,7 @@ enum Cmd {
         output: Option<PathBuf>,
     },
 
-    /// Inspect a `.tengri` archive without unpacking it.
+    /// Inspect a `.tengri` envelope without unpacking it.
     Inspect {
         /// `.tengri` file to read.
         input: PathBuf,
@@ -59,14 +59,11 @@ fn convert(input: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
     let n_points = track.points.len();
 
     let compact = encode(&track).context("encoding compact track")?;
-    let archive = TengriFile {
-        metadata: Metadata::default(),
-        track: compact,
-    };
+    let envelope = TengriFile::new(Metadata::default(), compact);
 
     let output = output.unwrap_or_else(|| input.with_extension("tengri"));
     let f = File::create(&output).with_context(|| format!("creating {}", output.display()))?;
-    archive
+    envelope
         .write(BufWriter::new(f))
         .with_context(|| format!("writing {}", output.display()))?;
 
@@ -88,10 +85,10 @@ fn convert(input: PathBuf, output: Option<PathBuf>) -> anyhow::Result<()> {
 
 fn inspect(input: PathBuf) -> anyhow::Result<()> {
     let f = File::open(&input).with_context(|| format!("opening {}", input.display()))?;
-    let archive = TengriFile::read(BufReader::new(f))
+    let envelope = TengriFile::read(BufReader::new(f))
         .with_context(|| format!("reading {}", input.display()))?;
 
-    let body = match &archive.track.track {
+    let body = match &envelope.track.track {
         tengri_server::flight::compact::TrackBody::Gps { fixes, coords } => {
             format!("Gps  {} fixes, {} coords", fixes.len(), coords.len())
         }
@@ -101,10 +98,10 @@ fn inspect(input: PathBuf) -> anyhow::Result<()> {
     };
 
     println!("file        {}", input.display());
-    println!("start_time  {}", archive.track.start_time);
-    println!("interval    {} s", archive.track.interval);
+    println!("start_time  {}", envelope.track.start_time);
+    println!("interval    {} s", envelope.track.interval);
     println!("body        {body}");
-    println!("time_fixes  {}", archive.track.time_fixes.len());
+    println!("time_fixes  {}", envelope.track.time_fixes.len());
     Ok(())
 }
 
