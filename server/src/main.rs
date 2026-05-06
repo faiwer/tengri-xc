@@ -5,9 +5,12 @@ use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load `.env` if present. Missing file is not an error: production deploys
-    // typically inject env vars directly.
-    let _ = dotenvy::dotenv();
+    // Load `<crate-root>/.env` if present. We resolve the path at compile time
+    // via `CARGO_MANIFEST_DIR` so the binary finds its dev `.env` regardless of
+    // the process's working directory (e.g. running it from the repo root, or
+    // from `cargo test` invoked elsewhere). Missing file is not an error:
+    // production deploys inject env vars directly.
+    let _ = dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
 
     telemetry::init();
 
