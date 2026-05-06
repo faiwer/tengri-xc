@@ -1,0 +1,26 @@
+{
+  "name": "tengri-xc-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsgo --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsgo --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,scss}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,scss}\""
+  },
+  "dependencies": {
+    "antd": "^6.3.7",
+    "react": "npm:@faiwer/react@^19.0.4",
+    "react-dom": "npm:@faiwer/react-dom@^19.0.1"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260506.1",
+    "@vitejs/plugin-react": "^6.0.1",
+    "prettier": "^3.8.3",
+    "sass": "^1.99.0",
+    "vite": "^8.0.10"
+  }
+}

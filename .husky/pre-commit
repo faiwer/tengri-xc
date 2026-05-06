@@ -18,7 +18,7 @@ fi
 npx --no-install lint-staged
 
 # 3. Crate-level checks: clippy is whole-crate, so run it once if any Rust file
-#    in server/ is staged. Same logic will extend for client/ later.
+#    in server/ is staged.
 rust_changed=$(git diff --cached --name-only --diff-filter=AM \
   | grep -E '^server/.*\.rs$' || true)
 
@@ -29,4 +29,14 @@ if [ -n "$rust_changed" ]; then
     --all-targets \
     --quiet \
     -- -D warnings
+fi
+
+# 4. Project-level checks for the FE: tsgo is whole-project, run it once if any
+#    TS/TSX file under client/ is staged.
+client_ts_changed=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -E '^client/.*\.(ts|tsx)$' || true)
+
+if [ -n "$client_ts_changed" ]; then
+  echo "Running tsgo on client/..."
+  npm --prefix client run typecheck --silent
 fi
