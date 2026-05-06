@@ -1,39 +1,30 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
-};
+use std::sync::Arc;
+
+use sqlx::PgPool;
 
 /// Shared application state. Cheap to clone (everything inside an `Arc`).
 ///
-/// Grow this by adding fields like a database pool, HTTP client, config snapshot,
-/// metrics handles, etc. Keep them wrapped in `Arc<...>` so cloning stays O(1).
+/// Grow this by adding fields like an HTTP client, config snapshot, metrics
+/// handles, etc. Keep them wrapped in `Arc<...>` so cloning stays O(1).
 #[derive(Clone)]
 pub struct AppState {
     inner: Arc<AppStateInner>,
 }
 
 struct AppStateInner {
-    request_counter: AtomicU64,
+    pool: PgPool,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self {
-            inner: Arc::new(AppStateInner {
-                request_counter: AtomicU64::new(1),
-            }),
+            inner: Arc::new(AppStateInner { pool }),
         }
     }
 
-    /// Monotonically increasing request id. Useful as a placeholder until a real
-    /// id source (UUID, request-scoped span, etc.) is wired in.
-    pub fn next_request_id(&self) -> u64 {
-        self.inner.request_counter.fetch_add(1, Ordering::Relaxed)
-    }
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self::new()
+    /// Postgres connection pool. Cloning the pool is cheap (it's an `Arc`
+    /// internally), so callers can take a `&PgPool` from here freely.
+    pub fn pool(&self) -> &PgPool {
+        &self.inner.pool
     }
 }

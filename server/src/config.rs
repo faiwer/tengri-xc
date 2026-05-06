@@ -5,6 +5,7 @@ use thiserror::Error;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub server_addr: SocketAddr,
+    pub database_url: String,
 }
 
 #[derive(Debug, Error)]
@@ -15,12 +16,20 @@ pub enum ConfigError {
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("required env var {0} is not set")]
+    Missing(&'static str),
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let server_addr = parse_env("SERVER_ADDR", "0.0.0.0:3000")?;
-        Ok(Self { server_addr })
+        let database_url =
+            env::var("DATABASE_URL").map_err(|_| ConfigError::Missing("DATABASE_URL"))?;
+        Ok(Self {
+            server_addr,
+            database_url,
+        })
     }
 }
 

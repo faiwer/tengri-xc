@@ -1,0 +1,21 @@
+services:
+  db:
+    image: imresamu/postgis:17-3.5
+    container_name: tengri-postgres
+    environment:
+      POSTGRES_USER: tengri
+      POSTGRES_PASSWORD: tengri
+      POSTGRES_DB: tengri
+    ports:
+      - "5432:5432"
+    volumes:
+      - tengri-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tengri -d tengri"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  tengri-pg-data:

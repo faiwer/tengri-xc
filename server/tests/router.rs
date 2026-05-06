@@ -2,12 +2,16 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use sqlx::postgres::PgPoolOptions;
 use tengri_server::{AppState, build_app};
 use tower::ServiceExt;
 
 #[tokio::test]
 async fn unknown_route_returns_404() {
-    let app = build_app(AppState::new());
+    let pool = PgPoolOptions::new()
+        .connect_lazy("postgres://test:test@localhost/test")
+        .expect("build lazy pool");
+    let app = build_app(AppState::new(pool));
 
     let response = app
         .oneshot(

@@ -3,12 +3,18 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use serde_json::Value;
+use sqlx::postgres::PgPoolOptions;
 use tengri_server::{AppState, build_app};
 use tower::ServiceExt;
 
 #[tokio::test]
 async fn health_returns_ok_with_version() {
-    let app = build_app(AppState::new());
+    // /health doesn't touch the DB, so a lazy pool against a placeholder URL
+    // is enough — no connection is attempted.
+    let pool = PgPoolOptions::new()
+        .connect_lazy("postgres://test:test@localhost/test")
+        .expect("build lazy pool");
+    let app = build_app(AppState::new(pool));
 
     let response = app
         .oneshot(

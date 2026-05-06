@@ -1,4 +1,5 @@
 use anyhow::Context;
+use sqlx::postgres::PgPoolOptions;
 use tengri_server::{AppState, Config, build_app, telemetry};
 use tokio::{net::TcpListener, signal};
 
@@ -11,7 +12,21 @@ async fn main() -> anyhow::Result<()> {
     telemetry::init();
 
     let config = Config::from_env().context("loading config from environment")?;
-    let state = AppState::new();
+
+    let pool = PgPoolOptions::new()
+        .max_connections(8)
+        .connect(&config.database_url)
+        .await
+        .context("connecting to Postgres")?;
+    tracing::info!("postgres pool ready");
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .context("running migrations")?;
+    tracing::info!("migrations applied");
+
+    let state = AppState::new(pool);
     let app = build_app(state);
 
     let listener = TcpListener::bind(config.server_addr)
