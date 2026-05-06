@@ -7,8 +7,10 @@
 
 mod decode;
 mod encode;
+mod error;
 mod types;
 
 pub use decode::decode;
 pub use encode::encode;
+pub use error::CompactError;
 pub use types::{CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TimeFix, TrackBody};
