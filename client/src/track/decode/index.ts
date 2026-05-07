@@ -1,6 +1,7 @@
 import type { FixDual, TengriFile } from '../../api/tracks.io';
 import { runWithRaf } from '../../utils/runWithRaf';
 import { TrackDecodeError, type Track } from '../types';
+import { computeCompactHash } from './hash';
 import { decodeStep, type DecodeCtx, type DecodeState } from './step';
 import { unpackBody } from './unpackBody';
 
@@ -48,6 +49,14 @@ function prepare(file: TengriFile): Prepared {
 
   if (fixes.length === 0 || fixes[0]!.idx !== 0) {
     throw new TrackDecodeError('track is missing the initial fix at idx=0');
+  }
+
+  const expectedHash = file.track.hash;
+  const actualHash = computeCompactHash(startTime, interval, body, timeFixes);
+  if (actualHash !== expectedHash) {
+    throw new TrackDecodeError(
+      `hash mismatch: expected 0x${expectedHash.toString(16).padStart(8, '0')}, got 0x${actualHash.toString(16).padStart(8, '0')}`,
+    );
   }
 
   const t = new Uint32Array(length);
