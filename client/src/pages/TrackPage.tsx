@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
-import { MapView } from '../components/MapView';
+import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
+import { pathsBounds, trackToPaths } from '../track/toPaths';
+import type { Track } from '../track';
+import styles from './TrackPage.module.scss';
 
 type LoadState =
   | { status: 'loading' }
@@ -12,11 +15,13 @@ type LoadState =
 export function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const [track, setTrack] = useState<Track | null>(null);
 
   useEffect(() => {
     if (!id) return;
     const ctrl = new AbortController();
     setState({ status: 'loading' });
+    setTrack(null);
 
     getTrackMetadata(id)
       .then((data) => {
@@ -31,13 +36,8 @@ export function TrackPage() {
       });
 
     getTrack(id, 'full', { signal: ctrl.signal })
-      .then((track) => {
-        console.log('track', track);
-        const n = track.t.length;
-        const kind = track.baroAlt ? 'dual' : 'gps';
-        console.log(
-          `track summary: kind=${kind} length=${n} start_time=${track.startTime} t[0]=${track.t[0]} t[last]=${track.t[n - 1]}`,
-        );
+      .then((decoded) => {
+        if (!ctrl.signal.aborted) setTrack(decoded);
       })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
@@ -49,13 +49,19 @@ export function TrackPage() {
     };
   }, [id]);
 
+  const paths = useMemo(() => (track ? trackToPaths(track) : null), [track]);
+  const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
+
   return (
-    <div>
+    <div className={styles.page}>
       <h1>Track: {id}</h1>
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'ok' && <p>Pilot: {state.data.pilot.name}</p>}
       {state.status === 'error' && <p>Error: {state.message}</p>}
-      <MapView />
+      <MapView>
+        {paths && <TrackPolyline paths={paths} />}
+        <FitBounds bounds={bounds} />
+      </MapView>
       <Link to="/">Back</Link>
     </div>
   );

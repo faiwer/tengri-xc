@@ -10,7 +10,10 @@
     "server/**/*.rs": [
       "rustfmt --edition 2024"
     ],
-    "client/**/*.{ts,tsx,scss}": [
+    "client/**/*.{ts,tsx}": [
+      "oxfmt"
+    ],
+    "client/**/*.scss": [
       "prettier --write"
     ]
   },

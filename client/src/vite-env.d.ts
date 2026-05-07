@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="google.maps" />
 
 interface ImportMetaEnv {
   /** Base URL of the tengri-xc server, including any path prefix. */
