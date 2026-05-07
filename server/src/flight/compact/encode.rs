@@ -15,6 +15,7 @@
 use crate::flight::types::Track;
 
 use super::error::CompactError;
+use super::hash::compute as compute_hash;
 use super::types::{CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TimeFix, TrackBody};
 
 pub fn encode(track: &Track) -> Result<CompactTrack, CompactError> {
@@ -41,12 +42,14 @@ pub fn encode(track: &Track) -> Result<CompactTrack, CompactError> {
     };
 
     let time_fixes = encode_time_fixes(track, start_time, interval);
+    let hash = compute_hash(start_time, interval, &body, &time_fixes);
 
     Ok(CompactTrack {
         start_time,
         interval,
         track: body,
         time_fixes,
+        hash,
     })
 }
 

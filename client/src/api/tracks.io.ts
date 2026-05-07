@@ -87,6 +87,7 @@ const CompactTrackIo = Struct({
   interval: u16,
   track: TrackBodyIo,
   time_fixes: Collection(TimeFixIo),
+  hash: u32,
 });
 
 const MetadataIo = Struct({});

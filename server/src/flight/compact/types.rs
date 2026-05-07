@@ -20,6 +20,12 @@ pub struct CompactTrack {
     /// from `interval` (encoder rule: |Δt − interval| big enough to matter,
     /// concretely Δt > 1.5 × interval). Strictly increasing by `idx`.
     pub time_fixes: Vec<TimeFix>,
+
+    /// FNV-1a 32 over the deterministic byte stream of all preceding fields,
+    /// in declaration order. Lets the FE verify post-decode that the wire
+    /// payload survived transport and that both ends agree on the parser
+    /// shape. Computed by [`super::hash::compute`]; verified by the FE.
+    pub hash: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
