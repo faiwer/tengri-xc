@@ -8,6 +8,8 @@
     "build": "tsgo --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsgo --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "format": "oxfmt \"src/**/*.{ts,tsx}\" && prettier --write \"src/**/*.scss\"",
     "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\" && prettier --check \"src/**/*.scss\""
   },
@@ -25,6 +27,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "prettier": "^3.8.3",
     "sass": "^1.99.0",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   }
 }
