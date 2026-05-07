@@ -4,20 +4,24 @@
 //! - `convert` — parse a flight log (IGC today; later GPX/KML) and write a
 //!   `.tengri` envelope.
 //! - `inspect` — peek inside a `.tengri` envelope without unpacking it.
+//! - `add` — ingest a flight log into the database for a given user: gzipped
+//!   source goes into `flight_sources`; the encoded `.tengri` HTTP wire form
+//!   goes into `flight_tracks` (kind = `full`).
 //! - `upgrade-tracks` — re-encode every `flight_tracks` row whose `version`
 //!   lags behind the current build, sourcing the original bytes from
 //!   `flight_sources`.
 
 use std::{
     fs::File,
-    io::{BufReader, BufWriter, Read},
-    path::PathBuf,
+    io::{BufReader, BufWriter, Read, Write},
+    path::{Path, PathBuf},
     process,
 };
 
 use anyhow::{Context, anyhow};
 use clap::{Parser, Subcommand};
-use flate2::read::GzDecoder;
+use flate2::{Compression, read::GzDecoder, write::GzEncoder};
+use rand::Rng;
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use tengri_server::flight::{
     Metadata, TengriFile, Track, encode, etag_for, parse_str, tengri::VERSION,
@@ -47,6 +51,20 @@ enum Cmd {
         input: PathBuf,
     },
 
+    /// Ingest a flight log into the database under the given user.
+    /// Inserts a `flights` row, the gzipped source into `flight_sources`,
+    /// and the encoded HTTP wire form into `flight_tracks` (kind = `full`).
+    /// All three writes happen in a single transaction; on failure nothing
+    /// is committed.
+    Add {
+        /// Input flight log (.igc).
+        input: PathBuf,
+
+        /// Owning user id (`users.id`). The user must already exist.
+        #[arg(long = "user-id")]
+        user_id: i32,
+    },
+
     /// Re-encode every `flight_tracks` row whose `version` lags behind the
     /// current build. The fresh bytes are derived from the matching
     /// `flight_sources` row (we can't re-decode the stale blob — the wire
@@ -69,6 +87,7 @@ fn run() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::Convert { input, output } => convert(input, output),
         Cmd::Inspect { input } => inspect(input),
+        Cmd::Add { input, user_id } => run_async(add(input, user_id)),
         Cmd::UpgradeTracks { dry_run } => run_async(upgrade_tracks(dry_run)),
     }
 }
@@ -137,18 +156,91 @@ fn inspect(input: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn parse_input(input: &PathBuf) -> anyhow::Result<Track> {
+async fn add(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
+    let format = detect_format(&input)?;
+    let raw = std::fs::read(&input).with_context(|| format!("reading {}", input.display()))?;
+    let track = parse_format(format, &raw)?;
+    let n_points = track.points.len();
+
+    let compact = encode(&track).context("encoding compact track")?;
+    let envelope = TengriFile::new(Metadata::default(), compact);
+    let track_bytes = envelope
+        .to_http_bytes()
+        .context("encoding TengriFile to http bytes")?;
+    let etag = etag_for(&track_bytes);
+
+    let source_gz = gzip_bytes(&raw).context("gzipping source bytes")?;
+
+    let pool = connect_pool().await?;
+    ensure_user_exists(&pool, user_id).await?;
+
+    let flight_id = nanoid_8();
+    let mut tx = pool.begin().await.context("starting transaction")?;
+
+    sqlx::query("INSERT INTO flights (id, user_id) VALUES ($1, $2)")
+        .bind(&flight_id)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await
+        .context("inserting flights row")?;
+
+    sqlx::query(
+        "INSERT INTO flight_sources (flight_id, format, bytes) \
+         VALUES ($1, $2::flight_source_format, $3)",
+    )
+    .bind(&flight_id)
+    .bind(format.db_name())
+    .bind(&source_gz)
+    .execute(&mut *tx)
+    .await
+    .context("inserting flight_sources row")?;
+
+    sqlx::query(
+        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes) \
+         VALUES ($1, 'full', $2, $3, $4)",
+    )
+    .bind(&flight_id)
+    .bind(VERSION as i16)
+    .bind(&etag)
+    .bind(&track_bytes)
+    .execute(&mut *tx)
+    .await
+    .context("inserting flight_tracks row")?;
+
+    tx.commit().await.context("committing transaction")?;
+
+    println!(
+        "added flight {flight_id} (user {user_id}, {n_points} points, \
+         source {} bytes gz, track {} bytes, etag {etag})",
+        source_gz.len(),
+        track_bytes.len(),
+    );
+    Ok(())
+}
+
+/// Recognised input format. Wraps the file-extension dispatch so the
+/// matching `flight_source_format` enum value and the parser stay in
+/// lockstep when we add GPX/KML.
+#[derive(Debug, Clone, Copy)]
+enum InputFormat {
+    Igc,
+}
+
+impl InputFormat {
+    fn db_name(self) -> &'static str {
+        match self {
+            InputFormat::Igc => "igc",
+        }
+    }
+}
+
+fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
     let ext = input
         .extension()
         .and_then(|e| e.to_str())
         .map(|s| s.to_ascii_lowercase());
-
     match ext.as_deref() {
-        Some("igc") => {
-            let raw = std::fs::read_to_string(input)
-                .with_context(|| format!("reading {}", input.display()))?;
-            Ok(parse_str(&raw).context("parsing IGC")?)
-        }
+        Some("igc") => Ok(InputFormat::Igc),
         Some(other) => Err(anyhow!("unsupported input format: .{other}")),
         None => Err(anyhow!(
             "input has no extension; cannot detect format: {}",
@@ -157,16 +249,63 @@ fn parse_input(input: &PathBuf) -> anyhow::Result<Track> {
     }
 }
 
-async fn upgrade_tracks(dry_run: bool) -> anyhow::Result<()> {
+fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> {
+    match format {
+        InputFormat::Igc => {
+            let raw = std::str::from_utf8(bytes).context("IGC must be UTF-8 (ASCII)")?;
+            parse_str(raw).context("parsing IGC")
+        }
+    }
+}
+
+fn parse_input(input: &Path) -> anyhow::Result<Track> {
+    let format = detect_format(input)?;
+    let bytes = std::fs::read(input).with_context(|| format!("reading {}", input.display()))?;
+    parse_format(format, &bytes)
+}
+
+fn gzip_bytes(raw: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut gz = GzEncoder::new(Vec::new(), Compression::default());
+    gz.write_all(raw)?;
+    Ok(gz.finish()?)
+}
+
+/// 8-char NanoID with the `[A-Za-z0-9_-]` alphabet declared in the schema
+/// comment. 64 symbols × 8 chars = 48 bits of entropy, ample for the
+/// expected row count and matching the spec exactly.
+fn nanoid_8() -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+    let mut rng = rand::rng();
+    (0..8)
+        .map(|_| ALPHABET[rng.random_range(0..ALPHABET.len())] as char)
+        .collect()
+}
+
+async fn connect_pool() -> anyhow::Result<PgPool> {
     let _ = dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
     let database_url =
         std::env::var("DATABASE_URL").context("DATABASE_URL must be set (try server/.env)")?;
-
-    let pool = PgPoolOptions::new()
+    PgPoolOptions::new()
         .max_connections(2)
         .connect(&database_url)
         .await
-        .context("connecting to Postgres")?;
+        .context("connecting to Postgres")
+}
+
+async fn ensure_user_exists(pool: &PgPool, user_id: i32) -> anyhow::Result<()> {
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .context("checking user exists")?;
+    if !exists {
+        return Err(anyhow!("no user with id={user_id}"));
+    }
+    Ok(())
+}
+
+async fn upgrade_tracks(dry_run: bool) -> anyhow::Result<()> {
+    let pool = connect_pool().await?;
 
     let stale = fetch_stale_full_tracks(&pool).await?;
     println!(
