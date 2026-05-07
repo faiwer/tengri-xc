@@ -35,8 +35,6 @@ describe('altitudeRange', () => {
   });
 
   it('reads GPS altitude even when baro is present', () => {
-    // GPS sees [1000, 2000, 1500]. Baro is offset by a fictitious +500 m
-    // QNH bias. The function must report the GPS values untouched.
     const track = buildTrack({
       altMetres: [1000, 2000, 1500],
       baroMetres: [1500, 2500, 2000],
@@ -47,7 +45,7 @@ describe('altitudeRange', () => {
   it('works without a barometer', () => {
     const track = buildTrack({
       altMetres: [1000, 1500, 800, 1200],
-      // baroMetres omitted — track.baroAlt = null, but the helper doesn't
+      // baroMetres omitted — track.baroAlt = null. The helper doesn't
       // care either way; this just exercises the no-baro branch.
     });
     expect(altitudeRange(track, 0, 4)).toEqual({ minAlt: 800, maxAlt: 1500 });
