@@ -151,14 +151,19 @@ pub async fn seed_user(pool: &PgPool, id: i32, name: &str) -> i32 {
 }
 
 /// Insert a flight row. Caller supplies a (NanoID-shaped) id and the owning
-/// user id. Returns the flight id for chaining convenience.
+/// user id. `takeoff_at` / `landed_at` default to `now()` because most tests
+/// don't care about flight-time ordering; reach for a dedicated helper if a
+/// future test does. Returns the flight id for chaining convenience.
 pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String {
-    sqlx::query("INSERT INTO flights (id, user_id) VALUES ($1, $2)")
-        .bind(flight_id)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .expect("seed flight");
+    sqlx::query(
+        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+         VALUES ($1, $2, now(), now())",
+    )
+    .bind(flight_id)
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .expect("seed flight");
     flight_id.to_owned()
 }
 

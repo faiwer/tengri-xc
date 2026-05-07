@@ -10,8 +10,10 @@
 
 use std::path::PathBuf;
 
-use anyhow::Context;
-use tengri_server::flight::{Metadata, TengriFile, encode, etag_for, tengri::VERSION};
+use anyhow::{Context, anyhow};
+use tengri_server::flight::{
+    Metadata, TengriFile, encode, etag_for, find_flight_window, tengri::VERSION,
+};
 
 use super::shared::{
     connect_pool, detect_format, ensure_user_exists, gzip_bytes, nanoid_8, parse_format,
@@ -22,6 +24,16 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let raw = std::fs::read(&input).with_context(|| format!("reading {}", input.display()))?;
     let track = parse_format(format, &raw)?;
     let n_points = track.points.len();
+
+    let window = find_flight_window(&track).ok_or_else(|| {
+        anyhow!(
+            "could not detect takeoff/landing in {} — \
+             track has no flying segment",
+            input.display()
+        )
+    })?;
+    let takeoff_at = track.points[window.takeoff_idx].time as i64;
+    let landed_at = track.points[window.landing_idx].time as i64;
 
     let compact = encode(&track).context("encoding compact track")?;
     let envelope = TengriFile::new(Metadata::default(), compact);
@@ -38,12 +50,17 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let flight_id = nanoid_8();
     let mut tx = pool.begin().await.context("starting transaction")?;
 
-    sqlx::query("INSERT INTO flights (id, user_id) VALUES ($1, $2)")
-        .bind(&flight_id)
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await
-        .context("inserting flights row")?;
+    sqlx::query(
+        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+         VALUES ($1, $2, to_timestamp($3), to_timestamp($4))",
+    )
+    .bind(&flight_id)
+    .bind(user_id)
+    .bind(takeoff_at)
+    .bind(landed_at)
+    .execute(&mut *tx)
+    .await
+    .context("inserting flights row")?;
 
     sqlx::query(
         "INSERT INTO flight_sources (flight_id, format, bytes) \
@@ -70,9 +87,13 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
 
     tx.commit().await.context("committing transaction")?;
 
+    let duration_min = (landed_at - takeoff_at) as f64 / 60.0;
     println!(
         "added flight {flight_id} (user {user_id}, {n_points} points, \
+         takeoff..landed = [{}..{}] / {duration_min:.1} min, \
          source {} bytes gz, track {} bytes, etag {etag})",
+        window.takeoff_idx,
+        window.landing_idx,
         source_gz.len(),
         track_bytes.len(),
     );

@@ -16,17 +16,28 @@ CREATE TABLE users (
 -- Stored as `text` rather than `varchar(8)` so we never pay the length-check
 -- overhead; we trust the generator. Equality lookups on text use byte-wise
 -- comparison regardless of collation, so PK/FK lookups match uuid speed.
+--
+-- `takeoff_at` / `landed_at` are derived at ingest time by
+-- `tengri_server::flight::find_flight_window` over the parsed track.
 CREATE TABLE flights (
     id         text        PRIMARY KEY,
     user_id    int         NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    created_at timestamptz NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    takeoff_at timestamptz NOT NULL,
+    landed_at  timestamptz NOT NULL
 );
 
--- Per-user flight listing ("user X's flights, newest first").
-CREATE INDEX flights_user_created_idx ON flights (user_id, created_at DESC);
+-- Per-user flight listing ("user X's flights, newest first" — by flight time,
+-- not ingest time). takeoff_at is the natural sort key; created_at is just
+-- when the row landed in the DB.
+CREATE INDEX flights_user_takeoff_idx ON flights (user_id, takeoff_at DESC);
 
--- Global feed ("latest flights across all users"). Cannot be served by the
--- composite index above because user_id is its leading column.
+-- Global feed ("latest flights across all users", by takeoff_at). Cannot be
+-- served by the composite index above because user_id is its leading column.
+CREATE INDEX flights_takeoff_idx ON flights (takeoff_at DESC);
+
+-- Admin / ingest views: "what got uploaded recently". Different question
+-- from "when did the flight happen", so a separate index.
 CREATE INDEX flights_created_idx ON flights (created_at DESC);
 
 
