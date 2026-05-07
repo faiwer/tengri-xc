@@ -22,6 +22,8 @@ struct TrackMd {
     /// `new Date(seconds * 1000)` without parsing strings.
     takeoff_at: i64,
     landed_at: i64,
+    /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
+    compression_ratio: f32,
 }
 
 #[derive(Serialize)]
@@ -33,12 +35,14 @@ async fn get_track_md(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<TrackMd>, AppError> {
-    let row: Option<(String, String, i64, i64)> = sqlx::query_as(
+    let row: Option<(String, String, i64, i64, f32)> = sqlx::query_as(
         "SELECT f.id, u.name, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
-                EXTRACT(EPOCH FROM f.landed_at)::bigint \
+                EXTRACT(EPOCH FROM f.landed_at)::bigint, \
+                t.compression_ratio \
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
+         JOIN flight_tracks t ON t.flight_id = f.id AND t.kind = 'full' \
          WHERE f.id = $1",
     )
     .bind(&id)
@@ -46,7 +50,7 @@ async fn get_track_md(
     .await
     .map_err(anyhow::Error::from)?;
 
-    let Some((flight_id, pilot_name, takeoff_at, landed_at)) = row else {
+    let Some((flight_id, pilot_name, takeoff_at, landed_at, compression_ratio)) = row else {
         return Err(AppError::NotFound);
     };
 
@@ -55,5 +59,6 @@ async fn get_track_md(
         pilot: Pilot { name: pilot_name },
         takeoff_at,
         landed_at,
+        compression_ratio,
     }))
 }

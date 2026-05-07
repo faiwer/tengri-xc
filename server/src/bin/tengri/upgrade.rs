@@ -29,11 +29,16 @@ pub async fn run(dry_run: bool) -> anyhow::Result<()> {
     let mut report = UpgradeReport::default();
     for row in stale {
         match upgrade_one(&pool, &row, dry_run).await {
-            Ok(Outcome::Upgraded { from, bytes }) => {
+            Ok(Outcome::Upgraded {
+                from,
+                bytes,
+                compression_ratio,
+            }) => {
                 println!(
-                    "  {} v{from}→v{VERSION}  {} bytes{}",
+                    "  {} v{from}→v{VERSION}  {} bytes ({:.1}% of gz source){}",
                     row.flight_id,
                     bytes,
+                    compression_ratio * 100.0,
                     if dry_run { "  [dry-run]" } else { "" },
                 );
                 report.upgraded += 1;
@@ -92,7 +97,11 @@ struct UpgradeReport {
 }
 
 enum Outcome {
-    Upgraded { from: i16, bytes: usize },
+    Upgraded {
+        from: i16,
+        bytes: usize,
+        compression_ratio: f32,
+    },
     SkippedNoSource,
     SkippedFormat(String),
 }
@@ -143,16 +152,18 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
         .context("encoding TengriFile to http bytes")?;
     let etag = etag_for(&bytes);
     let n_bytes = bytes.len();
+    let compression_ratio = bytes.len() as f32 / gz_bytes.len() as f32;
 
     if !dry_run {
         sqlx::query(
             "UPDATE flight_tracks \
-             SET version = $1, etag = $2, bytes = $3 \
-             WHERE flight_id = $4 AND kind = 'full'",
+             SET version = $1, etag = $2, bytes = $3, compression_ratio = $4 \
+             WHERE flight_id = $5 AND kind = 'full'",
         )
         .bind(VERSION as i16)
         .bind(&etag)
         .bind(&bytes)
+        .bind(compression_ratio)
         .bind(&row.flight_id)
         .execute(pool)
         .await
@@ -162,6 +173,7 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
     Ok(Outcome::Upgraded {
         from: row.version,
         bytes: n_bytes,
+        compression_ratio,
     })
 }
 

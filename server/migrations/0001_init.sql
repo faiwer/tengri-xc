@@ -61,12 +61,22 @@ CREATE INDEX flights_created_idx ON flights (created_at DESC);
 --
 -- `etag` is xxh3-64 of `bytes` (16 hex chars), regenerated on every write.
 -- Used as the HTTP `ETag` for `If-None-Match` / 304 handling.
+--
+-- `compression_ratio` is `length(flight_tracks.bytes) /
+-- length(flight_sources.bytes)` captured at write time — i.e. our compact
+-- format vs gzipped source. Smaller is better; e.g. 0.18 means the wire
+-- track is 18% the size of the gzipped original. The denominator is always
+-- gzipped, so the metric stays meaningful when source formats expand
+-- beyond IGC (GPX/KML are XML and gzip far worse than IGC, so future
+-- ratios will look better against those even with the same encoder).
+-- Recomputed by `tengri upgrade-tracks` whenever a row is re-encoded.
 CREATE TABLE flight_tracks (
-    flight_id text              NOT NULL REFERENCES flights(id) ON DELETE CASCADE,
-    kind      flight_track_kind NOT NULL,
-    version   smallint          NOT NULL,
-    etag      text              NOT NULL,
-    bytes     bytea             NOT NULL,
+    flight_id         text              NOT NULL REFERENCES flights(id) ON DELETE CASCADE,
+    kind              flight_track_kind NOT NULL,
+    version           smallint          NOT NULL,
+    etag              text              NOT NULL,
+    bytes             bytea             NOT NULL,
+    compression_ratio real              NOT NULL,
     PRIMARY KEY (flight_id, kind)
 );
 

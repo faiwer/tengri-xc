@@ -43,6 +43,7 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let etag = etag_for(&track_bytes);
 
     let source_gz = gzip_bytes(&raw).context("gzipping source bytes")?;
+    let compression_ratio = track_bytes.len() as f32 / source_gz.len() as f32;
 
     let pool = connect_pool().await?;
     ensure_user_exists(&pool, user_id).await?;
@@ -74,13 +75,14 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     .context("inserting flight_sources row")?;
 
     sqlx::query(
-        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes) \
-         VALUES ($1, 'full', $2, $3, $4)",
+        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes, compression_ratio) \
+         VALUES ($1, 'full', $2, $3, $4, $5)",
     )
     .bind(&flight_id)
     .bind(VERSION as i16)
     .bind(&etag)
     .bind(&track_bytes)
+    .bind(compression_ratio)
     .execute(&mut *tx)
     .await
     .context("inserting flight_tracks row")?;
@@ -88,10 +90,11 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     tx.commit().await.context("committing transaction")?;
 
     let duration_min = (landed_at - takeoff_at) as f64 / 60.0;
+    let compression_pct = compression_ratio * 100.0;
     println!(
         "added flight {flight_id} (user {user_id}, {n_points} points, \
          takeoff..landed = [{}..{}] / {duration_min:.1} min, \
-         source {} bytes gz, track {} bytes, etag {etag})",
+         source {} bytes gz, track {} bytes ({compression_pct:.1}% of gz source), etag {etag})",
         window.takeoff_idx,
         window.landing_idx,
         source_gz.len(),

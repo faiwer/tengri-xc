@@ -23,6 +23,9 @@ async fn track_md_returns_id_and_pilot_name() {
     common::seed_user(&pool, TEST_USER_ID, TEST_USER_NAME).await;
     let flight_id =
         common::seed_flight_at(&pool, "MDTEST00", TEST_USER_ID, TAKEOFF_AT, LANDED_AT).await;
+    // The /md endpoint joins flight_tracks for compression_ratio; without
+    // a matching row the JOIN drops the flight and we'd 404 here.
+    common::seed_full_track(&pool, &flight_id, vec![0; 4]).await;
 
     let resp = app
         .oneshot(common::get(format!("/tracks/{flight_id}/md")))
@@ -42,6 +45,10 @@ async fn track_md_returns_id_and_pilot_name() {
     assert_eq!(json["pilot"]["name"], TEST_USER_NAME);
     assert_eq!(json["takeoff_at"], TAKEOFF_AT);
     assert_eq!(json["landed_at"], LANDED_AT);
+    // Sentinel `1.0` from `seed_full_track`. We just verify the field is
+    // present and a number; the precise value isn't part of the API
+    // contract here.
+    assert!(json["compression_ratio"].is_number());
 }
 
 #[tokio::test]

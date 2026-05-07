@@ -223,12 +223,15 @@ pub fn get_if_none_match(uri: impl AsRef<str>, etag: impl AsRef<str>) -> Request
 
 /// Insert a `kind = 'full'` track row with the provided HTTP-form bytes.
 /// Computes the etag from the bytes (same hash function as the production
-/// write path) so tests don't have to duplicate the formula.
+/// write path) so tests don't have to duplicate the formula. The
+/// `compression_ratio` is set to a sentinel `1.0` — tests don't exercise
+/// the metric and a real ratio would require also seeding a matching
+/// `flight_sources` row.
 pub async fn seed_full_track(pool: &PgPool, flight_id: &str, bytes: Vec<u8>) -> String {
     let etag = tengri_server::flight::etag_for(&bytes);
     sqlx::query(
-        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes) \
-         VALUES ($1, 'full', $2, $3, $4)",
+        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes, compression_ratio) \
+         VALUES ($1, 'full', $2, $3, $4, 1.0)",
     )
     .bind(flight_id)
     .bind(tengri_server::flight::tengri::VERSION as i16)
