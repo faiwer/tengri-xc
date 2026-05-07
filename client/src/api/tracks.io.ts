@@ -98,3 +98,9 @@ export const TengriFileIo = Struct({
 });
 
 export type TengriFile = Value<typeof TengriFileIo>;
+
+export type FixGps = Value<typeof FixGpsIo>;
+export type FixDual = Value<typeof FixDualIo>;
+export type CoordGps = Value<typeof CoordGpsIo>;
+export type CoordDual = Value<typeof CoordDualIo>;
+export type TimeFix = Value<typeof TimeFixIo>;

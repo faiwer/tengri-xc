@@ -15,35 +15,37 @@ export function TrackPage() {
 
   useEffect(() => {
     if (!id) return;
-    let cancelled = false;
+    const ctrl = new AbortController();
     setState({ status: 'loading' });
 
     getTrackMetadata(id)
       .then((data) => {
-        if (!cancelled) setState({ status: 'ok', data });
+        if (!ctrl.signal.aborted) {
+          setState({ status: 'ok', data });
+        }
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : String(err);
-          setState({ status: 'error', message });
-        }
+        if (ctrl.signal.aborted) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setState({ status: 'error', message });
       });
 
-    getTrack(id)
+    getTrack(id, 'full', { signal: ctrl.signal })
       .then((track) => {
-        if (!cancelled) {
-          console.log('track', track);
-          console.log(
-            `track summary: version=${track.version} start_time=${track.track.start_time} interval=${track.track.interval} time_fixes=${track.track.time_fixes.length}`,
-          );
-        }
+        console.log('track', track);
+        const n = track.t.length;
+        const kind = track.baroAlt ? 'dual' : 'gps';
+        console.log(
+          `track summary: kind=${kind} length=${n} start_time=${track.startTime} t[0]=${track.t[0]} t[last]=${track.t[n - 1]}`,
+        );
       })
       .catch((err: unknown) => {
-        if (!cancelled) console.error('track decode failed', err);
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        console.error('track decode failed', err);
       });
 
     return () => {
-      cancelled = true;
+      ctrl.abort();
     };
   }, [id]);
 

@@ -1,11 +1,7 @@
-import { decode } from 'bincode-ts';
+import { decode as bincodeDecode } from 'bincode-ts';
+import { decodeTrack, type DecodeOptions, type Track } from '../track';
 import { apiGet, apiGetBlob } from './core';
-import {
-  TengriFileIo,
-  TrackMetadataIo,
-  type TengriFile,
-  type TrackMetadata,
-} from './tracks.io';
+import { TengriFileIo, TrackMetadataIo, type TrackMetadata } from './tracks.io';
 
 export async function getTrackMetadata(
   trackId: string,
@@ -27,14 +23,19 @@ export async function getTrackBlob(
 }
 
 /**
- * Fetch and decode the bincode-encoded TengriFile for the given track.
+ * Fetch the bincode-encoded TengriFile and reconstruct the in-memory `Track`.
+ * Consumers should never see the wire-level CompactTrack.
+ *
+ * Decoding is sliced across animation frames; pass `decode.signal` to cancel
+ * if the caller (e.g. a route effect) is torn down mid-flight.
  */
 export async function getTrack(
   trackId: string,
   kind: TrackKind = 'full',
-): Promise<TengriFile> {
+  decode: DecodeOptions = {},
+): Promise<Track> {
   const blob = await getTrackBlob(trackId, kind);
   const buffer = await blob.arrayBuffer();
-  const { value } = decode(TengriFileIo, buffer);
-  return value;
+  const { value } = bincodeDecode(TengriFileIo, buffer);
+  return decodeTrack(value, decode);
 }
