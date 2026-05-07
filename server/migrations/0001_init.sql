@@ -19,12 +19,20 @@ CREATE TABLE users (
 --
 -- `takeoff_at` / `landed_at` are derived at ingest time by
 -- `tengri_server::flight::find_flight_window` over the parsed track.
+--
+-- `duration_s` is a Postgres-maintained generated column (`landed_at -
+-- takeoff_at` in whole seconds). Sortable / filterable directly without
+-- an expression index. `integer` (max ~68 years) is plenty: even a
+-- 16-hour XC flight is ~58 000 s.
 CREATE TABLE flights (
     id         text        PRIMARY KEY,
     user_id    int         NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at timestamptz NOT NULL DEFAULT now(),
     takeoff_at timestamptz NOT NULL,
-    landed_at  timestamptz NOT NULL
+    landed_at  timestamptz NOT NULL,
+    duration_s integer     NOT NULL GENERATED ALWAYS AS (
+        EXTRACT(EPOCH FROM (landed_at - takeoff_at))::integer
+    ) STORED
 );
 
 -- Per-user flight listing ("user X's flights, newest first" — by flight time,
