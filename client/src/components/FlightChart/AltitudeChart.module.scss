@@ -1,0 +1,7 @@
+.chart {
+  // Fills the FlightChart panel's body slot exactly. The frame (border,
+  // padding, background) lives on the panel; the chart is just the
+  // canvas surface.
+  width: 100%;
+  height: 100%;
+}

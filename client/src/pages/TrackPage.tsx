@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
-import { AltitudeChart } from '../components/AltitudeChart';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
+import { FlightChart } from '../components/FlightChart';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { altitudeRange } from '../track/altitudeRange';
 import { findIndexAt } from '../track/findIndexAt';
@@ -93,7 +93,7 @@ export function TrackPage() {
         {paths && <TrackPolyline paths={paths} />}
         <FitBounds bounds={bounds} />
       </MapView>
-      {track && window && <AltitudeChart track={track} window={window} />}
+      {track && window && <FlightChart track={track} window={window} />}
       <Link to="/">Back</Link>
     </div>
   );

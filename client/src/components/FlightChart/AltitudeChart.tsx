@@ -119,7 +119,7 @@ const Y_AXIS: Axis = {
   grid: { stroke: AXIS_GRID },
   ticks: { stroke: AXIS_GRID },
   values: (_self, splits) => splits.map((m) => `${Math.round(m)} m`),
-  size: 64,
+  size: 72,
 };
 
 // Two preset series arrays. uPlot's series array length must match the
