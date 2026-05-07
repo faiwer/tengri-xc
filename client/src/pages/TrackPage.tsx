@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
+import { MapView } from '../components/MapView';
 
 type LoadState =
   | { status: 'loading' }
@@ -52,6 +53,7 @@ export function TrackPage() {
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'ok' && <p>Pilot: {state.data.pilot.name}</p>}
       {state.status === 'error' && <p>Error: {state.message}</p>}
+      <MapView />
       <Link to="/">Back</Link>
     </div>
   );

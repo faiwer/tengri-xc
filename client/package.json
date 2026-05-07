@@ -12,6 +12,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,scss}\""
   },
   "dependencies": {
+    "@vis.gl/react-google-maps": "^1.8.3",
     "antd": "^6.3.7",
     "bincode-ts": "^1.0.0",
     "react": "npm:@faiwer/react@^19.0.4",
