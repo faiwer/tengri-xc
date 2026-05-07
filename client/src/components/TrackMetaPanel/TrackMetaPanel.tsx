@@ -39,6 +39,9 @@ export function TrackMetaPanel({
       <Cell label="Date">{formatDate(takeoff)}</Cell>
       <Cell label="Takeoff">{formatTime(takeoff)}</Cell>
       <Cell label="Landing">{formatTime(landed)}</Cell>
+      <Cell label="Duration">
+        {formatDuration(data.landed_at - data.takeoff_at)}
+      </Cell>
       <Cell label="Best climb">
         {peaks ? formatVario(peaks.peakClimb) : '—'}
       </Cell>
@@ -94,3 +97,24 @@ const formatVario = (mps: number): string => {
 
 const formatAltitude = (metres: number): string =>
   `${metres.toLocaleString()} m`;
+
+/**
+ * Formats a flight duration in seconds as `2h 29m` (or `47m` under an hour).
+ * Sub-minute precision is meaningless at the panel scale; truncate to the
+ * full minute. Non-positive inputs render as `—` rather than `0m`, since
+ * they only happen when the track's takeoff/landing aren't yet known.
+ */
+const formatDuration = (totalSeconds: number): string => {
+  if (totalSeconds <= 0) {
+    return '—';
+  }
+
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) {
+    return `${minutes}m`;
+  }
+
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+};
