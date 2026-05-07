@@ -17,6 +17,11 @@ pub fn router() -> Router<AppState> {
 struct TrackMd {
     id: String,
     pilot: Pilot,
+    /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we project it as
+    /// `bigint` epoch so the wire format stays numeric and the client can do
+    /// `new Date(seconds * 1000)` without parsing strings.
+    takeoff_at: i64,
+    landed_at: i64,
 }
 
 #[derive(Serialize)]
@@ -28,8 +33,10 @@ async fn get_track_md(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<TrackMd>, AppError> {
-    let row: Option<(String, String)> = sqlx::query_as(
-        "SELECT f.id, u.name \
+    let row: Option<(String, String, i64, i64)> = sqlx::query_as(
+        "SELECT f.id, u.name, \
+                EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
+                EXTRACT(EPOCH FROM f.landed_at)::bigint \
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
          WHERE f.id = $1",
@@ -39,12 +46,14 @@ async fn get_track_md(
     .await
     .map_err(anyhow::Error::from)?;
 
-    let Some((flight_id, pilot_name)) = row else {
+    let Some((flight_id, pilot_name, takeoff_at, landed_at)) = row else {
         return Err(AppError::NotFound);
     };
 
     Ok(Json(TrackMd {
         id: flight_id,
         pilot: Pilot { name: pilot_name },
+        takeoff_at,
+        landed_at,
     }))
 }

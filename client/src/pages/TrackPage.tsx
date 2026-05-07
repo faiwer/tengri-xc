@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
+import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { pathsBounds, trackToPaths } from '../track/toPaths';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
@@ -54,9 +55,8 @@ export function TrackPage() {
 
   return (
     <div className={styles.page}>
-      <h1>Track: {id}</h1>
       {state.status === 'loading' && <p>Loading…</p>}
-      {state.status === 'ok' && <p>Pilot: {state.data.pilot.name}</p>}
+      {state.status === 'ok' && <TrackMetaPanel data={state.data} />}
       {state.status === 'error' && <p>Error: {state.message}</p>}
       <MapView>
         {paths && <TrackPolyline paths={paths} />}

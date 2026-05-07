@@ -1,0 +1,36 @@
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #f7f7f8;
+  border: 1px solid #e3e3e7;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b6b73;
+}
+
+.value {
+  font-weight: 500;
+  color: #1a1a1f;
+}
+
+.id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: #1a1a1f;
+}

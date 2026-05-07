@@ -11,12 +11,18 @@ use tower::ServiceExt;
 const TEST_USER_ID: i32 = 1;
 const TEST_USER_NAME: &str = "Test Pilot";
 
+// Arbitrary fixed instants (2026-05-03 UTC). Picked so the assertion is
+// deterministic and doesn't drift with `now()`.
+const TAKEOFF_AT: i64 = 1_777_887_122; // 2026-05-03T10:52:02Z
+const LANDED_AT: i64 = 1_777_896_062; // 2026-05-03T13:21:02Z
+
 #[tokio::test]
 #[serial]
 async fn track_md_returns_id_and_pilot_name() {
     let (app, pool) = common::test_app().await;
     common::seed_user(&pool, TEST_USER_ID, TEST_USER_NAME).await;
-    let flight_id = common::seed_flight(&pool, "MDTEST00", TEST_USER_ID).await;
+    let flight_id =
+        common::seed_flight_at(&pool, "MDTEST00", TEST_USER_ID, TAKEOFF_AT, LANDED_AT).await;
 
     let resp = app
         .oneshot(common::get(format!("/tracks/{flight_id}/md")))
@@ -34,6 +40,8 @@ async fn track_md_returns_id_and_pilot_name() {
 
     assert_eq!(json["id"], flight_id.as_str());
     assert_eq!(json["pilot"]["name"], TEST_USER_NAME);
+    assert_eq!(json["takeoff_at"], TAKEOFF_AT);
+    assert_eq!(json["landed_at"], LANDED_AT);
 }
 
 #[tokio::test]

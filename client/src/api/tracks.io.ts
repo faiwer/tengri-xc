@@ -18,6 +18,9 @@ export const TrackMetadataIo = z.object({
   pilot: z.object({
     name: z.string(),
   }),
+  // Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`.
+  takeoff_at: z.number().int(),
+  landed_at: z.number().int(),
 });
 
 export type TrackMetadata = z.infer<typeof TrackMetadataIo>;
