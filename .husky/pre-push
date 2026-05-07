@@ -1,9 +1,15 @@
 #!/usr/bin/env sh
 set -e
 
-# Run the full Rust test suite before pushing. Skip with `git push --no-verify`
+# Run the full test suites before pushing. Skip with `git push --no-verify`
 # when intentionally pushing WIP branches.
+
 if [ -d server ]; then
   echo "Running cargo test on server/..."
   cargo test --manifest-path server/Cargo.toml --all-targets --quiet
+fi
+
+if [ -d client ]; then
+  echo "Running vitest on client/..."
+  npm --prefix client test --silent
 fi
