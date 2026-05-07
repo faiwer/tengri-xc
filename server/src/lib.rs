@@ -1,6 +1,7 @@
 pub mod config;
 pub mod error;
 pub mod flight;
+pub mod geo;
 pub mod routes;
 pub mod state;
 pub mod telemetry;
