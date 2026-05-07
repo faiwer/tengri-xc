@@ -4,9 +4,10 @@ import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
+import { altitudeRange } from '../track/altitudeRange';
 import { findIndexAt } from '../track/findIndexAt';
 import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
-import { computeVarioSegments } from '../track/varioSegments';
+import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
 
@@ -60,21 +61,32 @@ export function TrackPage() {
     };
   }, [track, state]);
 
-  const segments = useMemo(() => {
+  const insights = useMemo(() => {
     if (!track || !window) return undefined;
-    return computeVarioSegments(track, window.takeoffIdx, window.landedIdx + 1);
+    return computeVarioInsights(track, window.takeoffIdx, window.landedIdx + 1);
+  }, [track, window]);
+
+  const peaks: VarioPeaks | undefined = insights
+    ? { peakClimb: insights.peakClimb, peakSink: insights.peakSink }
+    : undefined;
+
+  const altitudes = useMemo(() => {
+    if (!track || !window) return undefined;
+    return altitudeRange(track, window.takeoffIdx, window.landedIdx + 1);
   }, [track, window]);
 
   const paths = useMemo(
-    () => (track ? trackToPaths(track, window, segments) : null),
-    [track, window, segments],
+    () => (track ? trackToPaths(track, window, insights?.segments) : null),
+    [track, window, insights],
   );
   const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
 
   return (
     <div className={styles.page}>
       {state.status === 'loading' && <p>Loading…</p>}
-      {state.status === 'ok' && <TrackMetaPanel data={state.data} />}
+      {state.status === 'ok' && (
+        <TrackMetaPanel data={state.data} peaks={peaks} altitudes={altitudes} />
+      )}
       {state.status === 'error' && <p>Error: {state.message}</p>}
       <MapView>
         {paths && <TrackPolyline paths={paths} />}
