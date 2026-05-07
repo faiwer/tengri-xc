@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "oxfmt \"src/**/*.{ts,tsx}\" && prettier --write \"src/**/*.scss\"",
-    "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\" && prettier --check \"src/**/*.scss\""
+    "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\" && prettier --check \"src/**/*.scss\"",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@vis.gl/react-google-maps": "^1.8.3",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260506.1",
     "@vitejs/plugin-react": "^6.0.1",
+    "patch-package": "^8.0.1",
     "prettier": "^3.8.3",
     "sass": "^1.99.0",
     "vite": "^8.0.10",
