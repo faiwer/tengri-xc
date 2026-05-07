@@ -7,19 +7,67 @@ export interface TrackPath {
 }
 
 /**
+ * Half-open `[from, to)` index range into a track. `to` may exceed `track.t`
+ * length without harm; the projector clamps. Used to slice a single track
+ * into colour-bucket runs (pre-flight / flight / post-flight, vario buckets,
+ * etc.) without re-projecting points.
+ */
+export interface TrackWindow {
+  /** First flying fix (inclusive). */
+  takeoffIdx: number;
+  /** First non-flying fix after the last flying fix (exclusive end of flight). */
+  landedIdx: number;
+}
+
+const COLOR_PRE_POST = '#9ca3af';
+
+/**
  * Project a `Track` into a list of polyline paths suitable for the map.
  *
- * Today: one run, the entire track. The shape is intentionally a *list* so
- * vario-coloured rendering can later split the same track into many runs of
- * same-bucket segments without changing the renderer.
+ * Without a `window`, the entire track is returned as a single run with the
+ * renderer's default colour. With a `window`, the track is sliced into up to
+ * three runs:
+ *
+ *   1. `[0..takeoffIdx]` — pre-flight (gray), if non-empty.
+ *   2. `[takeoffIdx..landedIdx]` — flight (default colour).
+ *   3. `[landedIdx..n]` — post-flight (gray), if non-empty.
+ *
+ * Adjacent runs share a boundary point so the polyline is visually continuous
+ * across the colour change.
  */
-export function trackToPaths(track: Track): TrackPath[] {
-  const n = track.t.length;
-  const points: google.maps.LatLngLiteral[] = new Array(n);
-  for (let i = 0; i < n; i++) {
-    points[i] = { lat: track.lat[i]! / 1e5, lng: track.lng[i]! / 1e5 };
+export function trackToPaths(track: Track, window?: TrackWindow): TrackPath[] {
+  const fixCount = track.t.length;
+  if (fixCount === 0) {
+    return [];
   }
-  return [{ points }];
+
+  if (!window) {
+    return [{ points: projectRange(track, 0, fixCount) }];
+  }
+
+  const takeoff = clamp(window.takeoffIdx, 0, fixCount);
+  const landed = clamp(window.landedIdx, takeoff, fixCount);
+  const paths: TrackPath[] = [];
+
+  if (takeoff > 0) {
+    paths.push({
+      color: COLOR_PRE_POST,
+      points: projectRange(track, 0, takeoff + 1),
+    });
+  }
+
+  if (landed > takeoff) {
+    paths.push({ points: projectRange(track, takeoff, landed + 1) });
+  }
+
+  if (landed < fixCount - 1) {
+    paths.push({
+      color: COLOR_PRE_POST,
+      points: projectRange(track, landed, fixCount),
+    });
+  }
+
+  return paths;
 }
 
 /**
@@ -48,3 +96,20 @@ export function pathsBounds(
   if (!any) return null;
   return { south: minLat, west: minLng, north: maxLat, east: maxLng };
 }
+
+const projectRange = (
+  track: Track,
+  from: number,
+  to: number,
+): google.maps.LatLngLiteral[] => {
+  const len = to - from;
+  const points: google.maps.LatLngLiteral[] = new Array(len);
+  for (let i = 0; i < len; i++) {
+    const j = from + i;
+    points[i] = { lat: track.lat[j]! / 1e5, lng: track.lng[j]! / 1e5 };
+  }
+  return points;
+};
+
+const clamp = (v: number, min: number, max: number): number =>
+  v < min ? min : v > max ? max : v;

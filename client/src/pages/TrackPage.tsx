@@ -4,7 +4,8 @@ import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
-import { pathsBounds, trackToPaths } from '../track/toPaths';
+import { findIndexAt } from '../track/findIndexAt';
+import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
 
@@ -50,7 +51,18 @@ export function TrackPage() {
     };
   }, [id]);
 
-  const paths = useMemo(() => (track ? trackToPaths(track) : null), [track]);
+  const window = useMemo<TrackWindow | undefined>(() => {
+    if (!track || state.status !== 'ok') return undefined;
+    return {
+      takeoffIdx: findIndexAt(track, state.data.takeoff_at),
+      landedIdx: findIndexAt(track, state.data.landed_at),
+    };
+  }, [track, state]);
+
+  const paths = useMemo(
+    () => (track ? trackToPaths(track, window) : null),
+    [track, window],
+  );
   const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
 
   return (
