@@ -1,0 +1,80 @@
+//! `tengri add` — ingest a flight log into the database under a given user.
+//!
+//! Single transaction:
+//! 1. `flights` — id (NanoID) and user link.
+//! 2. `flight_sources` — gzipped raw upload bytes (read-side gunzips them
+//!    in `upgrade-tracks` and any future re-encoder).
+//! 3. `flight_tracks` — kind = `full`, `bytes` is the HTTP wire form
+//!    `gzip(bincode(TengriFile))` so the route handler can stream the
+//!    column straight to the client without re-compressing.
+
+use std::path::PathBuf;
+
+use anyhow::Context;
+use tengri_server::flight::{Metadata, TengriFile, encode, etag_for, tengri::VERSION};
+
+use super::shared::{
+    connect_pool, detect_format, ensure_user_exists, gzip_bytes, nanoid_8, parse_format,
+};
+
+pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
+    let format = detect_format(&input)?;
+    let raw = std::fs::read(&input).with_context(|| format!("reading {}", input.display()))?;
+    let track = parse_format(format, &raw)?;
+    let n_points = track.points.len();
+
+    let compact = encode(&track).context("encoding compact track")?;
+    let envelope = TengriFile::new(Metadata::default(), compact);
+    let track_bytes = envelope
+        .to_http_bytes()
+        .context("encoding TengriFile to http bytes")?;
+    let etag = etag_for(&track_bytes);
+
+    let source_gz = gzip_bytes(&raw).context("gzipping source bytes")?;
+
+    let pool = connect_pool().await?;
+    ensure_user_exists(&pool, user_id).await?;
+
+    let flight_id = nanoid_8();
+    let mut tx = pool.begin().await.context("starting transaction")?;
+
+    sqlx::query("INSERT INTO flights (id, user_id) VALUES ($1, $2)")
+        .bind(&flight_id)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await
+        .context("inserting flights row")?;
+
+    sqlx::query(
+        "INSERT INTO flight_sources (flight_id, format, bytes) \
+         VALUES ($1, $2::flight_source_format, $3)",
+    )
+    .bind(&flight_id)
+    .bind(format.db_name())
+    .bind(&source_gz)
+    .execute(&mut *tx)
+    .await
+    .context("inserting flight_sources row")?;
+
+    sqlx::query(
+        "INSERT INTO flight_tracks (flight_id, kind, version, etag, bytes) \
+         VALUES ($1, 'full', $2, $3, $4)",
+    )
+    .bind(&flight_id)
+    .bind(VERSION as i16)
+    .bind(&etag)
+    .bind(&track_bytes)
+    .execute(&mut *tx)
+    .await
+    .context("inserting flight_tracks row")?;
+
+    tx.commit().await.context("committing transaction")?;
+
+    println!(
+        "added flight {flight_id} (user {user_id}, {n_points} points, \
+         source {} bytes gz, track {} bytes, etag {etag})",
+        source_gz.len(),
+        track_bytes.len(),
+    );
+    Ok(())
+}
