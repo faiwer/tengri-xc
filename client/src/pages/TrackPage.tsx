@@ -6,6 +6,7 @@ import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { findIndexAt } from '../track/findIndexAt';
 import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
+import { computeVarioSegments } from '../track/varioSegments';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
 
@@ -59,9 +60,14 @@ export function TrackPage() {
     };
   }, [track, state]);
 
+  const segments = useMemo(() => {
+    if (!track || !window) return undefined;
+    return computeVarioSegments(track, window.takeoffIdx, window.landedIdx + 1);
+  }, [track, window]);
+
   const paths = useMemo(
-    () => (track ? trackToPaths(track, window) : null),
-    [track, window],
+    () => (track ? trackToPaths(track, window, segments) : null),
+    [track, window, segments],
   );
   const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
 
