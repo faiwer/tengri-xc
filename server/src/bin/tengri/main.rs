@@ -8,6 +8,7 @@
 //!   source goes into `flight_sources`; the encoded `.tengri` HTTP wire form
 //!   goes into `flight_tracks` (kind = `full`).
 //! - `delete` — remove a flight by id (cascades to its track + source rows).
+//! - `migrate` — apply outstanding SQL migrations to the configured DB.
 //! - `upgrade-tracks` — re-encode every `flight_tracks` row whose `version`
 //!   lags behind the current build, sourcing the original bytes from
 //!   `flight_sources`.
@@ -19,6 +20,7 @@ mod add;
 mod convert;
 mod delete;
 mod inspect;
+mod migrate;
 mod shared;
 mod upgrade;
 
@@ -74,6 +76,12 @@ enum Cmd {
         flight_id: String,
     },
 
+    /// Apply outstanding SQL migrations from `server/migrations/`. The
+    /// HTTP server also does this on startup; this subcommand is for
+    /// when you want to migrate without booting the server (e.g. after
+    /// a manual schema reset).
+    Migrate,
+
     /// Re-encode every `flight_tracks` row whose `version` lags behind the
     /// current build. The fresh bytes are derived from the matching
     /// `flight_sources` row (we can't re-decode the stale blob — the wire
@@ -98,6 +106,7 @@ fn run() -> anyhow::Result<()> {
         Cmd::Inspect { input } => inspect::run(input),
         Cmd::Add { input, user_id } => run_async(add::run(input, user_id)),
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
+        Cmd::Migrate => run_async(migrate::run()),
         Cmd::UpgradeTracks { dry_run } => run_async(upgrade::run(dry_run)),
     }
 }
