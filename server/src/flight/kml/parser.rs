@@ -30,9 +30,9 @@
 //! is also GPS-derived. We always set `geo_alt` and leave
 //! `pressure_alt = None`. TAS is never present in KML and is always None.
 
-use chrono::{DateTime, Utc};
 use roxmltree::{Document, Node};
 
+use crate::flight::geo_text::{deg_to_e5, m_to_dm, parse_iso8601_u32};
 use crate::flight::types::{Track, TrackPoint};
 
 use super::error::KmlError;
@@ -300,41 +300,17 @@ fn triple_to_e5(
             reason: format!("non-finite value(s) in {lon:?},{lat:?},{alt:?}"),
         });
     }
-    Ok((
-        deg_to_e5(lon_deg),
-        deg_to_e5(lat_deg),
-        (alt_m * 10.0).round() as i32,
-    ))
-}
-
-/// Decimal degrees → E5 micro-degrees, rounded half-away-from-zero.
-fn deg_to_e5(deg: f64) -> i32 {
-    let scaled = deg * 100_000.0;
-    if scaled >= 0.0 {
-        (scaled + 0.5).floor() as i32
-    } else {
-        (scaled - 0.5).ceil() as i32
-    }
+    Ok((deg_to_e5(lon_deg), deg_to_e5(lat_deg), m_to_dm(alt_m)))
 }
 
 fn parse_iso8601_z(s: &str, index: usize) -> Result<u32, KmlError> {
-    let dt = DateTime::parse_from_rfc3339(s).map_err(|e| KmlError::BadTime {
-        index,
-        reason: format!("expected RFC 3339 / ISO 8601 timestamp, got {s:?}: {e}"),
-    })?;
-    let secs = dt.with_timezone(&Utc).timestamp();
-    if !(0..=u32::MAX as i64).contains(&secs) {
-        return Err(KmlError::BadTime {
-            index,
-            reason: format!("timestamp {s:?} is outside the u32-epoch range"),
-        });
-    }
-    Ok(secs as u32)
+    parse_iso8601_u32(s).map_err(|reason| KmlError::BadTime { index, reason })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::DateTime;
 
     #[test]
     fn rejects_empty() {
@@ -484,16 +460,6 @@ mod tests {
   <gx:Track></gx:Track>
 </kml>"#;
         assert!(matches!(parse_str(input), Err(KmlError::NoFixes)));
-    }
-
-    #[test]
-    fn coordinate_rounding_is_correct() {
-        // 13.166333 × 1e5 = 1316633.3 → 1316633 (round half-up of .3 is .0)
-        assert_eq!(deg_to_e5(13.166333), 1_316_633);
-        // -0.000005 → -1 (half-away-from-zero rounding)
-        assert_eq!(deg_to_e5(-0.000005), -1);
-        // 0 → 0
-        assert_eq!(deg_to_e5(0.0), 0);
     }
 
     #[test]

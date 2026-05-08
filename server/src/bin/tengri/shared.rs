@@ -7,7 +7,7 @@ use anyhow::{Context, anyhow};
 use flate2::{Compression, write::GzEncoder};
 use rand::Rng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tengri_server::flight::{Track, igc, kml};
+use tengri_server::flight::{Track, gpx, igc, kml};
 
 /// Recognised input format. Wraps file-extension dispatch so the
 /// matching `flight_source_format` enum value and the parser stay in
@@ -16,6 +16,7 @@ use tengri_server::flight::{Track, igc, kml};
 pub enum InputFormat {
     Igc,
     Kml,
+    Gpx,
 }
 
 impl InputFormat {
@@ -23,6 +24,7 @@ impl InputFormat {
         match self {
             InputFormat::Igc => "igc",
             InputFormat::Kml => "kml",
+            InputFormat::Gpx => "gpx",
         }
     }
 }
@@ -35,6 +37,7 @@ pub fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
     match ext.as_deref() {
         Some("igc") => Ok(InputFormat::Igc),
         Some("kml") => Ok(InputFormat::Kml),
+        Some("gpx") => Ok(InputFormat::Gpx),
         Some(other) => Err(anyhow!("unsupported input format: .{other}")),
         None => Err(anyhow!(
             "input has no extension; cannot detect format: {}",
@@ -50,6 +53,7 @@ pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> 
             igc::parse_str(&raw).context("parsing IGC")
         }
         InputFormat::Kml => kml::parse_bytes(bytes).context("parsing KML"),
+        InputFormat::Gpx => gpx::parse_bytes(bytes).context("parsing GPX"),
     }
 }
 

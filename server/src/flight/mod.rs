@@ -1,5 +1,7 @@
 pub mod compact;
 pub mod etag;
+pub(crate) mod geo_text;
+pub mod gpx;
 pub mod igc;
 pub mod kml;
 pub mod metadata;
@@ -9,6 +11,7 @@ pub mod window;
 
 pub use compact::{CompactError, CompactTrack, decode, encode};
 pub use etag::etag_for;
+pub use gpx::GpxError;
 pub use igc::IgcError;
 pub use kml::KmlError;
 pub use metadata::Metadata;

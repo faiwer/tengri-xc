@@ -10,7 +10,7 @@ use anyhow::{Context, anyhow};
 use flate2::read::GzDecoder;
 use sqlx::{PgPool, Row};
 use tengri_server::flight::{
-    Metadata, TengriFile, Track, encode, etag_for, igc, kml, tengri::VERSION,
+    Metadata, TengriFile, Track, encode, etag_for, gpx, igc, kml, tengri::VERSION,
 };
 
 use super::shared::connect_pool;
@@ -148,6 +148,7 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
             igc::parse_str(&text).context("parsing IGC")?
         }
         "kml" => kml::parse_bytes(&raw).context("parsing KML")?,
+        "gpx" => gpx::parse_bytes(&raw).context("parsing GPX")?,
         _ => return Ok(Outcome::SkippedFormat(format)),
     };
     let compact = encode(&track).context("encoding compact track")?;
