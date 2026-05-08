@@ -144,8 +144,8 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
     let raw = gunzip(&gz_bytes).context("gunzipping source bytes")?;
     let track: Track = match format.as_str() {
         "igc" => {
-            let text = std::str::from_utf8(&raw).context("IGC must be UTF-8 (ASCII)")?;
-            igc::parse_str(text).context("parsing IGC")?
+            let text = igc::decode_text(&raw);
+            igc::parse_str(&text).context("parsing IGC")?
         }
         "kml" => kml::parse_bytes(&raw).context("parsing KML")?,
         _ => return Ok(Outcome::SkippedFormat(format)),

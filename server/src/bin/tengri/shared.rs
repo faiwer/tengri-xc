@@ -46,8 +46,8 @@ pub fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
 pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> {
     match format {
         InputFormat::Igc => {
-            let raw = std::str::from_utf8(bytes).context("IGC must be UTF-8 (ASCII)")?;
-            igc::parse_str(raw).context("parsing IGC")
+            let raw = igc::decode_text(bytes);
+            igc::parse_str(&raw).context("parsing IGC")
         }
         InputFormat::Kml => kml::parse_bytes(bytes).context("parsing KML"),
     }
