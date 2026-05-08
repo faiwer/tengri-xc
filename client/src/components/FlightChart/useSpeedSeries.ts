@@ -26,6 +26,23 @@ const SPEED_CHART_TARGET_POINTS = 1500;
  */
 const AIRSPEED_SMOOTHING_HALF_SECONDS = 30;
 
+/**
+ * Index pad applied around the flight window before running the speed
+ * computations and the ±30 s {@link movingAverage}, then trimmed off
+ * before bucketing. Sized to cover both smoothing windows at typical
+ * IGC sampling rates (1 Hz on most loggers, 2 Hz on Flymasters; 60
+ * indices is a comfortable margin at either rate).
+ *
+ * Without the pad the takeoff/landing samples would land at the very
+ * edge of the compute arrays and have their windows clamped to
+ * half-width, lifting the boundary samples slightly. With the pad they
+ * see the same neighbour fixes the interior samples do; the recorder's
+ * pre-takeoff / post-landing tail (which can be hours of driving home
+ * on some tracks) still doesn't enter the result because the pad caps
+ * how far we look.
+ */
+const FLIGHT_SLICE_PAD_FIXES = 60;
+
 export interface SpeedSeries {
   /**
    * uPlot-shaped series data. Slot 0 is epoch seconds (mean-bucketed
@@ -60,59 +77,75 @@ export interface SpeedSeries {
  * instrument's calibration.
  */
 export const useSpeedSeries = (
-  track: Track,
+  rawTrack: Track,
   window: TrackWindow,
 ): SpeedSeries => {
   return useMemo((): SpeedSeries => {
     const fromIdx = window.takeoffIdx;
     const toIdx = window.landedIdx + 1;
 
-    // `Float32Array.prototype.slice` produces a fresh, contiguous copy,
-    // which `bucketMean` needs (it does no slicing of its own).
-    // `subarray` would share the underlying buffer with the full-track
-    // result and force the consumer to reason about offsets.
-    const gs = computeGroundSpeed(track).slice(fromIdx, toIdx);
-    const path = computePathSpeed(track).slice(fromIdx, toIdx);
-    const xs = track.t.slice(fromIdx, toIdx);
+    const padFrom = Math.max(0, fromIdx - FLIGHT_SLICE_PAD_FIXES);
+    const padTo = Math.min(rawTrack.t.length, toIdx + FLIGHT_SLICE_PAD_FIXES);
+    const track = sliceTrack(rawTrack, padFrom, padTo);
+    const flightStart = fromIdx - padFrom;
+    const flightEnd = flightStart + (toIdx - fromIdx);
 
-    const gsBucketed = bucketMean(xs, gs, SPEED_CHART_TARGET_POINTS);
-    const pathSmoothed = movingAverage(
-      xs,
-      path,
+    const paddedXs = track.t;
+    const xs = paddedXs.slice(flightStart, flightEnd);
+
+    const gs = computeGroundSpeed(track).slice(flightStart, flightEnd);
+    const pathPadded = computePathSpeed(track);
+    const pathSmoothedPadded = movingAverage(
+      paddedXs,
+      pathPadded,
       AIRSPEED_SMOOTHING_HALF_SECONDS,
     );
-    const pathBucketed = bucketMean(
-      xs,
-      pathSmoothed,
-      SPEED_CHART_TARGET_POINTS,
-    );
+    const path = pathSmoothedPadded.slice(flightStart, flightEnd);
+
+    const gsBucketed = bucketMean(xs, gs, SPEED_CHART_TARGET_POINTS);
+    const pathBucketed = bucketMean(xs, path, SPEED_CHART_TARGET_POINTS);
 
     if (!track.tas) {
       return { data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys] };
     }
 
-    const tas = sliceTas(track, fromIdx, toIdx);
-    const tasSmoothed = movingAverage(xs, tas, AIRSPEED_SMOOTHING_HALF_SECONDS);
-    const tasBucketed = bucketMean(xs, tasSmoothed, SPEED_CHART_TARGET_POINTS);
+    const tasPadded = tasAsFloat32(track.tas);
+    const tasSmoothedPadded = movingAverage(
+      paddedXs,
+      tasPadded,
+      AIRSPEED_SMOOTHING_HALF_SECONDS,
+    );
+    const tas = tasSmoothedPadded.slice(flightStart, flightEnd);
+    const tasBucketed = bucketMean(xs, tas, SPEED_CHART_TARGET_POINTS);
 
     return {
       data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys, tasBucketed.ys],
     };
-  }, [track, window]);
+  }, [rawTrack, window]);
 };
 
-const sliceTas = (
-  track: Track,
-  fromIdx: number,
-  toIdx: number,
-): Float32Array => {
+/**
+ * SoA slice that mirrors {@link Track}'s structure. Used to produce a
+ * padded flight-window view of the track that `computeGroundSpeed` and
+ * `computePathSpeed` can consume directly. Nullable channels stay
+ * nullable; `startTime` is shifted to the new index 0.
+ */
+const sliceTrack = (track: Track, from: number, to: number): Track => ({
+  startTime: track.t[from] ?? track.startTime,
+  t: track.t.slice(from, to),
+  lat: track.lat.slice(from, to),
+  lng: track.lng.slice(from, to),
+  alt: track.alt.slice(from, to),
+  baroAlt: track.baroAlt ? track.baroAlt.slice(from, to) : null,
+  tas: track.tas ? track.tas.slice(from, to) : null,
+});
+
+const tasAsFloat32 = (tas: Uint16Array): Float32Array => {
   // uPlot wants homogeneous numeric arrays; convert the integer TAS
   // channel to f32 to match the GPS / Path series.
-  const length = toIdx - fromIdx;
-  const out = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    out[i] = track.tas![fromIdx + i]!;
+  const out = new Float32Array(tas.length);
+  for (let i = 0; i < tas.length; i++) {
+    out[i] = tas[i]!;
   }
-
   return out;
 };
