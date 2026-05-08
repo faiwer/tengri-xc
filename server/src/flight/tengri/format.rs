@@ -14,7 +14,7 @@ pub const MAGIC: [u8; 4] = *b"TNGR";
 /// Current container version. Bump on any breaking change to either the
 /// header layout, the compression scheme, or any nested `serde` shape
 /// (notably [`Metadata`] or [`CompactTrack`]).
-pub const VERSION: u16 = 3;
+pub const VERSION: u16 = 4;
 
 /// gzip level used for the body. Best gives ~37% extra reduction on
 /// delta-encoded payloads vs `default`, at negligible cost for the small

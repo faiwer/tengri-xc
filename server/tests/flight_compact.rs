@@ -4,7 +4,7 @@
 //! precision. Pipeline tests (IGC text → Track → CompactTrack → Track) live
 //! in dedicated per-format files (e.g. `flight_igc.rs`).
 
-use tengri_server::flight::compact::{CompactTrack, TrackBody};
+use tengri_server::flight::compact::{CompactTrack, TasBody, TrackBody};
 use tengri_server::flight::{Track, TrackPoint, decode, encode};
 
 fn pt(time: u32, lat: i32, lon: i32, geo_alt: i32, pressure_alt: Option<i32>) -> TrackPoint {
@@ -14,6 +14,25 @@ fn pt(time: u32, lat: i32, lon: i32, geo_alt: i32, pressure_alt: Option<i32>) ->
         lon,
         geo_alt,
         pressure_alt,
+        tas: None,
+    }
+}
+
+fn pt_tas(
+    time: u32,
+    lat: i32,
+    lon: i32,
+    geo_alt: i32,
+    pressure_alt: Option<i32>,
+    tas: u16,
+) -> TrackPoint {
+    TrackPoint {
+        time,
+        lat,
+        lon,
+        geo_alt,
+        pressure_alt,
+        tas: Some(tas),
     }
 }
 
@@ -268,6 +287,86 @@ fn round_trip_preserves_dual_track_with_all_encoder_branches() {
     let bytes = bincode::serde::encode_to_vec(&compact, cfg).unwrap();
     let (back, _): (CompactTrack, _) = bincode::serde::decode_from_slice(&bytes, cfg).unwrap();
     assert_eq!(decode(&back).unwrap(), track, "bincode round-trip lossless");
+}
+
+#[test]
+fn rejects_inconsistent_tas() {
+    let track = Track {
+        start_time: 0,
+        points: vec![
+            pt_tas(0, 0, 0, 0, None, 50),
+            pt(1, 1, 1, 1, None), // missing tas in the middle
+        ],
+    };
+    assert!(encode(&track).is_err());
+}
+
+#[test]
+fn tas_round_trip_simple() {
+    // Five 1 Hz points, all with TAS in the small-delta range. Should
+    // produce one TAS fix at idx=0 plus four i8 deltas.
+    let points = vec![
+        pt_tas(0, 0, 0, 0, None, 50),
+        pt_tas(1, 1, 1, 1, None, 53),
+        pt_tas(2, 2, 2, 2, None, 51),
+        pt_tas(3, 3, 3, 3, None, 49),
+        pt_tas(4, 4, 4, 4, None, 52),
+    ];
+    let track = Track {
+        start_time: 0,
+        points,
+    };
+    let compact = encode(&track).unwrap();
+    match &compact.tas {
+        TasBody::Tas { fixes, deltas } => {
+            assert_eq!(fixes.len(), 1, "only initial TAS fix");
+            assert_eq!(fixes[0].idx, 0);
+            assert_eq!(fixes[0].tas, 50);
+            assert_eq!(deltas.len(), 4);
+            assert_eq!(deltas, &[3, -2, -2, 3]);
+        }
+        TasBody::None => panic!("expected TasBody::Tas"),
+    }
+    let decoded = decode(&compact).unwrap();
+    assert_eq!(decoded, track, "TAS round-trip is lossless");
+}
+
+#[test]
+fn tas_jump_emits_extra_fix() {
+    // 200 km/h delta exceeds i8 — must produce an absolute override.
+    let points = vec![
+        pt_tas(0, 0, 0, 0, None, 50),
+        pt_tas(1, 1, 1, 1, None, 51),
+        pt_tas(2, 2, 2, 2, None, 280), // delta = +229 > i8::MAX
+        pt_tas(3, 3, 3, 3, None, 281),
+    ];
+    let track = Track {
+        start_time: 0,
+        points,
+    };
+    let compact = encode(&track).unwrap();
+    match &compact.tas {
+        TasBody::Tas { fixes, .. } => {
+            assert_eq!(fixes.len(), 2, "initial + overflow override");
+            assert_eq!(fixes[1].idx, 2);
+            assert_eq!(fixes[1].tas, 280);
+        }
+        TasBody::None => panic!("expected TasBody::Tas"),
+    }
+    assert_eq!(decode(&compact).unwrap(), track);
+}
+
+#[test]
+fn no_tas_yields_tas_body_none() {
+    let points = vec![pt(0, 0, 0, 0, None), pt(1, 1, 1, 1, None)];
+    let track = Track {
+        start_time: 0,
+        points,
+    };
+    let compact = encode(&track).unwrap();
+    assert!(matches!(compact.tas, TasBody::None));
+    let decoded = decode(&compact).unwrap();
+    assert!(decoded.points.iter().all(|p| p.tas.is_none()));
 }
 
 #[test]

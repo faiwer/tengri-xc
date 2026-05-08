@@ -15,4 +15,6 @@ pub use decode::decode;
 pub use encode::encode;
 pub use error::CompactError;
 pub use hash::compute as compute_hash;
-pub use types::{CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TimeFix, TrackBody};
+pub use types::{
+    CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TasBody, TasFix, TimeFix, TrackBody,
+};

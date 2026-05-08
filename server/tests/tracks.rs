@@ -28,6 +28,7 @@ fn sample_http_bytes() -> Vec<u8> {
                 lon: 1_314_815,
                 geo_alt: 17_350,
                 pressure_alt: Some(16_640),
+                tas: None,
             },
             TrackPoint {
                 time: 1_700_000_001,
@@ -35,6 +36,7 @@ fn sample_http_bytes() -> Vec<u8> {
                 lon: 1_314_817,
                 geo_alt: 17_355,
                 pressure_alt: Some(16_645),
+                tas: None,
             },
         ],
     };

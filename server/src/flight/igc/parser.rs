@@ -1,5 +1,6 @@
-//! Minimal IGC parser. Reads B-records and (optionally) the HFDTE date
-//! header. Everything else (other H-records, L/I/J/E/F/K records, the
+//! Minimal IGC parser. Reads B-records, the HFDTE date header, and the
+//! I-record (only the `TAS` extension is decoded; other extensions are
+//! ignored). Everything else (other H-records, L/J/E/F/K records, the
 //! G-record signature) is silently skipped — that data lives in the
 //! separate metadata table or is irrelevant to the geometry.
 //!
@@ -19,6 +20,21 @@
 //! which is still a monotonic `u32` suitable for the rest of the pipeline.
 //! Midnight rollover is detected by a non-monotone HHMMSS and bumps an
 //! internal day counter.
+//!
+//! # TAS (true airspeed)
+//!
+//! IGC declares per-fix extensions in an `I` record:
+//! `I NN [start end mnemonic]…`. The `start..end` range is 1-indexed and
+//! inclusive, pointing at bytes appended to every B-record after the
+//! 35-byte fixed prefix. The `TAS` mnemonic conventionally encodes
+//! integer km/h.
+//!
+//! Policy: if `I…TAS` is declared *and* every B-record's TAS field
+//! parses cleanly as a number, we attach a `Some(u16)` on every
+//! `TrackPoint`. Any failure (no I-record, no `TAS` mnemonic, malformed
+//! field, B-record too short for the declared range) drops TAS for the
+//! whole track — `pressure_alt`-style all-or-nothing invariant, which
+//! the encoder downstream depends on.
 
 use crate::flight::types::{Track, TrackPoint};
 
@@ -34,6 +50,13 @@ pub fn parse_str(input: &str) -> Result<Track, IgcError> {
     let mut date_unix_days: Option<u32> = None;
     let mut time_acc = TimeAccumulator::default();
     let mut points: Vec<TrackPoint> = Vec::new();
+    let mut tas_range: Option<TasRange> = None;
+    // Parallel to `points`. We accumulate per-record optional values
+    // here rather than writing straight into TrackPoint.tas because the
+    // all-or-nothing invariant is only decidable after the full file
+    // has been read: any malformed/missing value invalidates the whole
+    // channel.
+    let mut tas_values: Vec<Option<u16>> = Vec::new();
 
     for (line_idx, line) in input.lines().enumerate() {
         let lineno = line_idx + 1;
@@ -48,13 +71,30 @@ pub fn parse_str(input: &str) -> Result<Track, IgcError> {
             continue;
         }
 
-        if line.starts_with('B') {
-            let point = parse_b_record(line, lineno, &mut time_acc, date_unix_days)?;
-            points.push(point);
+        if line.starts_with('I') {
+            // We only act on the *first* I-record we see — IGC files in
+            // the wild rarely have more than one, and the spec doesn't
+            // formally allow multiple. Errors here demote to "no TAS"
+            // rather than failing the whole parse.
+            if tas_range.is_none() {
+                tas_range = parse_i_record_for_tas(line);
+            }
             continue;
         }
 
-        // Other record types (H other than HFDTE, I, J, L, E, F, K, G) are
+        if line.starts_with('B') {
+            let point = parse_b_record(line, lineno, &mut time_acc, date_unix_days)?;
+            // Only attempt TAS extraction once we know the I-record
+            // declared it. If the B-record is shorter than the declared
+            // range or the bytes don't parse, store None — the channel
+            // is dropped wholesale below.
+            let tas = tas_range.as_ref().and_then(|r| extract_tas(line, r));
+            points.push(point);
+            tas_values.push(tas);
+            continue;
+        }
+
+        // Other record types (H other than HFDTE, J, L, E, F, K, G) are
         // silently skipped: their data lives in the metadata pipeline.
     }
 
@@ -62,9 +102,89 @@ pub fn parse_str(input: &str) -> Result<Track, IgcError> {
         return Err(IgcError::NoFixes);
     }
     demote_zero_pressure(&mut points);
+    attach_tas(&mut points, &tas_range, &tas_values);
 
     let start_time = points[0].time;
     Ok(Track { start_time, points })
+}
+
+/// Byte range (1-indexed, inclusive both ends) where the TAS extension
+/// lives on every B-record, as declared by an I-record.
+#[derive(Debug, Clone, Copy)]
+struct TasRange {
+    /// 1-based inclusive start byte (per IGC spec).
+    start: usize,
+    /// 1-based inclusive end byte (per IGC spec).
+    end: usize,
+}
+
+/// Decode an I-record into a `TasRange` if it declares the `TAS`
+/// mnemonic. Returns `None` for malformed I-records or absence of TAS;
+/// these cases are not parse errors — they simply mean "no TAS in
+/// this file".
+///
+/// I-record grammar:
+/// `I NN [SS EE MMM]+`  where `NN` is the count of extensions (2
+/// digits, decimal), and each extension is `SS` start byte (2 digits),
+/// `EE` end byte (2 digits), `MMM` 3-letter mnemonic.
+fn parse_i_record_for_tas(line: &str) -> Option<TasRange> {
+    let bytes = line.as_bytes();
+    if bytes.len() < 3 {
+        return None;
+    }
+    let count: usize = std::str::from_utf8(&bytes[1..3]).ok()?.parse().ok()?;
+    // Each extension entry is 7 ASCII chars: 2 + 2 + 3.
+    let entry_size = 7;
+    let body = &bytes[3..];
+    if body.len() < count * entry_size {
+        return None;
+    }
+    for i in 0..count {
+        let off = i * entry_size;
+        let start: usize = std::str::from_utf8(&body[off..off + 2])
+            .ok()?
+            .parse()
+            .ok()?;
+        let end: usize = std::str::from_utf8(&body[off + 2..off + 4])
+            .ok()?
+            .parse()
+            .ok()?;
+        let mnemonic = &body[off + 4..off + 7];
+        if mnemonic == b"TAS" && start >= 1 && end >= start {
+            return Some(TasRange { start, end });
+        }
+    }
+    None
+}
+
+/// Pull the TAS field out of a B-record. Returns `None` when the line
+/// is shorter than the declared range or the bytes aren't ASCII digits.
+fn extract_tas(line: &str, range: &TasRange) -> Option<u16> {
+    let bytes = line.as_bytes();
+    // 1-indexed, inclusive — convert to a [start_idx, end_idx) slice.
+    let start = range.start.saturating_sub(1);
+    let end = range.end;
+    if end > bytes.len() || start >= end {
+        return None;
+    }
+    let slice = std::str::from_utf8(&bytes[start..end]).ok()?;
+    slice.trim().parse::<u16>().ok()
+}
+
+/// Attach TAS to each point if we collected a clean Some value for
+/// every B-record. Otherwise drop the channel — TrackPoint.tas stays
+/// None on every point, matching the type-level all-or-nothing
+/// invariant.
+fn attach_tas(points: &mut [TrackPoint], range: &Option<TasRange>, values: &[Option<u16>]) {
+    if range.is_none() || values.len() != points.len() {
+        return;
+    }
+    if values.iter().any(Option::is_none) {
+        return;
+    }
+    for (p, v) in points.iter_mut().zip(values.iter()) {
+        p.tas = *v;
+    }
 }
 
 /// Parse the date portion of an HFDTE record. Recorders use either the
@@ -113,6 +233,7 @@ fn parse_b_record(
         lon,
         geo_alt: geo_alt_m * 10,
         pressure_alt: Some(pressure_alt_m * 10),
+        tas: None,
     })
 }
 
@@ -352,5 +473,75 @@ B1052034646349N01308989EA0000001734
     fn date_to_unix_days_is_correct() {
         // 2026-05-03  →  20_576 days since 1970-01-01.
         assert_eq!(date_to_unix_days(2026, 5, 3, 0).unwrap(), 20_576);
+    }
+
+    /// Full I-record + B-records with TAS bytes appended → tas attached
+    /// on every TrackPoint. Compeo+ shape:
+    /// `I013638TAS` declares one extension at bytes 36..=38 = 3 ASCII
+    /// digits of TAS in km/h, appended directly after the 35-byte
+    /// B-record body.
+    #[test]
+    fn parses_tas_extension_from_i_record() {
+        let input = "\
+HFDTEDATE:030526,01
+I013638TAS
+B1052024646349N01308989EA0166401735052
+B1052034646349N01308989EA0166301734054
+";
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2);
+        assert_eq!(t.points[0].tas, Some(52));
+        assert_eq!(t.points[1].tas, Some(54));
+    }
+
+    /// No I-record at all → tas is None on every point.
+    #[test]
+    fn no_i_record_yields_no_tas() {
+        let input = "\
+HFDTEDATE:030526,01
+B1052024646349N01308989EA0166401735
+B1052034646349N01308989EA0166301734
+";
+        let t = parse_str(input).expect("parse");
+        assert!(t.points.iter().all(|p| p.tas.is_none()));
+    }
+
+    /// I-record declares TAS but a B-record is too short — channel
+    /// drops wholesale per the all-or-nothing invariant.
+    #[test]
+    fn truncated_b_record_drops_tas_channel() {
+        let input = "\
+HFDTEDATE:030526,01
+I013638TAS
+B1052024646349N01308989EA0166401735052
+B1052034646349N01308989EA0166301734
+";
+        let t = parse_str(input).expect("parse");
+        assert!(t.points.iter().all(|p| p.tas.is_none()));
+    }
+
+    /// I-record with a non-TAS extension only — no TAS attached.
+    #[test]
+    fn i_record_without_tas_mnemonic() {
+        let input = "\
+HFDTEDATE:030526,01
+I013638ENL
+B1052024646349N01308989EA0166401735100
+B1052034646349N01308989EA0166301734100
+";
+        let t = parse_str(input).expect("parse");
+        assert!(t.points.iter().all(|p| p.tas.is_none()));
+    }
+
+    /// I-record extension count of 0 — no TAS attached.
+    #[test]
+    fn empty_i_record() {
+        let input = "\
+HFDTEDATE:030526,01
+I00
+B1052024646349N01308989EA0166401735
+";
+        let t = parse_str(input).expect("parse");
+        assert!(t.points.iter().all(|p| p.tas.is_none()));
     }
 }

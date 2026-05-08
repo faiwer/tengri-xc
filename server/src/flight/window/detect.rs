@@ -182,6 +182,7 @@ mod tests {
                 lon: (lon * 1e5).round() as i32,
                 geo_alt: 0,
                 pressure_alt: None,
+                tas: None,
             })
             .collect();
         let start_time = points.first().map(|p| p.time).unwrap_or(0);

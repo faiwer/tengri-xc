@@ -8,6 +8,9 @@ pub enum CompactError {
     #[error("inconsistent altitude columns: some points carry pressure altitude, others do not")]
     InconsistentPressureAlt,
 
+    #[error("inconsistent TAS column: some points carry TAS, others do not")]
+    InconsistentTas,
+
     #[error("compact track is malformed: missing initial fix at idx=0")]
     MissingInitialFix,
 

@@ -3,7 +3,10 @@
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use anyhow::Context;
-use tengri_server::flight::{TengriFile, compact::TrackBody};
+use tengri_server::flight::{
+    TengriFile,
+    compact::{TasBody, TrackBody},
+};
 
 pub fn run(input: PathBuf) -> anyhow::Result<()> {
     let f = File::open(&input).with_context(|| format!("opening {}", input.display()))?;
@@ -19,10 +22,18 @@ pub fn run(input: PathBuf) -> anyhow::Result<()> {
         }
     };
 
+    let tas = match &envelope.track.tas {
+        TasBody::None => String::from("None"),
+        TasBody::Tas { fixes, deltas } => {
+            format!("Tas  {} fixes, {} deltas", fixes.len(), deltas.len())
+        }
+    };
+
     println!("file        {}", input.display());
     println!("start_time  {}", envelope.track.start_time);
     println!("interval    {} s", envelope.track.interval);
     println!("body        {body}");
     println!("time_fixes  {}", envelope.track.time_fixes.len());
+    println!("tas         {tas}");
     Ok(())
 }

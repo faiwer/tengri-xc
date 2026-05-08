@@ -12,7 +12,9 @@
 use crate::flight::types::{Track, TrackPoint};
 
 use super::error::CompactError;
-use super::types::{CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TimeFix, TrackBody};
+use super::types::{
+    CompactTrack, CoordDual, CoordGps, FixDual, FixGps, TasBody, TimeFix, TrackBody,
+};
 
 pub fn decode(compact: &CompactTrack) -> Result<Track, CompactError> {
     validate(compact)?;
@@ -54,9 +56,60 @@ pub fn decode(compact: &CompactTrack) -> Result<Track, CompactError> {
         }
     }
 
+    apply_tas(&mut points, &compact.tas)?;
+
     let start_time = compact.start_time;
 
     Ok(Track { start_time, points })
+}
+
+/// Walk `TasBody` in lockstep with `points`, stamping `tas: Some(u16)`
+/// on each. `TasBody::None` is a no-op (every `TrackPoint.tas` already
+/// defaults to `None` from the position decoder loops above).
+fn apply_tas(points: &mut [TrackPoint], tas: &TasBody) -> Result<(), CompactError> {
+    let TasBody::Tas { fixes, deltas } = tas else {
+        return Ok(());
+    };
+    if fixes.len() + deltas.len() != points.len() {
+        return Err(CompactError::IndexOutOfRange {
+            idx: (fixes.len() + deltas.len()) as u32,
+            len: points.len() as u32,
+        });
+    }
+    if fixes.is_empty() || fixes[0].idx != 0 {
+        return Err(CompactError::MissingInitialFix);
+    }
+    for w in fixes.windows(2) {
+        if w[1].idx <= w[0].idx {
+            return Err(CompactError::UnorderedFixes {
+                prev: w[0].idx,
+                next: w[1].idx,
+            });
+        }
+    }
+
+    let mut state: u16 = fixes[0].tas;
+    let mut fix_cur: usize = 1;
+    let mut delta_cur: usize = 0;
+    points[0].tas = Some(state);
+
+    for (i, p) in points.iter_mut().enumerate().skip(1) {
+        let idx = i as u32;
+        if fix_cur < fixes.len() && fixes[fix_cur].idx == idx {
+            state = fixes[fix_cur].tas;
+            fix_cur += 1;
+        } else {
+            // Saturating add via i32 keeps the math obvious; legitimate
+            // values cannot wrap (encoder enforces fix overrides).
+            let next = state as i32 + deltas[delta_cur] as i32;
+            // Clamp to u16 range for safety; in practice valid encoded
+            // streams never trigger this.
+            state = next.clamp(0, u16::MAX as i32) as u16;
+            delta_cur += 1;
+        }
+        p.tas = Some(state);
+    }
+    Ok(())
 }
 
 fn validate(compact: &CompactTrack) -> Result<(), CompactError> {
@@ -167,6 +220,7 @@ fn decode_loop_gps(
             lon: s_lon,
             geo_alt: s_galt,
             pressure_alt: None,
+            tas: None,
         });
     }
     Ok(())
@@ -223,6 +277,7 @@ fn decode_loop_dual(
             lon: s_lon,
             geo_alt: s_galt,
             pressure_alt: Some(s_palt),
+            tas: None,
         });
     }
     Ok(())

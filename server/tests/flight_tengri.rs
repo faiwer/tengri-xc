@@ -18,6 +18,7 @@ fn pt(time: u32, lat: i32, lon: i32, geo_alt: i32, pressure_alt: Option<i32>) ->
         lon,
         geo_alt,
         pressure_alt,
+        tas: None,
     }
 }
 

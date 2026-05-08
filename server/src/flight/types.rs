@@ -35,4 +35,12 @@ pub struct TrackPoint {
     /// Within a single track this is either `Some` for every point or
     /// `None` for every point — mixing is rejected by the encoder.
     pub pressure_alt: Option<i32>,
+
+    /// True airspeed in km/h, integer. `None` for tracks whose source
+    /// has no TAS channel (most files in the wild). Within a single
+    /// track this is either `Some` for every point or `None` for
+    /// every point — mismatched-length input is rejected upstream
+    /// (parser drops the channel rather than partially populating).
+    /// Sourced today only from IGC files with an `I…TAS` extension.
+    pub tas: Option<u16>,
 }

@@ -21,6 +21,12 @@ pub struct CompactTrack {
     /// concretely Δt > 1.5 × interval). Strictly increasing by `idx`.
     pub time_fixes: Vec<TimeFix>,
 
+    /// True airspeed channel. `TasBody::None` whenever the source had no
+    /// TAS (most paragliding loggers; phone apps; KML/GPX inputs that
+    /// lack a 1:1 airspeed extension). When present, the body uses the
+    /// same fix+delta merge-walk as `TrackBody`.
+    pub tas: TasBody,
+
     /// FNV-1a 32 over the deterministic byte stream of all preceding fields,
     /// in declaration order. Lets the FE verify post-decode that the wire
     /// payload survived transport and that both ends agree on the parser
@@ -98,6 +104,36 @@ pub struct TimeFix {
     pub idx: u32,
     /// Absolute Unix epoch seconds at this index.
     pub time: u32,
+}
+
+/// True airspeed channel. Mirrors the `TrackBody::Gps`/`Dual` pattern:
+/// either there's no TAS data at all, or there's a fix+delta pair that
+/// reconstructs a per-fix `u16` km/h value. The channel is all-or-
+/// nothing per track — the source format must have produced one TAS
+/// reading for every fix; partial coverage is rejected upstream.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TasBody {
+    /// No TAS data available. Decoder sets `TrackPoint.tas = None` on
+    /// every point.
+    None,
+
+    /// Per-fix TAS. `fixes` holds sparse absolute-state overrides
+    /// (must include `idx=0`); `deltas` holds the per-non-fix-index
+    /// `i8` step in km/h. The decoder merges them at decode time so
+    /// `fixes.len() + deltas.len() == total_points`.
+    Tas { fixes: Vec<TasFix>, deltas: Vec<i8> },
+}
+
+/// Sparse absolute-state override for the TAS channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TasFix {
+    pub idx: u32,
+    /// Absolute TAS in km/h. `u16` covers sailplanes (VNE ~285 km/h);
+    /// `u8` would clip them. The extra byte over `u8` is amortized
+    /// across the whole flight since the fix list stays sparse —
+    /// hang gliders and paragliders need only one entry at idx=0,
+    /// sailplanes add a handful of overrides on rapid speed changes.
+    pub tas: u16,
 }
 
 impl CompactTrack {

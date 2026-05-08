@@ -12,19 +12,26 @@
 //! bytes. Any change here is a wire break — bump
 //! [`crate::flight::tengri::VERSION`] and update the TS side in lockstep.
 
-use super::types::{CoordDual, CoordGps, FixDual, FixGps, TimeFix, TrackBody};
+use super::types::{CoordDual, CoordGps, FixDual, FixGps, TasBody, TasFix, TimeFix, TrackBody};
 
 const FNV_OFFSET: u32 = 0x811c_9dc5;
 const FNV_PRIME: u32 = 0x0100_0193;
 
 /// Compute the hash of the `CompactTrack` payload (every field except `hash`
 /// itself).
-pub fn compute(start_time: u32, interval: u16, track: &TrackBody, time_fixes: &[TimeFix]) -> u32 {
+pub fn compute(
+    start_time: u32,
+    interval: u16,
+    track: &TrackBody,
+    time_fixes: &[TimeFix],
+    tas: &TasBody,
+) -> u32 {
     let mut h = FNV_OFFSET;
     feed_u32(&mut h, start_time);
     feed_u16(&mut h, interval);
     feed_track(&mut h, track);
     feed_time_fixes(&mut h, time_fixes);
+    feed_tas(&mut h, tas);
     h
 }
 
@@ -114,6 +121,28 @@ fn feed_time_fixes(h: &mut u32, tf: &[TimeFix]) {
     }
 }
 
+fn feed_tas(h: &mut u32, tas: &TasBody) {
+    match tas {
+        TasBody::None => feed_byte(h, 0),
+        TasBody::Tas { fixes, deltas } => {
+            feed_byte(h, 1);
+            feed_u32(h, fixes.len() as u32);
+            for f in fixes {
+                feed_tas_fix(h, f);
+            }
+            feed_u32(h, deltas.len() as u32);
+            for d in deltas {
+                feed_byte(h, *d as u8);
+            }
+        }
+    }
+}
+
+fn feed_tas_fix(h: &mut u32, f: &TasFix) {
+    feed_u32(h, f.idx);
+    feed_u16(h, f.tas);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,11 +171,39 @@ mod tests {
             }],
             coords: vec![],
         };
-        let h1 = compute(100, 1, &track, &[]);
-        let h2 = compute(100, 1, &track, &[]);
+        let h1 = compute(100, 1, &track, &[], &TasBody::None);
+        let h2 = compute(100, 1, &track, &[], &TasBody::None);
         assert_eq!(h1, h2);
 
-        let h3 = compute(101, 1, &track, &[]);
+        let h3 = compute(101, 1, &track, &[], &TasBody::None);
         assert_ne!(h1, h3);
+    }
+
+    /// Hash distinguishes presence of TAS even when the rest is identical.
+    /// Catches a regression where the FE and BE disagree on whether the
+    /// flight has an airspeed channel.
+    #[test]
+    fn detects_tas_presence_change() {
+        let track = TrackBody::Gps {
+            fixes: vec![FixGps {
+                idx: 0,
+                lat: 1,
+                lon: 2,
+                geo_alt: 3,
+            }],
+            coords: vec![],
+        };
+        let no_tas = compute(100, 1, &track, &[], &TasBody::None);
+        let with_tas = compute(
+            100,
+            1,
+            &track,
+            &[],
+            &TasBody::Tas {
+                fixes: vec![TasFix { idx: 0, tas: 50 }],
+                deltas: vec![],
+            },
+        );
+        assert_ne!(no_tas, with_tas);
     }
 }
