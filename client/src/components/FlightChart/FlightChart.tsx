@@ -45,7 +45,7 @@ export function FlightChart({ track, window }: FlightChartProps) {
           <AltitudeChart track={track} window={window} />
         )}
         {activeKind === 'speed' && <SpeedChart track={track} window={window} />}
-        {activeKind === 'vario' && <VarioChart />}
+        {activeKind === 'vario' && <VarioChart track={track} window={window} />}
       </div>
     </section>
   );
