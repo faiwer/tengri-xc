@@ -1,7 +1,7 @@
 //! `tengri` — flight-file tooling.
 //!
 //! Subcommands:
-//! - `convert` — parse a flight log (IGC today; later GPX/KML) and write a
+//! - `convert` — parse a flight log (IGC, KML; later GPX) and write a
 //!   `.tengri` envelope.
 //! - `inspect` — peek inside a `.tengri` envelope without unpacking it.
 //! - `add` — ingest a flight log into the database for a given user: gzipped
@@ -12,12 +12,15 @@
 //! - `upgrade-tracks` — re-encode every `flight_tracks` row whose `version`
 //!   lags behind the current build, sourcing the original bytes from
 //!   `flight_sources`.
+//! - `db` — open psql against the configured database (or run a one-shot
+//!   query via `tengri db -- -c 'SELECT …'`).
 //!
 //! Each subcommand lives in its own sibling module; cross-cutting helpers
 //! (format detection, gzip, NanoID, Postgres connection) are in `shared`.
 
 mod add;
 mod convert;
+mod db;
 mod delete;
 mod inspect;
 mod migrate;
@@ -91,6 +94,17 @@ enum Cmd {
         #[arg(long)]
         dry_run: bool,
     },
+
+    /// Open psql against the configured database. Anything after `--` is
+    /// forwarded verbatim to psql, so:
+    ///   tengri db                            # interactive shell
+    ///   tengri db -- -c 'SELECT 1;'          # one-shot query
+    ///   tengri db -- -f script.sql           # run a script
+    Db {
+        /// Forwarded directly to `psql`. Use `--` to separate from clap's flags.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 fn main() {
@@ -108,5 +122,6 @@ fn run() -> anyhow::Result<()> {
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::UpgradeTracks { dry_run } => run_async(upgrade::run(dry_run)),
+        Cmd::Db { args } => db::run(args),
     }
 }
