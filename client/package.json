@@ -8,6 +8,8 @@
     "build": "tsgo --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsgo --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "oxfmt \"src/**/*.{ts,tsx}\" && prettier --write \"src/**/*.scss\"",
@@ -29,6 +31,7 @@
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260506.1",
     "@vitejs/plugin-react": "^6.0.1",
+    "oxlint": "^1.63.0",
     "patch-package": "^8.0.1",
     "prettier": "^3.8.3",
     "sass": "^1.99.0",

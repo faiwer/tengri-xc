@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useEventHandler } from '../../core/hooks';
+import { useRef } from 'react';
+import { useAsyncEffect, useEventHandler } from '../../core/hooks';
 
 /**
  * Wires an IntersectionObserver to whichever element the returned
@@ -10,7 +10,7 @@ export function useScrollSentinel(onReached: () => void) {
   const handleReached = useEventHandler(onReached);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
+  useAsyncEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {

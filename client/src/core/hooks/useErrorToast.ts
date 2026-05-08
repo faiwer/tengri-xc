@@ -1,5 +1,5 @@
 import { App } from 'antd';
-import { useEffect } from 'react';
+import { useAsyncEffect } from './useAsyncEffect';
 
 interface UseErrorToastOptions {
   /** Heading shown in bold on top of the toast. Default: a generic apology. */
@@ -30,7 +30,7 @@ export function useErrorToast(
   const { notification } = App.useApp();
   const { title = DEFAULT_TITLE, description } = options;
 
-  useEffect(() => {
+  useAsyncEffect(() => {
     if (error === null || error === undefined) {
       return;
     }

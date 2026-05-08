@@ -1,5 +1,5 @@
 import { useMap } from '@vis.gl/react-google-maps';
-import { useEffect } from 'react';
+import { useAsyncEffect } from '../../core/hooks';
 
 interface FitBoundsProps {
   bounds: google.maps.LatLngBoundsLiteral | null;
@@ -14,7 +14,7 @@ interface FitBoundsProps {
 export function FitBounds({ bounds, padding = 32 }: FitBoundsProps) {
   const map = useMap();
 
-  useEffect(() => {
+  useAsyncEffect(() => {
     if (!map || !bounds) {
       return;
     }
