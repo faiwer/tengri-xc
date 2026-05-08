@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import type { TrackMetadata } from '../../api/tracks.io';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
+import { formatDuration } from '../../utils/formatDateTime';
 import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
@@ -97,24 +98,3 @@ const formatVario = (mps: number): string => {
 
 const formatAltitude = (metres: number): string =>
   `${metres.toLocaleString()} m`;
-
-/**
- * Formats a flight duration in seconds as `2h 29m` (or `47m` under an hour).
- * Sub-minute precision is meaningless at the panel scale; truncate to the
- * full minute. Non-positive inputs render as `—` rather than `0m`, since
- * they only happen when the track's takeoff/landing aren't yet known.
- */
-const formatDuration = (totalSeconds: number): string => {
-  if (totalSeconds <= 0) {
-    return '—';
-  }
-
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) {
-    return `${minutes}m`;
-  }
-
-  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
-};

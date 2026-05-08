@@ -1,0 +1,53 @@
+.row {
+  border-bottom: 1px solid #eef0f3;
+  transition: background-color 0.12s ease;
+}
+
+.row:hover {
+  background: #f4f6f8;
+}
+
+.cell {
+  // Padding lives on the cell rather than the link so the row's hover
+  // background covers full-width even on the gap between adjacent cell
+  // links — a link-on-cell with padding-on-cell layout cannot leak gaps.
+  padding: 0;
+  vertical-align: middle;
+}
+
+.cell[data-align="right"] {
+  text-align: right;
+}
+
+// Generic "this column is contextual / secondary" styling. The link
+// inside the cell inherits color via `color: inherit`, so setting it on
+// the `<td>` reaches the visible text without a more specific rule.
+// Consumers opt in per-cell via `TrackRowCell.muted = true`.
+.cellMuted {
+  color: #6b6b73;
+}
+
+.link {
+  // Block-level link so the entire cell area is the hit target. The row
+  // primitive's whole point is "row is one big link"; if any pixel of a
+  // cell wasn't covered the affordance would lie.
+  display: block;
+  padding: 0.65rem 0.85rem;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  // Cell content stays on one line: a wrapped takeoff time or pilot
+  // name in the middle of an otherwise single-line listing breaks the
+  // row rhythm and pushes the whole row taller. Overflow is handled
+  // with an ellipsis so a too-long pilot name doesn't push the column
+  // wider than the consumer's table-layout: fixed budget allows.
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
