@@ -4,14 +4,16 @@
   "private": true,
   "description": "Repo-root tooling (git hooks, formatters). Real packages live in server/ and client/.",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "db": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- db"
   },
   "lint-staged": {
     "server/**/*.rs": [
       "rustfmt --edition 2024"
     ],
     "client/**/*.{ts,tsx}": [
-      "./node_modules/.bin/oxfmt"
+      "./node_modules/.bin/oxfmt",
+      "./client/node_modules/.bin/oxlint"
     ],
     "client/**/*.scss": [
       "prettier --write"
