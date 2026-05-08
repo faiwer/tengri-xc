@@ -7,20 +7,22 @@ use anyhow::{Context, anyhow};
 use flate2::{Compression, write::GzEncoder};
 use rand::Rng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tengri_server::flight::{Track, parse_str};
+use tengri_server::flight::{Track, igc, kml};
 
-/// Recognised input format. Wraps the file-extension dispatch so the
+/// Recognised input format. Wraps file-extension dispatch so the
 /// matching `flight_source_format` enum value and the parser stay in
-/// lockstep when we add GPX/KML.
+/// lockstep. Add a variant here whenever the parser zoo grows.
 #[derive(Debug, Clone, Copy)]
 pub enum InputFormat {
     Igc,
+    Kml,
 }
 
 impl InputFormat {
     pub fn db_name(self) -> &'static str {
         match self {
             InputFormat::Igc => "igc",
+            InputFormat::Kml => "kml",
         }
     }
 }
@@ -32,6 +34,7 @@ pub fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
         .map(|s| s.to_ascii_lowercase());
     match ext.as_deref() {
         Some("igc") => Ok(InputFormat::Igc),
+        Some("kml") => Ok(InputFormat::Kml),
         Some(other) => Err(anyhow!("unsupported input format: .{other}")),
         None => Err(anyhow!(
             "input has no extension; cannot detect format: {}",
@@ -44,8 +47,9 @@ pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> 
     match format {
         InputFormat::Igc => {
             let raw = std::str::from_utf8(bytes).context("IGC must be UTF-8 (ASCII)")?;
-            parse_str(raw).context("parsing IGC")
+            igc::parse_str(raw).context("parsing IGC")
         }
+        InputFormat::Kml => kml::parse_bytes(bytes).context("parsing KML"),
     }
 }
 
@@ -72,10 +76,16 @@ pub fn nanoid_8() -> String {
         .collect()
 }
 
-pub async fn connect_pool() -> anyhow::Result<PgPool> {
+/// Load `server/.env` and read `DATABASE_URL`. Used by every subcommand
+/// that talks to Postgres directly *or* shells out to a tool that needs
+/// the same connection string (e.g. `tengri db` → `psql`).
+pub fn database_url() -> anyhow::Result<String> {
     let _ = dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
-    let database_url =
-        std::env::var("DATABASE_URL").context("DATABASE_URL must be set (try server/.env)")?;
+    std::env::var("DATABASE_URL").context("DATABASE_URL must be set (try server/.env)")
+}
+
+pub async fn connect_pool() -> anyhow::Result<PgPool> {
+    let database_url = database_url()?;
     PgPoolOptions::new()
         .max_connections(2)
         .connect(&database_url)

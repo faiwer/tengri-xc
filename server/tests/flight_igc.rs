@@ -5,7 +5,7 @@
 
 use std::fmt::Write;
 
-use tengri_server::flight::{IgcError, parse_str};
+use tengri_server::flight::{IgcError, igc::parse_str};
 
 #[derive(Clone, Copy)]
 struct LatPacked {

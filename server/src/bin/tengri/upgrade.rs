@@ -9,7 +9,9 @@ use std::io::Read;
 use anyhow::{Context, anyhow};
 use flate2::read::GzDecoder;
 use sqlx::{PgPool, Row};
-use tengri_server::flight::{Metadata, TengriFile, encode, etag_for, parse_str, tengri::VERSION};
+use tengri_server::flight::{
+    Metadata, TengriFile, Track, encode, etag_for, igc, kml, tengri::VERSION,
+};
 
 use super::shared::connect_pool;
 
@@ -139,12 +141,15 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
         return Ok(Outcome::SkippedNoSource);
     };
 
-    if format != "igc" {
-        return Ok(Outcome::SkippedFormat(format));
-    }
-
-    let raw = gunzip_to_string(&gz_bytes).context("gunzipping source bytes")?;
-    let track = parse_str(&raw).context("parsing IGC")?;
+    let raw = gunzip(&gz_bytes).context("gunzipping source bytes")?;
+    let track: Track = match format.as_str() {
+        "igc" => {
+            let text = std::str::from_utf8(&raw).context("IGC must be UTF-8 (ASCII)")?;
+            igc::parse_str(text).context("parsing IGC")?
+        }
+        "kml" => kml::parse_bytes(&raw).context("parsing KML")?,
+        _ => return Ok(Outcome::SkippedFormat(format)),
+    };
     let compact = encode(&track).context("encoding compact track")?;
     let envelope = TengriFile::new(Metadata::default(), compact);
     let bytes = envelope
@@ -177,8 +182,8 @@ async fn upgrade_one(pool: &PgPool, row: &StaleTrack, dry_run: bool) -> anyhow::
     })
 }
 
-fn gunzip_to_string(gz: &[u8]) -> anyhow::Result<String> {
-    let mut out = String::new();
-    GzDecoder::new(gz).read_to_string(&mut out)?;
+fn gunzip(gz: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    GzDecoder::new(gz).read_to_end(&mut out)?;
     Ok(out)
 }
