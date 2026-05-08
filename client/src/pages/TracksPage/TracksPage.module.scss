@@ -1,0 +1,95 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  // Fixed layout means columns size from the header alone, not from the
+  // widest cell discovered during render. Keeps the column geometry
+  // stable as new pages stream in (otherwise a long pilot name in page
+  // 2 would shift every previously-rendered row).
+  table-layout: fixed;
+  background: #fff;
+  border: 1px solid #e3e3e7;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b6b73;
+  font-weight: 500;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #e3e3e7;
+  background: #f7f7f8;
+}
+
+// Column widths under `table-layout: fixed`: every column except Pilot
+// gets an explicit width sized to its longest expected content; Pilot
+// is left unsized so it absorbs all the remaining horizontal space.
+// Apply to both the `<th>` and the corresponding `<td>` so the cell
+// widths stay aligned (only the first row's `<td>` widths are honoured
+// under fixed layout, but mirroring keeps it robust to refactors).
+.colIdx {
+  width: 56px;
+}
+
+.colDate {
+  width: 110px;
+}
+
+.colTime {
+  // Sized to fit the longest expected output of `formatShortTime`: 24h
+  // locales emit `HH:mm` (5 chars), 12h locales emit `HH:mm AM`/`PM` (8
+  // chars). 100px covers the worst case at our cell padding + font
+  // without forcing ellipsis on the time string itself.
+  width: 100px;
+}
+
+.colDuration {
+  width: 100px;
+}
+
+.alignRight {
+  text-align: right !important;
+}
+
+.skeletonRow td {
+  padding: 0.55rem 0.85rem;
+}
+
+.empty {
+  margin: 0;
+  padding: 2rem 0;
+  text-align: center;
+  color: #6b6b73;
+}
+
+.sentinel {
+  // Tiny but non-zero so the IntersectionObserver has something to
+  // observe. Display:block to participate in the document flow at the
+  // bottom of the page where window scroll can reach it.
+  height: 1px;
+  width: 100%;
+}

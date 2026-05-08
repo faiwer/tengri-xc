@@ -1,6 +1,6 @@
-import { ConfigProvider, type ThemeConfig } from 'antd';
+import { App as AntdApp, ConfigProvider, type ThemeConfig } from 'antd';
 import { BrowserRouter, Route, Routes } from 'react-router';
-import { HomePage } from './pages/HomePage';
+import { TracksPage } from './pages/TracksPage';
 import { TrackPage } from './pages/TrackPage';
 import styles from './App.module.scss';
 
@@ -18,14 +18,14 @@ const theme: ThemeConfig = {
 export function App() {
   return (
     <ConfigProvider theme={theme}>
-      <BrowserRouter>
-        <div className={styles.container}>
+      <AntdApp className={styles.container}>
+        <BrowserRouter>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<TracksPage />} />
             <Route path="/track/:id" element={<TrackPage />} />
           </Routes>
-        </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   );
 }

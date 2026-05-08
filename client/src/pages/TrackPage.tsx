@@ -5,6 +5,7 @@ import type { TrackMetadata } from '../api/tracks.io';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
 import { FlightChart } from '../components/FlightChart';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
+import { routes } from '../core/routes';
 import { altitudeRange } from '../track/altitudeRange';
 import { findIndexAt } from '../track/findIndexAt';
 import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
@@ -94,7 +95,7 @@ export function TrackPage() {
         <FitBounds bounds={bounds} />
       </MapView>
       {track && window && <FlightChart track={track} window={window} />}
-      <Link to="/">Back</Link>
+      <Link to={routes.home()}>Back</Link>
     </div>
   );
 }
