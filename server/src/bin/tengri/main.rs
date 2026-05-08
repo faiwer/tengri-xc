@@ -1,7 +1,7 @@
 //! `tengri` — flight-file tooling.
 //!
 //! Subcommands:
-//! - `convert` — parse a flight log (IGC, KML; later GPX) and write a
+//! - `convert` — parse a flight log (IGC, KML, KMZ, GPX) and write a
 //!   `.tengri` envelope.
 //! - `inspect` — peek inside a `.tengri` envelope without unpacking it.
 //! - `add` — ingest a flight log into the database for a given user: gzipped
@@ -44,7 +44,7 @@ struct Cli {
 enum Cmd {
     /// Convert a flight log into a `.tengri` envelope.
     Convert {
-        /// Input file (.igc).
+        /// Input file (.igc, .kml, .kmz, .gpx).
         input: PathBuf,
         /// Output path. Defaults to `<input>.tengri`.
         #[arg(short, long)]
@@ -63,7 +63,7 @@ enum Cmd {
     /// All three writes happen in a single transaction; on failure nothing
     /// is committed.
     Add {
-        /// Input flight log (.igc).
+        /// Input flight log (.igc, .kml, .kmz, .gpx).
         input: PathBuf,
 
         /// Owning user id (`users.id`). The user must already exist.

@@ -1,4 +1,4 @@
-//! KML parser. Two flavors are accepted:
+//! KML parser. Three flavors are accepted:
 //!
 //! 1. **GpsDumpAndroid** track Placemark: identified by a child
 //!    `<Metadata src="..." type="track">` element. The Placemark holds
@@ -11,6 +11,19 @@
 //!    timestamp) followed by a `<gx:coord>` (`lon lat alt`, space
 //!    separated) for every fix, in document order. Used by Google Earth
 //!    and several flight planners.
+//!
+//! 3. **GPSBabel / OGR `track_points`**: a `<Folder name="track_points">`
+//!    holding one `<Placemark>` per fix. Each Placemark carries a 2D
+//!    `<Point><coordinates>lon,lat</coordinates></Point>` and an
+//!    `<ExtendedData><SchemaData>` block with `track_fid`, `track_seg_id`,
+//!    `track_seg_point_id`, `ele` (metres), and `time` (`YYYY/MM/DD
+//!    HH:MM:SS+ZZ`). Multiple `track_seg_id`s within the first
+//!    `track_fid` are concatenated in document order.
+//!
+//!    **Caveat.** GPSBabel converting an IGC emits *two* `track_fid`s,
+//!    one per altitude channel (pressure / GPS), losing which is which.
+//!    We take the first `track_fid` only. For native GPX/CSV input the
+//!    file has one `track_fid` and there's no ambiguity.
 //!
 //! Other Placemarks (FAI distance lines, waypoints, the trip summary)
 //! are ignored. We do not extract `<Metadata>` payloads — that data
@@ -32,7 +45,7 @@
 
 use roxmltree::{Document, Node};
 
-use crate::flight::geo_text::{deg_to_e5, m_to_dm, parse_iso8601_u32};
+use crate::flight::geo_text::{deg_to_e5, m_to_dm, parse_gpsbabel_time_u32, parse_iso8601_u32};
 use crate::flight::types::{Track, TrackPoint};
 
 use super::error::KmlError;
@@ -56,6 +69,9 @@ pub fn parse_str(input: &str) -> Result<Track, KmlError> {
     }
     if let Some(gx_track) = find_gx_track(&doc) {
         return parse_gx_track(gx_track);
+    }
+    if let Some(folder) = find_track_points_folder(&doc) {
+        return parse_gpsbabel_track_points(folder);
     }
     Err(KmlError::NoTrack)
 }
@@ -222,6 +238,174 @@ fn parse_gx_track(track: Node) -> Result<Track, KmlError> {
         start_time: points[0].time,
         points,
     })
+}
+
+// ── GPSBabel / OGR `track_points` flavor ───────────────────────────────────
+
+fn find_track_points_folder<'a, 'input: 'a>(doc: &'a Document<'input>) -> Option<Node<'a, 'input>> {
+    doc.descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "Folder")
+        .find(|f| {
+            f.children()
+                .filter(|n| n.is_element() && n.tag_name().name() == "name")
+                .any(|name| name.text().map(str::trim) == Some("track_points"))
+        })
+}
+
+fn parse_gpsbabel_track_points(folder: Node) -> Result<Track, KmlError> {
+    // Walk Placemarks in document order. Within `track_points` each
+    // Placemark is one fix; the Folder may contain other elements
+    // (Style, name, …) which we skip.
+    //
+    // We keep only fixes whose `track_fid` matches the first one we see.
+    // For IGC-sourced KMZ this drops the duplicate altitude channel;
+    // for native single-track files it's a no-op.
+    let mut points: Vec<TrackPoint> = Vec::new();
+    let mut first_track_fid: Option<&str> = None;
+
+    for pm in folder
+        .children()
+        .filter(|n| n.is_element() && n.tag_name().name() == "Placemark")
+    {
+        let fields = read_track_point_fields(pm, points.len())?;
+
+        match first_track_fid {
+            None => first_track_fid = Some(fields.track_fid),
+            Some(fid) if fid != fields.track_fid => continue,
+            Some(_) => {}
+        }
+
+        let (lon_e5, lat_e5) = parse_track_point_coords(pm, points.len())?;
+        let geo_alt = m_to_dm(fields.ele);
+        let time = parse_gpsbabel_time_u32(fields.time).map_err(|reason| KmlError::BadTime {
+            index: points.len(),
+            reason,
+        })?;
+
+        points.push(TrackPoint {
+            time,
+            lat: lat_e5,
+            lon: lon_e5,
+            geo_alt,
+            pressure_alt: None,
+            tas: None,
+        });
+    }
+
+    if points.is_empty() {
+        return Err(KmlError::NoFixes);
+    }
+    Ok(Track {
+        start_time: points[0].time,
+        points,
+    })
+}
+
+struct TrackPointFields<'a> {
+    track_fid: &'a str,
+    ele: f64,
+    time: &'a str,
+}
+
+fn read_track_point_fields<'a, 'input: 'a>(
+    pm: Node<'a, 'input>,
+    index: usize,
+) -> Result<TrackPointFields<'a>, KmlError> {
+    let schema = pm
+        .descendants()
+        .find(|n| n.is_element() && n.tag_name().name() == "SchemaData")
+        .ok_or(KmlError::MissingElement(
+            "track_points/Placemark/ExtendedData/SchemaData",
+        ))?;
+
+    let mut track_fid: Option<&str> = None;
+    let mut ele: Option<&str> = None;
+    let mut time: Option<&str> = None;
+
+    for sd in schema
+        .children()
+        .filter(|n| n.is_element() && n.tag_name().name() == "SimpleData")
+    {
+        let Some(name) = sd.attribute("name") else {
+            continue;
+        };
+        let Some(text) = sd.text() else { continue };
+        match name {
+            "track_fid" => track_fid = Some(text),
+            "ele" => ele = Some(text),
+            "time" => time = Some(text),
+            _ => {}
+        }
+    }
+
+    let track_fid = track_fid.ok_or(KmlError::MissingElement(
+        "track_points/Placemark/SimpleData[@name=\"track_fid\"]",
+    ))?;
+    let ele_str = ele.ok_or(KmlError::MissingElement(
+        "track_points/Placemark/SimpleData[@name=\"ele\"]",
+    ))?;
+    let time = time.ok_or(KmlError::MissingElement(
+        "track_points/Placemark/SimpleData[@name=\"time\"]",
+    ))?;
+
+    let ele = ele_str
+        .trim()
+        .parse::<f64>()
+        .map_err(|e| KmlError::BadCoord {
+            index,
+            reason: format!("bad ele {ele_str:?}: {e}"),
+        })?;
+    if !ele.is_finite() {
+        return Err(KmlError::BadCoord {
+            index,
+            reason: format!("non-finite ele {ele_str:?}"),
+        });
+    }
+
+    Ok(TrackPointFields {
+        track_fid,
+        ele,
+        time,
+    })
+}
+
+fn parse_track_point_coords(pm: Node, index: usize) -> Result<(i32, i32), KmlError> {
+    let coords = pm
+        .descendants()
+        .find(|n| n.is_element() && n.tag_name().name() == "coordinates")
+        .and_then(|c| c.text())
+        .ok_or(KmlError::MissingElement(
+            "track_points/Placemark/Point/coordinates",
+        ))?
+        .trim();
+
+    // GPSBabel writes 2D `lon,lat`; we accept an optional altitude
+    // component for resilience against forks that include it (we'd
+    // ignore it since the authoritative altitude is in `ele`).
+    let mut parts = coords.split(',');
+    let lon = parts.next().ok_or_else(|| KmlError::BadCoord {
+        index,
+        reason: format!("missing lon in {coords:?}"),
+    })?;
+    let lat = parts.next().ok_or_else(|| KmlError::BadCoord {
+        index,
+        reason: format!("missing lat in {coords:?}"),
+    })?;
+    let lon_deg = lon.trim().parse::<f64>().map_err(|e| KmlError::BadCoord {
+        index,
+        reason: format!("bad lon {lon:?}: {e}"),
+    })?;
+    let lat_deg = lat.trim().parse::<f64>().map_err(|e| KmlError::BadCoord {
+        index,
+        reason: format!("bad lat {lat:?}: {e}"),
+    })?;
+    if !lon_deg.is_finite() || !lat_deg.is_finite() {
+        return Err(KmlError::BadCoord {
+            index,
+            reason: format!("non-finite coord(s) in {coords:?}"),
+        });
+    }
+    Ok((deg_to_e5(lon_deg), deg_to_e5(lat_deg)))
 }
 
 // ── Shared coordinate / time helpers ───────────────────────────────────────
@@ -489,6 +673,160 @@ mod tests {
   </Metadata>
   <LineString><coordinates>13.0,46.0,1500</coordinates></LineString>
 </Placemark>"#;
+        assert!(matches!(parse_str(input), Err(KmlError::BadTime { .. })));
+    }
+
+    // ── GPSBabel / OGR `track_points` flavor ──────────────────────────────
+
+    #[test]
+    fn parses_gpsbabel_track_points_minimal() {
+        let input = r##"<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <Folder><name>track_points</name>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="track_seg_point_id">0</SimpleData>
+        <SimpleData name="ele">1620</SimpleData>
+        <SimpleData name="time">2026/05/02 10:54:33+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.166333,46.765998</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="track_seg_point_id">1</SimpleData>
+        <SimpleData name="ele">1621.5</SimpleData>
+        <SimpleData name="time">2026/05/02 10:54:34+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.166400,46.766000</coordinates></Point>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>"##;
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2);
+        let expected_start = DateTime::parse_from_rfc3339("2026-05-02T10:54:33Z")
+            .unwrap()
+            .timestamp() as u32;
+        assert_eq!(t.start_time, expected_start);
+        assert_eq!(t.points[1].time, expected_start + 1);
+        assert_eq!(t.points[0].lon, 1_316_633);
+        assert_eq!(t.points[0].lat, 4_676_600);
+        assert_eq!(t.points[0].geo_alt, 16_200);
+        assert_eq!(t.points[1].geo_alt, 16_215);
+        assert!(t.points.iter().all(|p| p.pressure_alt.is_none()));
+        assert!(t.points.iter().all(|p| p.tas.is_none()));
+    }
+
+    #[test]
+    fn gpsbabel_keeps_only_first_track_fid() {
+        // gpsbabel's IGC→KMZ pipeline emits one track_fid per altitude
+        // channel, with otherwise identical fixes. We must drop the
+        // duplicate channel and not double-count.
+        let input = r##"<?xml version="1.0" encoding="utf-8" ?>
+<kml>
+<Document>
+  <Folder><name>track_points</name>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="ele">100</SimpleData>
+        <SimpleData name="time">2026/05/02 10:00:00+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.0,46.0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="ele">101</SimpleData>
+        <SimpleData name="time">2026/05/02 10:00:01+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.0,46.0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">1</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="ele">200</SimpleData>
+        <SimpleData name="time">2026/05/02 10:00:00+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.0,46.0</coordinates></Point>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>"##;
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2, "only track_fid=0 fixes should be kept");
+        assert_eq!(t.points[0].geo_alt, 1_000);
+        assert_eq!(t.points[1].geo_alt, 1_010);
+    }
+
+    #[test]
+    fn gpsbabel_concatenates_segments_within_first_track_fid() {
+        // Two segments inside track_fid=0: both keep their order.
+        let input = r##"<?xml version="1.0" encoding="utf-8" ?>
+<kml>
+<Document>
+  <Folder><name>track_points</name>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="ele">100</SimpleData>
+        <SimpleData name="time">2026/05/02 10:00:00+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.0,46.0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">1</SimpleData>
+        <SimpleData name="ele">200</SimpleData>
+        <SimpleData name="time">2026/05/02 11:00:00+00</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.5,46.5</coordinates></Point>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>"##;
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2);
+        assert_eq!(t.points[1].lon, 1_350_000);
+    }
+
+    #[test]
+    fn gpsbabel_rejects_no_fixes() {
+        // Folder name is recognised but it holds no Placemarks. We
+        // surface NoFixes (we did detect the flavor; it just held nothing).
+        let input = r##"<?xml version="1.0" encoding="utf-8" ?>
+<kml><Document><Folder><name>track_points</name></Folder></Document></kml>"##;
+        assert!(matches!(parse_str(input), Err(KmlError::NoFixes)));
+    }
+
+    #[test]
+    fn gpsbabel_rejects_bad_time() {
+        let input = r##"<?xml version="1.0" encoding="utf-8" ?>
+<kml>
+<Document>
+  <Folder><name>track_points</name>
+    <Placemark>
+      <ExtendedData><SchemaData schemaUrl="#track_points">
+        <SimpleData name="track_fid">0</SimpleData>
+        <SimpleData name="track_seg_id">0</SimpleData>
+        <SimpleData name="ele">100</SimpleData>
+        <SimpleData name="time">not-a-date</SimpleData>
+      </SchemaData></ExtendedData>
+      <Point><coordinates>13.0,46.0</coordinates></Point>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>"##;
         assert!(matches!(parse_str(input), Err(KmlError::BadTime { .. })));
     }
 }

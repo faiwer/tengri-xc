@@ -1,5 +1,6 @@
-//! KML parser. Accepts two flavors: GpsDumpAndroid track Placemarks and
-//! standard `<gx:Track>` documents. See `parser` for details.
+//! KML parser. Accepts three flavors: GpsDumpAndroid track Placemarks,
+//! standard `<gx:Track>` documents, and GPSBabel/OGR `track_points`
+//! fix streams. See `parser` for details.
 
 mod error;
 mod parser;

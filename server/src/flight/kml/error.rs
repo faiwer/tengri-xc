@@ -12,10 +12,11 @@ pub enum KmlError {
     InvalidUtf8(#[from] std::str::Utf8Error),
 
     /// File parsed as XML but no recognised track shape was found.
-    /// We accept GpsDumpAndroid track Placemarks and standard
-    /// `<gx:Track>` documents; see the `parser` module for details.
+    /// We accept GpsDumpAndroid track Placemarks, standard `<gx:Track>`
+    /// documents, and GPSBabel/OGR `<Folder name="track_points">`
+    /// fix streams; see the `parser` module for details.
     #[error(
-        "no recognised track found in KML: expected GpsDumpAndroid track Placemark or <gx:Track>"
+        "no recognised track found in KML: expected GpsDumpAndroid track Placemark, <gx:Track>, or `track_points` Folder"
     )]
     NoTrack,
 

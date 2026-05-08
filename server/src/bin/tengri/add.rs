@@ -16,12 +16,14 @@ use tengri_server::flight::{
 };
 
 use super::shared::{
-    connect_pool, detect_format, ensure_user_exists, gzip_bytes, nanoid_8, parse_format,
+    connect_pool, detect_format, ensure_user_exists, gzip_bytes, nanoid_8, normalize_for_storage,
+    parse_format,
 };
 
 pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let format = detect_format(&input)?;
     let raw = std::fs::read(&input).with_context(|| format!("reading {}", input.display()))?;
+    let (format, raw) = normalize_for_storage(format, raw)?;
     let track = parse_format(format, &raw)?;
     let n_points = track.points.len();
 
