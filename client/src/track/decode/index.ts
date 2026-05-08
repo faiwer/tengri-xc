@@ -2,8 +2,13 @@ import type { FixDual, TengriFile } from '../../api/tracks.io';
 import { runWithRaf } from '../../utils/runWithRaf';
 import { TrackDecodeError, type Track } from '../types';
 import { computeCompactHash } from './hash';
-import { decodeStep, type DecodeCtx, type DecodeState } from './step';
-import { unpackBody } from './unpackBody';
+import {
+  decodeStep,
+  type DecodeCtx,
+  type DecodeState,
+  type TasCtx,
+} from './step';
+import { unpackBody, type UnpackedTas } from './unpackBody';
 
 export interface DecodeOptions {
   signal?: AbortSignal;
@@ -39,7 +44,7 @@ interface Prepared {
 }
 
 function prepare(file: TengriFile): Prepared {
-  const { startTime, interval, body, timeFixes } = unpackBody(file);
+  const { startTime, interval, body, timeFixes, tas } = unpackBody(file);
   const { dual, fixes, coords } = body;
   const length = fixes.length + coords.length;
 
@@ -52,7 +57,13 @@ function prepare(file: TengriFile): Prepared {
   }
 
   const expectedHash = file.track.hash;
-  const actualHash = computeCompactHash(startTime, interval, body, timeFixes);
+  const actualHash = computeCompactHash(
+    startTime,
+    interval,
+    body,
+    timeFixes,
+    tas,
+  );
   if (actualHash !== expectedHash) {
     throw new TrackDecodeError(
       `hash mismatch: expected 0x${expectedHash.toString(16).padStart(8, '0')}, got 0x${actualHash.toString(16).padStart(8, '0')}`,
@@ -64,6 +75,7 @@ function prepare(file: TengriFile): Prepared {
   const lng = new Int32Array(length);
   const alt = new Int32Array(length);
   const baroAlt = dual ? new Int32Array(length) : null;
+  const { tasCtx, sTas } = prepareTas(tas, length);
 
   const f0 = fixes[0]!;
   const state: DecodeState = {
@@ -77,6 +89,9 @@ function prepare(file: TengriFile): Prepared {
     sLng: f0.lon,
     sAlt: f0.geo_alt,
     sBaroAlt: dual ? (f0 as FixDual).pressure_alt : 0,
+    tasFixCur: tasCtx ? 1 : 0,
+    tasDeltaCur: 0,
+    sTas,
   };
 
   const ctx: DecodeCtx = {
@@ -91,6 +106,7 @@ function prepare(file: TengriFile): Prepared {
     lng,
     alt,
     baroAlt,
+    tas: tasCtx,
   };
 
   return { ctx, state, startTime };
@@ -104,5 +120,43 @@ function finish({ ctx, startTime }: Prepared): Track {
     lng: ctx.lng,
     alt: ctx.alt,
     baroAlt: ctx.baroAlt,
+    tas: ctx.tas?.out ?? null,
   };
+}
+
+/**
+ * Validate the TAS channel shape and produce a `TasCtx` plus the initial
+ * running state. `TasBody::None` returns `tasCtx: null` and a sentinel
+ * `sTas: 0` that the step loop never observes (gated by `if (c.tas)`).
+ */
+function prepareTas(
+  tas: UnpackedTas,
+  length: number,
+): { tasCtx: TasCtx | null; sTas: number } {
+  if (tas.kind === 'none') {
+    return { tasCtx: null, sTas: 0 };
+  }
+  const { fixes, deltas } = tas;
+  if (fixes.length === 0 || fixes[0]!.idx !== 0) {
+    throw new TrackDecodeError(
+      'TAS channel is missing the initial fix at idx=0',
+    );
+  }
+
+  if (fixes.length + deltas.length !== length) {
+    throw new TrackDecodeError(
+      `TAS channel length mismatch: ${fixes.length} fixes + ${deltas.length} deltas != ${length} points`,
+    );
+  }
+
+  for (let i = 1; i < fixes.length; i++) {
+    if (fixes[i]!.idx <= fixes[i - 1]!.idx) {
+      throw new TrackDecodeError(
+        `TAS channel has non-increasing fix indices: ${fixes[i - 1]!.idx} -> ${fixes[i]!.idx}`,
+      );
+    }
+  }
+
+  const out = new Uint16Array(length);
+  return { tasCtx: { fixes, deltas, out }, sTas: fixes[0]!.tas };
 }

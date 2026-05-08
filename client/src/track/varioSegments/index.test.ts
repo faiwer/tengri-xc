@@ -16,6 +16,7 @@ const buildTrack = ({ t, baroMetres }: TrackInput): Track => ({
   lng: new Int32Array(t.length),
   alt: new Int32Array(t.length),
   baroAlt: new Int32Array(baroMetres.map((m) => Math.round(m * 10))),
+  tas: null,
 });
 
 interface AltLeg {

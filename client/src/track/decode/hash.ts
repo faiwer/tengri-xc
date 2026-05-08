@@ -3,9 +3,10 @@ import type {
   CoordGps,
   FixDual,
   FixGps,
+  TasFix,
   TimeFix,
 } from '../../api/tracks.io';
-import type { UnpackedBody } from './unpackBody';
+import type { UnpackedBody, UnpackedTas } from './unpackBody';
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
@@ -24,12 +25,14 @@ export function computeCompactHash(
   interval: number,
   body: UnpackedBody,
   timeFixes: TimeFix[],
+  tas: UnpackedTas,
 ): number {
   let h = FNV_OFFSET;
   h = feedU32(h, startTime);
   h = feedU16(h, interval);
   h = feedTrack(h, body);
   h = feedTimeFixes(h, timeFixes);
+  h = feedTas(h, tas);
   return h >>> 0;
 }
 
@@ -122,5 +125,32 @@ function feedTimeFixes(h: number, tf: TimeFix[]): number {
     h = feedU32(h, t.idx);
     h = feedU32(h, t.time);
   }
+  return h;
+}
+
+function feedTas(h: number, tas: UnpackedTas): number {
+  if (tas.kind === 'none') {
+    return feedByte(h, 0);
+  }
+
+  h = feedByte(h, 1);
+  h = feedU32(h, tas.fixes.length);
+  for (const f of tas.fixes) {
+    h = feedTasFix(h, f);
+  }
+
+  h = feedU32(h, tas.deltas.length);
+  for (const d of tas.deltas) {
+    // Rust feeds `i8 as u8`; on the wire each delta occupies one byte.
+    // `& 0xff` performs the same two's-complement reinterpret in JS.
+    h = feedByte(h, d & 0xff);
+  }
+
+  return h;
+}
+
+function feedTasFix(h: number, f: TasFix): number {
+  h = feedU32(h, f.idx);
+  h = feedU16(h, f.tas);
   return h;
 }

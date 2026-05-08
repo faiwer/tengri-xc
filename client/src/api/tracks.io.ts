@@ -87,11 +87,28 @@ const TrackBodyIo = Enum({
   ),
 });
 
+const TasFixIo = Struct({
+  idx: u32,
+  tas: u16,
+});
+
+const TasBodyIo = Enum({
+  None: Variant(0),
+  Tas: Variant(
+    1,
+    Struct({
+      fixes: Collection(TasFixIo),
+      deltas: Collection(i8),
+    }),
+  ),
+});
+
 const CompactTrackIo = Struct({
   start_time: u32,
   interval: u16,
   track: TrackBodyIo,
   time_fixes: Collection(TimeFixIo),
+  tas: TasBodyIo,
   hash: u32,
 });
 
@@ -110,3 +127,5 @@ export type FixDual = Value<typeof FixDualIo>;
 export type CoordGps = Value<typeof CoordGpsIo>;
 export type CoordDual = Value<typeof CoordDualIo>;
 export type TimeFix = Value<typeof TimeFixIo>;
+export type TasFix = Value<typeof TasFixIo>;
+export type TasBody = Value<typeof TasBodyIo>;

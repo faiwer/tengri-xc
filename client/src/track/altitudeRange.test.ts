@@ -18,6 +18,7 @@ const buildTrack = ({ altMetres, baroMetres }: TrackInput): Track => ({
   baroAlt: baroMetres
     ? new Int32Array(baroMetres.map((m) => Math.round(m * 10)))
     : null,
+  tas: null,
 });
 
 describe('altitudeRange', () => {

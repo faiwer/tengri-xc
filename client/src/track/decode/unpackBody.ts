@@ -4,27 +4,43 @@ import type {
   CoordGps,
   FixDual,
   FixGps,
+  TasFix,
   TengriFile,
   TimeFix,
 } from '../../api/tracks.io';
 
 /**
- * Peel `bincode-ts`' `VARIANT`/`VALUE` symbols off the wire-format `TrackBody`
- * and return a plain shape the rest of the decoder can pattern-match on.
+ * Peel `bincode-ts`' `VARIANT`/`VALUE` symbols off the wire-format enums
+ * (`TrackBody`, `TasBody`) and return a plain shape the rest of the decoder
+ * can pattern-match on.
  */
 export function unpackBody(file: TengriFile): Unpacked {
-  const { start_time: startTime, interval, track, time_fixes } = file.track;
+  const {
+    start_time: startTime,
+    interval,
+    track,
+    time_fixes,
+    tas,
+  } = file.track;
+
   const dual = track[VARIANT] === 'Dual';
-  const value = track[VALUE];
+  const trackValue = track[VALUE];
+
+  const tasUnpacked: UnpackedTas =
+    tas[VARIANT] === 'Tas'
+      ? { kind: 'tas', fixes: tas[VALUE].fixes, deltas: tas[VALUE].deltas }
+      : { kind: 'none' };
+
   return {
     startTime,
     interval,
     body: {
       dual,
-      fixes: value.fixes,
-      coords: value.coords,
+      fixes: trackValue.fixes,
+      coords: trackValue.coords,
     },
     timeFixes: time_fixes,
+    tas: tasUnpacked,
   };
 }
 
@@ -33,6 +49,7 @@ export interface Unpacked {
   interval: number;
   body: UnpackedBody;
   timeFixes: TimeFix[];
+  tas: UnpackedTas;
 }
 
 export interface UnpackedBody {
@@ -40,3 +57,13 @@ export interface UnpackedBody {
   fixes: (FixGps | FixDual)[];
   coords: (CoordGps | CoordDual)[];
 }
+
+/**
+ * Plain-shaped TAS channel. `kind: 'none'` mirrors `TasBody::None` (the
+ * source had no TAS column); `kind: 'tas'` carries the sparse fix overrides
+ * and per-non-fix-index `i8` deltas in km/h, which the decoder merges into
+ * a `Uint16Array` aligned with the position arrays.
+ */
+export type UnpackedTas =
+  | { kind: 'none' }
+  | { kind: 'tas'; fixes: TasFix[]; deltas: number[] };

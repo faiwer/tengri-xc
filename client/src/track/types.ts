@@ -15,6 +15,11 @@ export interface Track {
   alt: Int32Array;
   /** Decimetres. `null` for GPS-only tracks (no barometer). */
   baroAlt: Int32Array | null;
+  /**
+   * True airspeed in km/h (integer). `null` when the source had no TAS data.
+   * When present, aligned 1:1 with the position arrays.
+   */
+  tas: Uint16Array | null;
 }
 
 export class TrackDecodeError extends Error {
