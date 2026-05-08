@@ -9,6 +9,8 @@
 //!   goes into `flight_tracks` (kind = `full`).
 //! - `delete` — remove a flight by id (cascades to its track + source rows).
 //! - `migrate` — apply outstanding SQL migrations to the configured DB.
+//! - `prune` — wipe every data row from the configured DB (keeping the
+//!   schema intact). Useful for resetting between Leonardo imports.
 //! - `upgrade-tracks` — re-encode every `flight_tracks` row whose `version`
 //!   lags behind the current build, sourcing the original bytes from
 //!   `flight_sources`.
@@ -24,6 +26,7 @@ mod db;
 mod delete;
 mod inspect;
 mod migrate;
+mod prune;
 mod shared;
 mod upgrade;
 
@@ -85,6 +88,16 @@ enum Cmd {
     /// a manual schema reset).
     Migrate,
 
+    /// Wipe every data row from the database while keeping the schema
+    /// intact. Truncates `users`, `flights`, `flight_tracks`,
+    /// `flight_sources` (cascading) and resets identity sequences.
+    /// Pass `--yes` to skip the confirmation prompt.
+    Prune {
+        /// Skip the interactive confirmation. Use in scripts/CI.
+        #[arg(long)]
+        yes: bool,
+    },
+
     /// Re-encode every `flight_tracks` row whose `version` lags behind the
     /// current build. The fresh bytes are derived from the matching
     /// `flight_sources` row (we can't re-decode the stale blob — the wire
@@ -121,6 +134,7 @@ fn run() -> anyhow::Result<()> {
         Cmd::Add { input, user_id } => run_async(add::run(input, user_id)),
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
+        Cmd::Prune { yes } => run_async(prune::run(yes)),
         Cmd::UpgradeTracks { dry_run } => run_async(upgrade::run(dry_run)),
         Cmd::Db { args } => db::run(args),
     }

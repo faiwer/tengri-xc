@@ -1,10 +1,8 @@
-//! Cross-subcommand helpers for the `leonardo` importer: env loading and
-//! MySQL connection. Postgres helpers live in the existing `tengri`
-//! binary's `shared.rs` and we'll start re-using them once an actual
-//! import command lands; for now the importer only talks to MySQL.
+//! Cross-subcommand helpers for the `leonardo` importer: env loading,
+//! MySQL connection (source), and Postgres connection (destination).
 
 use anyhow::Context;
-use sqlx::{MySqlPool, mysql::MySqlPoolOptions};
+use sqlx::{MySqlPool, PgPool, mysql::MySqlPoolOptions, postgres::PgPoolOptions};
 
 /// Load `server/.env` and read `LEONARDO_MYSQL_URL`.
 ///
@@ -28,6 +26,23 @@ pub async fn connect_mysql_pool() -> anyhow::Result<MySqlPool> {
         .connect(&url)
         .await
         .context("connecting to Leonardo MySQL")
+}
+
+/// Read `DATABASE_URL` (the destination Postgres) from the same
+/// `server/.env` the rest of the workspace uses.
+pub fn database_url() -> anyhow::Result<String> {
+    let _ = dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
+    std::env::var("DATABASE_URL").context("DATABASE_URL must be set (try server/.env)")
+}
+
+/// Open a small Postgres pool against our own database.
+pub async fn connect_pg_pool() -> anyhow::Result<PgPool> {
+    let url = database_url()?;
+    PgPoolOptions::new()
+        .max_connections(2)
+        .connect(&url)
+        .await
+        .context("connecting to Postgres")
 }
 
 /// Spin up a single-threaded Tokio runtime on demand. The CLI is

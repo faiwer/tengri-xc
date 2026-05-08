@@ -12,6 +12,7 @@
 //! `LEONARDO_MYSQL_URL`; `DATABASE_URL` keeps pointing at our Postgres.
 
 mod check_db;
+mod db;
 mod migrate;
 mod shared;
 
@@ -45,6 +46,18 @@ enum Cmd {
     /// new tables (flights, comments, …) will land here over time.
     /// Idempotent: re-runs skip rows that already exist.
     Migrate,
+
+    /// Run a SQL statement against the Leonardo MySQL and print the
+    /// result as a table. Uses the same sqlx pool the rest of the
+    /// binary does — no `mysql` client needed on the host.
+    ///
+    /// Examples:
+    ///   leonardo db 'SHOW TABLES'
+    ///   leonardo db 'SELECT pilotID, FirstName FROM leonardo_pilots LIMIT 5'
+    Db {
+        /// SQL statement to execute. Quote it.
+        sql: String,
+    },
 }
 
 fn main() {
@@ -58,5 +71,6 @@ fn run() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::CheckDb => run_async(check_db::run()),
         Cmd::Migrate => run_async(migrate::run()),
+        Cmd::Db { sql } => run_async(db::run(sql)),
     }
 }
