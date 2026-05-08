@@ -41,13 +41,27 @@ function formatIssues(issues: z.core.$ZodIssue[]): string {
     .join('; ');
 }
 
+export interface ApiRequestOptions {
+  signal?: AbortSignal;
+}
+
 /** Issue the GET, normalize transport/HTTP failures into `ApiError` subclasses. */
-async function fetchOk(path: string): Promise<Response> {
+async function fetchOk(
+  path: string,
+  options: ApiRequestOptions,
+): Promise<Response> {
   const url = SERVER_URL + path;
   let response: Response;
   try {
-    response = await fetch(url, { method: 'GET' });
+    response = await fetch(url, { method: 'GET', signal: options.signal });
   } catch (cause) {
+    // Aborts are a control-flow signal, not an error — let them through
+    // verbatim so callers can `if (e instanceof DOMException && e.name ===
+    // 'AbortError') return` without unwrapping.
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+
     throw new NetworkError(`GET ${url} failed`, { cause });
   }
   if (!response.ok) {
@@ -59,13 +73,15 @@ async function fetchOk(path: string): Promise<Response> {
 /**
  * GET `path` (resolved against `VITE_SERVER_URL`) and validate the JSON body
  * against `schema`. Returns the decoded value on success; throws an
- * `ApiError` subclass otherwise.
+ * `ApiError` subclass otherwise. Pass `options.signal` to make the call
+ * abortable.
  */
 export async function apiGet<T extends z.ZodTypeAny>(
   path: string,
   schema: T,
+  options: ApiRequestOptions = {},
 ): Promise<z.infer<T>> {
-  const response = await fetchOk(path);
+  const response = await fetchOk(path, options);
   let body: unknown;
   try {
     body = await response.json();
@@ -84,7 +100,10 @@ export async function apiGet<T extends z.ZodTypeAny>(
  * transparently honors `Content-Encoding`, so a gzipped response is already
  * decompressed by the time it reaches the Blob.
  */
-export async function apiGetBlob(path: string): Promise<Blob> {
-  const response = await fetchOk(path);
+export async function apiGetBlob(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  const response = await fetchOk(path, options);
   return response.blob();
 }
