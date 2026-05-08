@@ -12,6 +12,7 @@
 //! `LEONARDO_MYSQL_URL`; `DATABASE_URL` keeps pointing at our Postgres.
 
 mod check_db;
+mod migrate;
 mod shared;
 
 use std::process;
@@ -38,6 +39,12 @@ enum Cmd {
     /// Returns non-zero if the connection or any of the probe queries
     /// fail, which makes it usable as a CI/healthcheck step.
     CheckDb,
+
+    /// Import data from the Leonardo MySQL into our Postgres.
+    /// Today this only imports `leonardo_pilots → users` (id + name);
+    /// new tables (flights, comments, …) will land here over time.
+    /// Idempotent: re-runs skip rows that already exist.
+    Migrate,
 }
 
 fn main() {
@@ -50,5 +57,6 @@ fn main() {
 fn run() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::CheckDb => run_async(check_db::run()),
+        Cmd::Migrate => run_async(migrate::run()),
     }
 }
