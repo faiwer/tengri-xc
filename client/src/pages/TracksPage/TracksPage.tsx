@@ -18,7 +18,7 @@ import { useTracksFeed } from './useTracksFeed';
  */
 export function TracksPage() {
   const feed = useTracksFeed();
-  const sentinelRef = useScrollSentinel(feed.loadMore);
+  const onSentinelRef = useScrollSentinel(feed.loadMore);
 
   const rows = useMemo(
     () =>
@@ -76,7 +76,7 @@ export function TracksPage() {
       )}
 
       {!feed.isLoading && !feed.completed && (
-        <div ref={sentinelRef} className={styles.sentinel} aria-hidden />
+        <div ref={onSentinelRef} className={styles.sentinel} aria-hidden />
       )}
     </main>
   );

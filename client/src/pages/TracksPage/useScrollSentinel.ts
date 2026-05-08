@@ -1,18 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useEventHandler } from '../../core/hooks';
-import { nullthrows } from '../../utils/nullthrows';
 
 /**
- * Wires an IntersectionObserver to a sentinel element so we can fire
- * `onReached` a viewport ahead of the user actually hitting the bottom.
- * Returns the ref to attach to the sentinel `<div>`.
+ * Wires an IntersectionObserver to whichever element the returned
+ * callback is attached to. Fires `onReached` a viewport ahead of the
+ * sentinel hitting the bottom of the scrollport.
  */
 export function useScrollSentinel(onReached: () => void) {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const handleReached = useEventHandler(onReached);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
@@ -22,14 +21,20 @@ export function useScrollSentinel(onReached: () => void) {
       },
       { rootMargin: ROOT_MARGIN },
     );
-    observer.observe(
-      nullthrows(sentinelRef.current, 'sentinel ref unset on mount'),
-    );
-
-    return () => observer.disconnect();
+    return () => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+    };
   }, []);
 
-  return sentinelRef;
+  return useEventHandler(function onRef(node: HTMLElement | null) {
+    const observer = observerRef.current;
+    if (node) {
+      observer?.observe(node);
+    } else {
+      observer?.disconnect();
+    }
+  });
 }
 
 const ROOT_MARGIN = '600px 0px';
