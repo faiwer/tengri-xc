@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
-import uPlot, { type Axis, type Options, type Series } from 'uplot';
+import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { Track } from '../../track';
 import type { TrackWindow } from '../../track/toPaths';
 import styles from './AltitudeChart.module.scss';
+import { formatHourMinute } from './formatHourMinute';
 import { useAltitudeSeries } from './useAltitudeSeries';
+import { useUPlot } from './useUPlot';
 
 interface AltitudeChartProps {
   track: Track;
@@ -24,57 +25,14 @@ interface AltitudeChartProps {
  * The flight is sliced to `[takeoffIdx, landedIdx + 1)` so launch
  * jitter and post-landing handling don't pollute the y-axis range.
  *
- * uPlot is imperative (Canvas, no JSX): we mount a div, hand it to
- * uPlot in a layout-effect, and resize/destroy in lifecycle hooks. The
- * chart is rebuilt on track change rather than diffed via `setData` —
- * uPlot construction is sub-millisecond and recreation keeps the
- * lifecycle trivially correct.
+ * uPlot's imperative lifecycle (Canvas, no JSX, mount/destroy) lives in
+ * {@link useUPlot}; this component is just a config picker and a
+ * container.
  */
 export function AltitudeChart({ track, window }: AltitudeChartProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<uPlot | null>(null);
   const { data, hasBaro } = useAltitudeSeries(track, window);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const opts: Options = {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      // uPlot reads its dimensions once at construction; we keep them in
-      // sync via setSize on resize and on every cleanup-then-create cycle.
-      cursor: { drag: { setScale: false } },
-      scales: {
-        x: { time: true },
-        y: { auto: true },
-      },
-      axes: [X_AXIS, Y_AXIS],
-      series: hasBaro ? SERIES_WITH_BARO : SERIES_GPS_ONLY,
-      legend: { show: false },
-    };
-
-    const chart = new uPlot(opts, data, container);
-    chartRef.current = chart;
-
-    const resize = new ResizeObserver(() => {
-      chart.setSize({
-        width: container.clientWidth,
-        height: container.clientHeight,
-      });
-    });
-    resize.observe(container);
-
-    return () => {
-      resize.disconnect();
-      chart.destroy();
-      chartRef.current = null;
-    };
-  }, [data, hasBaro]);
-
-  return <div ref={containerRef} className={styles.chart} />;
+  const ref = useUPlot(data, hasBaro ? OPTS_WITH_BARO : OPTS_GPS_ONLY);
+  return <div ref={ref} className={styles.chart} />;
 }
 
 // Visual tokens. Kept here rather than in SCSS because uPlot draws to a
@@ -87,24 +45,6 @@ const OVERLAY_STROKE = '#f97316';
 const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
-
-// Tick labels need to read as wide as possible for many ticks, so we
-// strip the AM/PM suffix `Intl.DateTimeFormat` insists on for 12h
-// locales.
-const HOUR_MINUTE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
-const formatHourMinute = (epochSeconds: number): string =>
-  HOUR_MINUTE_FORMATTER.formatToParts(new Date(epochSeconds * 1000))
-    .filter(
-      (part) =>
-        part.type !== 'dayPeriod' &&
-        !(part.type === 'literal' && part.value.trim() === ''),
-    )
-    .map((part) => part.value)
-    .join('');
 
 const X_AXIS: Axis = {
   stroke: AXIS_STROKE,
@@ -159,3 +99,9 @@ const SERIES_GPS_ONLY: Series[] = [
     points: { show: false },
   },
 ];
+
+// Stable references; useUPlot rebuilds the chart whenever opts changes
+// by identity, so the with-/without-baro pair must be module-scoped
+// constants picked at render time rather than rebuilt per render.
+const OPTS_WITH_BARO = { axes: [X_AXIS, Y_AXIS], series: SERIES_WITH_BARO };
+const OPTS_GPS_ONLY = { axes: [X_AXIS, Y_AXIS], series: SERIES_GPS_ONLY };
