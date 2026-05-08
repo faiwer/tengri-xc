@@ -12,28 +12,27 @@ import {
 } from 'bincode-ts';
 
 // --- JSON metadata (zod) -----------------------------------------------------
+//
+// Wire JSON is snake_case (Rust convention). `apiGet` camelizes the body at
+// the boundary, so schemas here describe the post-conversion shape and
+// consumers only ever see camelCase.
 
 export const TrackMetadataIo = z.object({
   id: z.string(),
   pilot: z.object({
     name: z.string(),
   }),
-  // Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`.
-  takeoff_at: z.number().int(),
-  landed_at: z.number().int(),
-  // Wire-track size as a fraction of the gzipped source (0..1ish).
-  compression_ratio: z.number(),
+  /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
+  takeoffAt: z.number().int(),
+  /** Unix epoch seconds (UTC). */
+  landedAt: z.number().int(),
+  /** Wire-track size as a fraction of the gzipped source (0..1ish). */
+  compressionRatio: z.number(),
 });
 
 export type TrackMetadata = z.infer<typeof TrackMetadataIo>;
 
-/**
- * One row of `GET /tracks`. Mirrors the server's
- * `routes::tracks_list::Item` exactly. Field names stay snake_case here
- * (matching the wire) — the consumer hook re-maps `next_cursor` to
- * `nextCursor` at the boundary, but item fields are passed through
- * verbatim because they're already terse and read fine in JSX.
- */
+/** One row of `GET /tracks`. Mirrors the server's `routes::tracks_list::Item`. */
 export const TrackListItemIo = z.object({
   pilot: z.object({
     id: z.number().int(),
@@ -42,7 +41,7 @@ export const TrackListItemIo = z.object({
   track: z.object({
     id: z.string(),
     /** Unix epoch seconds (UTC). */
-    takeoff_at: z.number().int(),
+    takeoffAt: z.number().int(),
     /** Whole seconds, from `flights.duration_s`. */
     duration: z.number().int(),
   }),
@@ -53,7 +52,7 @@ export type TrackListItem = z.infer<typeof TrackListItemIo>;
 export const TracksPageIo = z.object({
   items: z.array(TrackListItemIo),
   /** Opaque cursor for the next page; `null` on the last page. */
-  next_cursor: z.string().nullable(),
+  nextCursor: z.string().nullable(),
 });
 
 export type TracksPage = z.infer<typeof TracksPageIo>;

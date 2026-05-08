@@ -95,13 +95,13 @@ function buildHomeRowCells(
     },
     {
       key: 'date',
-      content: formatShortDate(item.track.takeoff_at),
+      content: formatShortDate(item.track.takeoffAt),
       muted: true,
       className: styles.colDate,
     },
     {
       key: 'time',
-      content: formatShortTime(item.track.takeoff_at),
+      content: formatShortTime(item.track.takeoffAt),
       className: styles.colTime,
     },
     { key: 'pilot', content: item.pilot.name },

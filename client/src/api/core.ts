@@ -1,3 +1,4 @@
+import camelcaseKeys from 'camelcase-keys';
 import type { z } from 'zod';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL;
@@ -82,12 +83,20 @@ export async function apiGet<T extends z.ZodTypeAny>(
   options: ApiRequestOptions = {},
 ): Promise<z.infer<T>> {
   const response = await fetchOk(path, options);
-  let body: unknown;
+  let raw: unknown;
   try {
-    body = await response.json();
+    raw = await response.json();
   } catch (cause) {
     throw new DecodeError([], cause);
   }
+
+  // The wire is snake_case (Rust convention); the rest of the client
+  // is camelCase. Convert at this single boundary so schemas and
+  // consumers never see a snake_case key.
+  const body =
+    raw !== null && typeof raw === 'object'
+      ? camelcaseKeys(raw as Record<string, unknown>, { deep: true })
+      : raw;
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     throw new DecodeError(parsed.error.issues, body);

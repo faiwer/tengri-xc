@@ -26,13 +26,10 @@ export function TrackMetaPanel({
   altitudes,
 }: TrackMetaPanelProps) {
   const takeoff = useMemo(
-    () => new Date(data.takeoff_at * 1000),
-    [data.takeoff_at],
+    () => new Date(data.takeoffAt * 1000),
+    [data.takeoffAt],
   );
-  const landed = useMemo(
-    () => new Date(data.landed_at * 1000),
-    [data.landed_at],
-  );
+  const landed = useMemo(() => new Date(data.landedAt * 1000), [data.landedAt]);
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
@@ -41,7 +38,7 @@ export function TrackMetaPanel({
       <Cell label="Takeoff">{formatTime(takeoff)}</Cell>
       <Cell label="Landing">{formatTime(landed)}</Cell>
       <Cell label="Duration">
-        {formatDuration(data.landed_at - data.takeoff_at)}
+        {formatDuration(data.landedAt - data.takeoffAt)}
       </Cell>
       <Cell label="Best climb">
         {peaks ? formatVario(peaks.peakClimb) : '—'}

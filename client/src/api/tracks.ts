@@ -5,8 +5,8 @@ import {
   TengriFileIo,
   TrackMetadataIo,
   TracksPageIo,
-  type TrackListItem,
   type TrackMetadata,
+  type TracksPage,
 } from './tracks.io';
 
 export async function getTrackMetadata(
@@ -15,14 +15,8 @@ export async function getTrackMetadata(
   return apiGet(`/tracks/${trackId}/md`, TrackMetadataIo);
 }
 
-export interface TracksPageResult {
-  items: TrackListItem[];
-  /** Opaque cursor for the next page; `null` on the last page. */
-  nextCursor: string | null;
-}
-
 export interface GetTracksPageParams {
-  /** Pass through the `next_cursor` from the previous page. */
+  /** Pass through the `nextCursor` from the previous page. */
   cursor?: string;
   /** Server caps at 100; defaults to 25 when omitted. */
   limit?: number;
@@ -36,7 +30,7 @@ export interface GetTracksPageParams {
  */
 export async function getTracksPage(
   params: GetTracksPageParams = {},
-): Promise<TracksPageResult> {
+): Promise<TracksPage> {
   const query = new URLSearchParams();
   if (params.cursor) {
     query.set('cursor', params.cursor);
@@ -47,11 +41,9 @@ export async function getTracksPage(
   }
 
   const suffix = query.size > 0 ? `?${query}` : '';
-  const page = await apiGet(`/tracks${suffix}`, TracksPageIo, {
+  return apiGet(`/tracks${suffix}`, TracksPageIo, {
     signal: params.signal,
   });
-
-  return { items: page.items, nextCursor: page.next_cursor };
 }
 
 export type TrackKind = 'full' | 'preview';

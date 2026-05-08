@@ -58,8 +58,8 @@ export function TrackPage() {
   const window = useMemo<TrackWindow | undefined>(() => {
     if (!track || state.status !== 'ok') return undefined;
     return {
-      takeoffIdx: findIndexAt(track, state.data.takeoff_at),
-      landedIdx: findIndexAt(track, state.data.landed_at),
+      takeoffIdx: findIndexAt(track, state.data.takeoffAt),
+      landedIdx: findIndexAt(track, state.data.landedAt),
     };
   }, [track, state]);
 
