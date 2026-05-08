@@ -67,21 +67,28 @@ describe('bucketMean', () => {
   it('cancels per-circle peaks and troughs into a stable trend', () => {
     // Synthesise the kind of signal the speed pipeline produces inside
     // a thermal: a sinusoidal oscillation between 5 and 95 km/h with
-    // a 25 s period, around a 50 km/h mean. Bucketing to ~1500 over
-    // 5000 samples (≈4 s buckets) should land each bucket on roughly
-    // the 50 km/h mean, with the per-circle peaks and troughs gone.
+    // a 25 s period, around a 50 km/h mean.
+    //
+    // The "trend through wobble" property only holds when each bucket
+    // spans at least one full cycle of the underlying oscillation.
+    // 5000 samples / 50 buckets = 100 samples/bucket = 4 cycles/bucket
+    // → bucket means land within a fraction of a km/h of the true 50.
+    //
+    // (Earlier this used 1500 buckets ≈ 3 samples/bucket, which is
+    // ~13% of a cycle — at that ratio the test is a phase lottery
+    // and bucket means range from 5 to 95. Fixed by choosing a
+    // target that actually exercises what bucketing is for.)
     const xs = new Uint32Array(5000);
     const ys = new Float32Array(5000);
     for (let i = 0; i < 5000; i++) {
       xs[i] = 1_700_000_000 + i;
       ys[i] = 50 + 45 * Math.sin((i / 25) * 2 * Math.PI);
     }
-    const out = bucketMean(xs, ys, 1500);
+    const out = bucketMean(xs, ys, 50);
 
-    // Inspect mid-array buckets where the proportional split has
-    // settled into a clean ~3.3-sample bucket size; allow 5 km/h
-    // tolerance for the residual sub-bucket phase wobble.
-    for (let b = 100; b < 1400; b++) {
+    // Skip the very first and last bucket: the proportional split can
+    // shave a sample off the edges and bias the mean by sub-km/h.
+    for (let b = 1; b < out.ys.length - 1; b++) {
       expect(out.ys[b]).toBeGreaterThan(45);
       expect(out.ys[b]).toBeLessThan(55);
     }
