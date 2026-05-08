@@ -27,6 +27,37 @@ export const TrackMetadataIo = z.object({
 
 export type TrackMetadata = z.infer<typeof TrackMetadataIo>;
 
+/**
+ * One row of `GET /tracks`. Mirrors the server's
+ * `routes::tracks_list::Item` exactly. Field names stay snake_case here
+ * (matching the wire) — the consumer hook re-maps `next_cursor` to
+ * `nextCursor` at the boundary, but item fields are passed through
+ * verbatim because they're already terse and read fine in JSX.
+ */
+export const TrackListItemIo = z.object({
+  pilot: z.object({
+    id: z.number().int(),
+    name: z.string(),
+  }),
+  track: z.object({
+    id: z.string(),
+    /** Unix epoch seconds (UTC). */
+    takeoff_at: z.number().int(),
+    /** Whole seconds, from `flights.duration_s`. */
+    duration: z.number().int(),
+  }),
+});
+
+export type TrackListItem = z.infer<typeof TrackListItemIo>;
+
+export const TracksPageIo = z.object({
+  items: z.array(TrackListItemIo),
+  /** Opaque cursor for the next page; `null` on the last page. */
+  next_cursor: z.string().nullable(),
+});
+
+export type TracksPage = z.infer<typeof TracksPageIo>;
+
 // --- TengriFile binary wire format (bincode-ts) ------------------------------
 //
 // MUST stay in sync with `server/src/flight/tengri/format.rs` and
