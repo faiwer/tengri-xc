@@ -15,7 +15,7 @@ use axum::{
     routing::{get, post},
 };
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::Row;
 
 use crate::{
@@ -26,7 +26,7 @@ use crate::{
         password::{self, Verified},
         token::encode_jwt,
     },
-    user::{Permissions, UserSex, UserSource},
+    user::{Permissions, UserDto, fetch_user},
 };
 
 /// Routes that set/clear the cookie inline; mounted *outside*
@@ -148,7 +148,9 @@ async fn login(
         HeaderValue::from_str(&set_session(&jwt, state.https())).map_err(into_internal)?,
     );
 
-    let body = fetch_me(state.pool(), user_id).await?;
+    let body = fetch_user(state.pool(), user_id)
+        .await?
+        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("user {user_id} vanished mid-login")))?;
     Ok((StatusCode::OK, headers, Json(body)).into_response())
 }
 
@@ -171,103 +173,19 @@ async fn logout(State(state): State<AppState>) -> Result<Response, AppError> {
 // GET /users/me
 // -----------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
-pub struct MeResponse {
-    pub id: i32,
-    pub name: String,
-    pub login: Option<String>,
-    pub email: Option<String>,
-    pub source: UserSource,
-    /// Raw bits. Frontend uses `bit & N` checks, no enum needed.
-    pub permissions: i32,
-    /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we
-    /// project it as `bigint` so the wire stays numeric and the
-    /// client can do `new Date(seconds * 1000)` without parsing.
-    pub email_verified_at: Option<i64>,
-    pub last_login_at: Option<i64>,
-    pub created_at: i64,
-    pub profile: Option<MeProfile>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MeProfile {
-    pub civl_id: Option<i32>,
-    pub country: Option<String>,
-    pub sex: Option<UserSex>,
-}
-
 /// `null` for anonymous, current user otherwise. Always 200 —
 /// "nobody" is a valid answer here, and 401 would just spam the
 /// browser console with red errors on every anon SPA boot.
 async fn me(
     State(state): State<AppState>,
     identity: Option<Identity>,
-) -> Result<Json<Option<MeResponse>>, AppError> {
+) -> Result<Json<Option<UserDto>>, AppError> {
     let Some(identity) = identity else {
         return Ok(Json(None));
     };
     // Row missing = user hard-deleted between the last slide and
     // now. Treat as anonymous; the next request slides cleanly.
-    Ok(Json(fetch_me_opt(state.pool(), identity.user_id).await?))
-}
-
-/// User row + profile join. `None` if the row is gone.
-async fn fetch_me_opt(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<MeResponse>, AppError> {
-    let row = sqlx::query(
-        "SELECT \
-            u.id, u.name, u.login, u.email, u.source, u.permissions, \
-            EXTRACT(EPOCH FROM u.email_verified_at)::bigint AS email_verified_at, \
-            EXTRACT(EPOCH FROM u.last_login_at)::bigint     AS last_login_at, \
-            EXTRACT(EPOCH FROM u.created_at)::bigint        AS created_at, \
-            p.civl_id, p.country, p.sex \
-         FROM users u \
-         LEFT JOIN user_profiles p ON p.user_id = u.id \
-         WHERE u.id = $1",
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .map_err(into_internal)?;
-
-    let Some(row) = row else { return Ok(None) };
-
-    let civl_id: Option<i32> = row.try_get("civl_id").map_err(sqlx_to_internal)?;
-    let country: Option<String> = row.try_get("country").map_err(sqlx_to_internal)?;
-    let sex: Option<UserSex> = row.try_get("sex").map_err(sqlx_to_internal)?;
-
-    // `null` for "no profile data" (whether the row was missing
-    // or had all-NULL columns); `Some` if any field is populated.
-    let profile = if civl_id.is_some() || country.is_some() || sex.is_some() {
-        Some(MeProfile {
-            civl_id,
-            country,
-            sex,
-        })
-    } else {
-        None
-    };
-
-    Ok(Some(MeResponse {
-        id: row.try_get("id").map_err(sqlx_to_internal)?,
-        name: row.try_get("name").map_err(sqlx_to_internal)?,
-        login: row.try_get("login").map_err(sqlx_to_internal)?,
-        email: row.try_get("email").map_err(sqlx_to_internal)?,
-        source: row.try_get("source").map_err(sqlx_to_internal)?,
-        permissions: row.try_get("permissions").map_err(sqlx_to_internal)?,
-        email_verified_at: row.try_get("email_verified_at").map_err(sqlx_to_internal)?,
-        last_login_at: row.try_get("last_login_at").map_err(sqlx_to_internal)?,
-        created_at: row.try_get("created_at").map_err(sqlx_to_internal)?,
-        profile,
-    }))
-}
-
-/// Login-side wrapper. The row must exist — we just SELECTed it.
-/// A missing row here means it was deleted between two queries
-/// in this handler; surface as 500.
-async fn fetch_me(pool: &sqlx::PgPool, user_id: i32) -> Result<MeResponse, AppError> {
-    fetch_me_opt(pool, user_id)
-        .await?
-        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("user {user_id} vanished mid-login")))
+    Ok(Json(fetch_user(state.pool(), identity.user_id).await?))
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

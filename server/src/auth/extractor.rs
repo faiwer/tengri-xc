@@ -64,3 +64,11 @@ where
         Ok(parts.extensions.get::<Identity>().cloned())
     }
 }
+
+pub fn require_permission(identity: &Identity, flag: Permissions) -> Result<(), AppError> {
+    if identity.permissions.contains(flag) {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden)
+    }
+}

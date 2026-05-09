@@ -2,6 +2,7 @@ use axum::{Router, middleware::from_fn_with_state};
 
 use crate::{AppState, auth::session_layer};
 
+mod admin;
 mod health;
 mod tracks;
 mod tracks_list;
@@ -12,6 +13,7 @@ mod users;
 /// middleware; everything else sits behind it.
 pub fn router(state: AppState) -> Router<AppState> {
     let session_aware = Router::new()
+        .merge(admin::router())
         .merge(health::router())
         .merge(tracks::router())
         .merge(tracks_list::router())

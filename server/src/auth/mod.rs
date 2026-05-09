@@ -14,6 +14,6 @@ pub mod middleware;
 pub mod password;
 pub mod token;
 
-pub use extractor::Identity;
+pub use extractor::{Identity, require_permission};
 pub use middleware::session_layer;
 pub use token::{Claims, JWT_LIFETIME};
