@@ -29,7 +29,13 @@ use super::shared::connect_pool;
 /// `TRUNCATE` itself takes them all at once with `CASCADE`, so the
 /// order in this list is purely cosmetic — but matching parent →
 /// child reads naturally in the summary.
-const TABLES: &[&str] = &["users", "flights", "flight_tracks", "flight_sources"];
+const TABLES: &[&str] = &[
+    "users",
+    "user_profiles",
+    "flights",
+    "flight_tracks",
+    "flight_sources",
+];
 
 pub async fn run(skip_confirm: bool) -> anyhow::Result<()> {
     let pool = connect_pool().await?;

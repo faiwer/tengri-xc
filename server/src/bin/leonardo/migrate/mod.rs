@@ -33,6 +33,7 @@
 //!    their parents) and push its report onto `reports`.
 
 mod flights;
+mod profiles;
 mod progress;
 mod users;
 
@@ -70,6 +71,7 @@ pub async fn run() -> anyhow::Result<()> {
 
     let mut reports: Vec<Report> = Vec::new();
     reports.push(users::run(&mysql, &pg).await?);
+    reports.push(profiles::run(&mysql, &pg).await?);
     reports.push(flights::run(&mysql, &pg).await?);
 
     print_summary(&reports);
@@ -80,7 +82,7 @@ fn print_summary(reports: &[Report]) {
     println!("migrate complete");
     for r in reports {
         println!(
-            "  {:<10} created {}, skipped {}, failed {}",
+            "  {:<14} created {}, skipped {}, failed {}",
             r.table,
             r.inserted,
             r.skipped,

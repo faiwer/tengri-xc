@@ -5,6 +5,7 @@ pub mod geo;
 pub mod routes;
 pub mod state;
 pub mod telemetry;
+pub mod user;
 
 use axum::Router;
 use tower_http::{
