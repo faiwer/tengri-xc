@@ -2,6 +2,7 @@ import { Button, Form, Input } from 'antd';
 import { Navigate, useNavigate } from 'react-router';
 import { HttpError } from '../../api/core';
 import { login } from '../../api/users';
+import { PageLayout } from '../../components/PageLayout';
 import { useAsync, useErrorToast } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
@@ -36,7 +37,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <PageLayout>
       <Form<LoginFormValues>
         layout="vertical"
         className={styles.card}
@@ -66,7 +67,7 @@ export function LoginPage() {
           Sign in
         </Button>
       </Form>
-    </main>
+    </PageLayout>
   );
 }
 

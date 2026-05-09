@@ -1,6 +1,7 @@
 import { Alert, Button, Skeleton } from 'antd';
 import { useMemo } from 'react';
 import type { TrackListItem } from '../../api/tracks.io';
+import { PageLayout } from '../../components/PageLayout';
 import { TrackRow, type TrackRowCell } from '../../components/TrackRow';
 import { useErrorToast } from '../../core/hooks';
 import {
@@ -34,11 +35,7 @@ export function TracksPage() {
   useErrorToast(feed.error, { title: "Couldn't load flights" });
 
   return (
-    <main className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Tengri XC</h1>
-      </header>
-
+    <PageLayout>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -78,7 +75,7 @@ export function TracksPage() {
       {!feed.isLoading && !feed.completed && (
         <div ref={onSentinelRef} className={styles.sentinel} aria-hidden />
       )}
-    </main>
+    </PageLayout>
   );
 }
 

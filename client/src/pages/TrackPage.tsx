@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
 import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
 import { FlightChart } from '../components/FlightChart';
+import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
-import { routes } from '../core/routes';
 import { altitudeRange } from '../track/altitudeRange';
 import { findIndexAt } from '../track/findIndexAt';
 import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
 import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
 import type { Track } from '../track';
-import styles from './TrackPage.module.scss';
 
 type LoadState =
   | { status: 'loading' }
@@ -84,7 +83,7 @@ export function TrackPage() {
   const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
 
   return (
-    <div className={styles.page}>
+    <PageLayout>
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'ok' && (
         <TrackMetaPanel data={state.data} peaks={peaks} altitudes={altitudes} />
@@ -95,7 +94,6 @@ export function TrackPage() {
         <FitBounds bounds={bounds} />
       </MapView>
       {track && window && <FlightChart track={track} window={window} />}
-      <Link to={routes.home()}>Back</Link>
-    </div>
+    </PageLayout>
   );
 }
