@@ -46,24 +46,38 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
 }
 
-/** Issue the GET, normalize transport/HTTP failures into `ApiError` subclasses. */
-async function fetchOk(
-  path: string,
-  options: ApiRequestOptions,
-): Promise<Response> {
+interface FetchOptions extends ApiRequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  body?: unknown;
+}
+
+/** Issue the request, normalize transport/HTTP failures into `ApiError` subclasses. */
+async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
   const url = SERVER_URL + path;
+  const method = options.method ?? 'GET';
+  const init: RequestInit = {
+    method,
+    signal: options.signal,
+    // `include` so the browser ships the session cookie cross-origin
+    // (Vite dev :5173 → API :5757). The server matches by listing the
+    // dev origin in `CLIENT_ORIGINS`; without that, this header is a
+    // no-op.
+    credentials: 'include',
+  };
+  if (options.body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(options.body);
+  }
+
   let response: Response;
   try {
-    response = await fetch(url, { method: 'GET', signal: options.signal });
+    response = await fetch(url, init);
   } catch (cause) {
-    // Aborts are a control-flow signal, not an error — let them through
-    // verbatim so callers can `if (e instanceof DOMException && e.name ===
-    // 'AbortError') return` without unwrapping.
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       throw cause;
     }
 
-    throw new NetworkError(`GET ${url} failed`, { cause });
+    throw new NetworkError(`${method} ${url} failed`, { cause });
   }
   if (!response.ok) {
     throw new HttpError(response.status);
@@ -83,6 +97,52 @@ export async function apiGet<T extends z.ZodTypeAny>(
   options: ApiRequestOptions = {},
 ): Promise<z.infer<T>> {
   const response = await fetchOk(path, options);
+  return decodeJson(response, schema);
+}
+
+/**
+ * POST JSON `body` to `path` and validate the response against `schema`.
+ * The body is sent as `application/json`. Errors mirror `apiGet`.
+ */
+export async function apiPost<T extends z.ZodTypeAny>(
+  path: string,
+  body: unknown,
+  schema: T,
+  options: ApiRequestOptions = {},
+): Promise<z.infer<T>> {
+  const response = await fetchOk(path, { ...options, method: 'POST', body });
+  return decodeJson(response, schema);
+}
+
+/**
+ * POST JSON `body` to `path` and ignore the response body. Use for
+ * 204-style endpoints (e.g. logout).
+ */
+export async function apiPostVoid(
+  path: string,
+  body: unknown = null,
+  options: ApiRequestOptions = {},
+): Promise<void> {
+  await fetchOk(path, { ...options, method: 'POST', body });
+}
+
+/**
+ * GET `path` and return the raw response body as a `Blob`. The browser
+ * transparently honors `Content-Encoding`, so a gzipped response is already
+ * decompressed by the time it reaches the Blob.
+ */
+export async function apiGetBlob(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  const response = await fetchOk(path, options);
+  return response.blob();
+}
+
+async function decodeJson<T extends z.ZodTypeAny>(
+  response: Response,
+  schema: T,
+): Promise<z.infer<T>> {
   let raw: unknown;
   try {
     raw = await response.json();
@@ -102,17 +162,4 @@ export async function apiGet<T extends z.ZodTypeAny>(
     throw new DecodeError(parsed.error.issues, body);
   }
   return parsed.data;
-}
-
-/**
- * GET `path` and return the raw response body as a `Blob`. The browser
- * transparently honors `Content-Encoding`, so a gzipped response is already
- * decompressed by the time it reaches the Blob.
- */
-export async function apiGetBlob(
-  path: string,
-  options: ApiRequestOptions = {},
-): Promise<Blob> {
-  const response = await fetchOk(path, options);
-  return response.blob();
 }
