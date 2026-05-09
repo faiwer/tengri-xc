@@ -14,7 +14,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
@@ -180,9 +180,12 @@ pub struct MeResponse {
     pub source: UserSource,
     /// Raw bits. Frontend uses `bit & N` checks, no enum needed.
     pub permissions: i32,
-    pub email_verified_at: Option<DateTime<Utc>>,
-    pub last_login_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
+    /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we
+    /// project it as `bigint` so the wire stays numeric and the
+    /// client can do `new Date(seconds * 1000)` without parsing.
+    pub email_verified_at: Option<i64>,
+    pub last_login_at: Option<i64>,
+    pub created_at: i64,
     pub profile: Option<MeProfile>,
 }
 
@@ -213,7 +216,9 @@ async fn fetch_me_opt(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<MeResp
     let row = sqlx::query(
         "SELECT \
             u.id, u.name, u.login, u.email, u.source, u.permissions, \
-            u.email_verified_at, u.last_login_at, u.created_at, \
+            EXTRACT(EPOCH FROM u.email_verified_at)::bigint AS email_verified_at, \
+            EXTRACT(EPOCH FROM u.last_login_at)::bigint     AS last_login_at, \
+            EXTRACT(EPOCH FROM u.created_at)::bigint        AS created_at, \
             p.civl_id, p.country, p.sex \
          FROM users u \
          LEFT JOIN user_profiles p ON p.user_id = u.id \
