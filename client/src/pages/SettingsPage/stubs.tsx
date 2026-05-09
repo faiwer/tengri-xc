@@ -16,4 +16,3 @@ export const AuthorizationSettings = () => <Stub title="Authorization" />;
 export const StatsSettings = () => <Stub title="Stats" />;
 export const MyFlightsSettings = () => <Stub title="My flights" />;
 export const SystemSettings = () => <Stub title="System settings" />;
-export const UsersSettings = () => <Stub title="Users" />;

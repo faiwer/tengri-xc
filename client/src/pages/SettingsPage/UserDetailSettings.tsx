@@ -1,0 +1,153 @@
+import { Alert, Button, Skeleton } from 'antd';
+import { useState } from 'react';
+import { Link, useParams } from 'react-router';
+
+import { getUser } from '../../api/admin/users';
+import type { User } from '../../api/admin/users.io';
+import type { UserSex, UserSource } from '../../api/users.io';
+import { useAsync, useAsyncEffect, useErrorToast } from '../../core/hooks';
+import { routes } from '../../core/routes';
+import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
+import { PermissionBadges } from './PermissionBadges';
+import styles from './UserDetailSettings.module.scss';
+
+export function UserDetailSettings() {
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = parseUserId(rawId);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [fetchUser, , error] = useAsync(getUser);
+
+  useAsyncEffect(
+    async (signal) => {
+      setUser(null);
+      const next = await fetchUser(id, { signal });
+      if (!signal.aborted) {
+        setUser(next);
+      }
+    },
+    [id],
+  );
+
+  useErrorToast(error, { title: "Couldn't load user" });
+
+  if (user === null && error !== null) {
+    const message = error instanceof Error ? error.message : String(error);
+    return (
+      <Alert
+        type="error"
+        showIcon
+        title="Couldn't load user"
+        description={message}
+        action={
+          <Link to={routes.settings.users()}>
+            <Button size="small">Back to users</Button>
+          </Link>
+        }
+      />
+    );
+  }
+
+  if (user === null) {
+    return <Skeleton active paragraph={{ rows: 8 }} />;
+  }
+
+  return (
+    <section className={styles.section}>
+      <header className={styles.header}>
+        <h2 className={styles.title}>{user.name}</h2>
+        <Link to={routes.settings.users()} className={styles.back}>
+          ← All users
+        </Link>
+      </header>
+
+      <h3 className={styles.subtitle}>Account</h3>
+      <dl className={styles.list}>
+        <Row label="ID">{user.id}</Row>
+        <Row label="Name">{user.name}</Row>
+        <Row label="Login">{user.login ?? <Muted>—</Muted>}</Row>
+        <Row label="Email">{user.email ?? <Muted>—</Muted>}</Row>
+        <Row label="Source">{formatSource(user.source)}</Row>
+        <Row label="Permissions">
+          <PermissionBadges bits={user.permissions} />
+        </Row>
+        <Row label="Created">{formatTimestamp(user.createdAt)}</Row>
+        <Row label="Last login">
+          {user.lastLoginAt === null ? (
+            <Muted>never</Muted>
+          ) : (
+            formatTimestamp(user.lastLoginAt)
+          )}
+        </Row>
+        <Row label="Email verified">
+          {user.emailVerifiedAt === null ? (
+            <Muted>no</Muted>
+          ) : (
+            formatTimestamp(user.emailVerifiedAt)
+          )}
+        </Row>
+      </dl>
+
+      <h3 className={styles.subtitle}>Profile</h3>
+      {user.profile === null ? (
+        <p className={styles.empty}>No profile data.</p>
+      ) : (
+        <dl className={styles.list}>
+          <Row label="CIVL ID">{user.profile.civlId ?? <Muted>—</Muted>}</Row>
+          <Row label="Country">{user.profile.country ?? <Muted>—</Muted>}</Row>
+          <Row label="Sex">
+            {user.profile.sex === null ? (
+              <Muted>—</Muted>
+            ) : (
+              formatSex(user.profile.sex)
+            )}
+          </Row>
+        </dl>
+      )}
+    </section>
+  );
+}
+
+function parseUserId(raw: string | undefined): number {
+  const id = Number.parseInt(raw ?? '', 10);
+  if (!Number.isInteger(id)) {
+    throw new Error(`Invalid user id: ${JSON.stringify(raw)}`);
+  }
+  return id;
+}
+
+const Row = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <>
+    <dt className={styles.term}>{label}</dt>
+    <dd className={styles.def}>{children}</dd>
+  </>
+);
+
+const Muted = ({ children }: { children: React.ReactNode }) => (
+  <span className={styles.muted}>{children}</span>
+);
+
+const SOURCE_LABEL: Record<UserSource, string> = {
+  internal: 'Internal',
+  leo: 'Leonardo (imported)',
+};
+
+const SEX_LABEL: Record<UserSex, string> = {
+  male: 'Male',
+  female: 'Female',
+  diverse: 'Diverse',
+};
+
+const formatSource = (source: UserSource): string =>
+  SOURCE_LABEL[source] ?? source;
+
+const formatSex = (sex: UserSex): string => SEX_LABEL[sex] ?? sex;
+
+const formatTimestamp = (epochSeconds: number): string =>
+  `${formatShortDate(epochSeconds)} ${formatShortTime(epochSeconds)}`;

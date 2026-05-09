@@ -1,0 +1,44 @@
+.row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+.variantUsers {
+  color: #be185d;
+  background: #fce7f3;
+  border-color: #fbcfe8;
+}
+
+.variantTracks {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.variantSettings {
+  color: #6d28d9;
+  background: #ede9fe;
+  border-color: #ddd6fe;
+}
+
+.variantLogin {
+  color: #4b5563;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.empty {
+  color: #9ca3af;
+  font-style: italic;
+}

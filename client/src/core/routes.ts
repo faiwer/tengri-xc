@@ -11,5 +11,6 @@ export const routes = {
     myFlights: () => '/settings/my-flights',
     system: () => '/settings/system',
     users: () => '/settings/users',
+    user: (id: number) => `/settings/users/${id}`,
   },
 };

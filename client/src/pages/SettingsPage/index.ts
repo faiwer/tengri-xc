@@ -1,9 +1,10 @@
 export { SettingsLayout } from './SettingsLayout';
+export { UserDetailSettings } from './UserDetailSettings';
+export { UsersSettings } from './UsersSettings';
 export {
-  ProfileSettings,
   AuthorizationSettings,
-  StatsSettings,
   MyFlightsSettings,
+  ProfileSettings,
+  StatsSettings,
   SystemSettings,
-  UsersSettings,
 } from './stubs';

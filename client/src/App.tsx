@@ -9,6 +9,7 @@ import {
   SettingsLayout,
   StatsSettings,
   SystemSettings,
+  UserDetailSettings,
   UsersSettings,
 } from './pages/SettingsPage';
 import { TracksPage } from './pages/TracksPage';
@@ -44,6 +45,7 @@ export function App() {
                 <Route path="my-flights" element={<MyFlightsSettings />} />
                 <Route path="system" element={<SystemSettings />} />
                 <Route path="users" element={<UsersSettings />} />
+                <Route path="users/:id" element={<UserDetailSettings />} />
               </Route>
             </Routes>
           </BrowserRouter>
