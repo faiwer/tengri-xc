@@ -3,9 +3,9 @@
 //!
 //! Page shape: `{ items: [...], next_cursor: string|null }`. Clients pass
 //! `next_cursor` back as `?cursor=...` until they receive `null`. The cursor
-//! is opaque — internally a 12-byte packed `(u32 takeoff_at, [u8; 8]
-//! flight_id)` rendered as 16 base64url chars — and clients must treat it
-//! as such. Encoding may change without an API revision.
+//! is opaque — internally a length-prefixed pack of `(u32 takeoff_at,
+//! u8 id_len, ascii flight_id)` rendered as base64url — and clients must
+//! treat it as such. Encoding may change without an API revision.
 //!
 //! Sort order is `(takeoff_at DESC, flight_id DESC)`. The trailing `id`
 //! column is purely a tie-break for flights that share `takeoff_at` to the
@@ -13,9 +13,7 @@
 //! duplicates. The `flights_takeoff_idx` index covers the leading column,
 //! and the PK on `flights.id` makes the row-comparison index-friendly.
 //!
-//! No filters, no alternate sorts — those belong to a follow-up. The
-//! cursor format is intentionally extensible: a future change can add a
-//! version byte without breaking this v0.
+//! No filters, no alternate sorts — those belong to a follow-up.
 
 use axum::{
     Json, Router,
@@ -31,9 +29,14 @@ pub fn router() -> Router<AppState> {
     Router::new().route("/tracks", get(list_tracks))
 }
 
-/// NanoID length used for `flights.id`. The cursor packs the id as fixed-
-/// width bytes; if this ever changes, bump the cursor format.
-const FLIGHT_ID_LEN: usize = 8;
+/// Hard cap on the flight-id length we'll pack into a cursor. The id
+/// goes in as a `u8`-length-prefixed slice, so the format-level cap
+/// is 255; we keep the limit a touch lower to leave headroom and to
+/// reject obviously-bogus inputs early. Native NanoIDs are 8 bytes;
+/// the leonardo importer produces `LEO-<n>` which currently tops out
+/// at 8 (e.g. `LEO-1350`) and won't realistically exceed `LEO-` plus
+/// 19 digits even at u64 max.
+const FLIGHT_ID_MAX: usize = 32;
 
 /// Default page size when the client doesn't provide `?limit=`.
 const DEFAULT_LIMIT: u32 = 25;
@@ -171,34 +174,42 @@ async fn list_tracks(
     Ok(Json(ListResponse { items, next_cursor }))
 }
 
-/// Pack `(takeoff_at, flight_id)` into 12 bytes and base64url-encode.
+/// Pack `(takeoff_at, flight_id)` and base64url-encode. The id is
+/// length-prefixed so the cursor self-describes — flight ids today
+/// come in two flavours (8-byte NanoIDs from `tengri add`, variable
+/// `LEO-<n>` from the leonardo importer) and a fixed-width layout
+/// would have to know which is which.
 ///
-/// Layout: `[0..4]` big-endian `u32` epoch seconds, `[4..12]` raw ASCII
-/// bytes of the flight id. Big-endian because it's the conventional
-/// network byte order for packed integers and makes the cursor sort
-/// lexicographically by time when one ever cares to look (debugging).
+/// Layout: `[0..4]` big-endian `u32` epoch seconds, `[4]` `u8` id
+/// length, `[5..5+len]` raw ASCII bytes of the flight id.
+/// Big-endian for the timestamp because it's conventional network
+/// byte order and makes the cursor sort lexicographically by time
+/// when one ever cares to look (debugging).
 fn encode_cursor(takeoff_at: u32, flight_id: &str) -> String {
-    debug_assert_eq!(
+    debug_assert!(
+        flight_id.len() <= FLIGHT_ID_MAX,
+        "flight_id is {} bytes, > FLIGHT_ID_MAX={FLIGHT_ID_MAX}",
         flight_id.len(),
-        FLIGHT_ID_LEN,
-        "flight_id must be {FLIGHT_ID_LEN} bytes",
     );
-    let mut buf = [0u8; 4 + FLIGHT_ID_LEN];
-    buf[0..4].copy_from_slice(&takeoff_at.to_be_bytes());
-    buf[4..].copy_from_slice(flight_id.as_bytes());
+    let id = flight_id.as_bytes();
+    let mut buf = Vec::with_capacity(5 + id.len());
+    buf.extend_from_slice(&takeoff_at.to_be_bytes());
+    buf.push(id.len() as u8);
+    buf.extend_from_slice(id);
     URL_SAFE_NO_PAD.encode(buf)
 }
 
 /// Decode a base64url cursor into `(takeoff_at, flight_id)`. Rejects:
 /// - bad base64;
-/// - decoded length ≠ 12 bytes;
-/// - non-NanoID-alphabet bytes in the id slice (so junk can't be
-///   smuggled into a SQL parameter).
+/// - decoded length not consistent with the embedded id-length byte;
+/// - id length > [`FLIGHT_ID_MAX`];
+/// - non-id-alphabet bytes in the id slice (so junk can't be smuggled
+///   into a SQL parameter).
 fn decode_cursor(s: &str) -> Result<(u32, String), AppError> {
     let bytes = URL_SAFE_NO_PAD
         .decode(s)
         .map_err(|_| AppError::BadRequest("malformed cursor".into()))?;
-    if bytes.len() != 4 + FLIGHT_ID_LEN {
+    if bytes.len() < 5 {
         return Err(AppError::BadRequest("malformed cursor".into()));
     }
 
@@ -208,8 +219,13 @@ fn decode_cursor(s: &str) -> Result<(u32, String), AppError> {
             .expect("4 bytes by length check above"),
     );
 
-    let id_bytes = &bytes[4..];
-    if !id_bytes.iter().all(|b| is_nanoid_byte(*b)) {
+    let id_len = bytes[4] as usize;
+    if id_len == 0 || id_len > FLIGHT_ID_MAX || bytes.len() != 5 + id_len {
+        return Err(AppError::BadRequest("malformed cursor".into()));
+    }
+
+    let id_bytes = &bytes[5..5 + id_len];
+    if !id_bytes.iter().all(|b| is_id_byte(*b)) {
         return Err(AppError::BadRequest("malformed cursor".into()));
     }
     // ASCII subset by the predicate above, so UTF-8 conversion is
@@ -222,7 +238,12 @@ fn decode_cursor(s: &str) -> Result<(u32, String), AppError> {
     Ok((takeoff_at, id))
 }
 
-fn is_nanoid_byte(b: u8) -> bool {
+/// Bytes we accept inside an opaque cursor's id slice. The union of
+/// the NanoID alphabet (`[A-Za-z0-9_-]`) and the leonardo importer's
+/// `LEO-<digits>` shape (already a subset of NanoID's). A separate
+/// predicate from the NanoID generator's alphabet because we don't
+/// want to imply the cursor enforces a generator format.
+fn is_id_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'-'
 }
 
@@ -231,12 +252,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cursor_round_trips() {
-        let encoded = encode_cursor(1_777_887_122, "ABCD1234");
-        assert_eq!(encoded.len(), 16, "12 bytes -> 16 base64url chars");
-        let (t, id) = decode_cursor(&encoded).unwrap();
+    fn cursor_round_trips_nanoid() {
+        let (t, id) = decode_cursor(&encode_cursor(1_777_887_122, "ABCD1234")).unwrap();
         assert_eq!(t, 1_777_887_122);
         assert_eq!(id, "ABCD1234");
+    }
+
+    #[test]
+    fn cursor_round_trips_leonardo_id() {
+        let (t, id) = decode_cursor(&encode_cursor(1_777_887_122, "LEO-1350")).unwrap();
+        assert_eq!(t, 1_777_887_122);
+        assert_eq!(id, "LEO-1350");
+    }
+
+    #[test]
+    fn cursor_round_trips_short_id() {
+        let (t, id) = decode_cursor(&encode_cursor(1, "LEO-7")).unwrap();
+        assert_eq!(t, 1);
+        assert_eq!(id, "LEO-7");
     }
 
     #[test]
@@ -246,10 +279,8 @@ mod tests {
     }
 
     #[test]
-    fn cursor_rejects_wrong_length() {
-        // 9 bytes -> 12 base64url chars, well-formed base64 but wrong
-        // payload size for our format.
-        let short = URL_SAFE_NO_PAD.encode([0u8; 9]);
+    fn cursor_rejects_too_short_to_hold_header() {
+        let short = URL_SAFE_NO_PAD.encode([0u8; 4]);
         assert!(matches!(
             decode_cursor(&short),
             Err(AppError::BadRequest(_)),
@@ -257,12 +288,36 @@ mod tests {
     }
 
     #[test]
+    fn cursor_rejects_length_mismatch() {
+        // Header says id is 8 bytes long, payload only carries 4.
+        let mut buf = vec![0u8; 4];
+        buf.push(8);
+        buf.extend_from_slice(b"ABCD");
+        assert!(matches!(
+            decode_cursor(&URL_SAFE_NO_PAD.encode(buf)),
+            Err(AppError::BadRequest(_)),
+        ));
+    }
+
+    #[test]
+    fn cursor_rejects_oversized_id() {
+        let mut buf = vec![0u8; 4];
+        buf.push((FLIGHT_ID_MAX + 1) as u8);
+        buf.extend(std::iter::repeat_n(b'A', FLIGHT_ID_MAX + 1));
+        assert!(matches!(
+            decode_cursor(&URL_SAFE_NO_PAD.encode(buf)),
+            Err(AppError::BadRequest(_)),
+        ));
+    }
+
+    #[test]
     fn cursor_rejects_non_alphabet_id() {
-        // Valid u32 prefix, then a NUL byte in the id slice.
-        let mut buf = [0u8; 12];
-        buf[0..4].copy_from_slice(&1u32.to_be_bytes());
-        buf[4] = 0; // not in the NanoID alphabet
-        let bad = URL_SAFE_NO_PAD.encode(buf);
-        assert!(matches!(decode_cursor(&bad), Err(AppError::BadRequest(_))));
+        let mut buf = vec![0u8; 4];
+        buf.push(4);
+        buf.extend_from_slice(&[b'A', 0, b'B', b'C']);
+        assert!(matches!(
+            decode_cursor(&URL_SAFE_NO_PAD.encode(buf)),
+            Err(AppError::BadRequest(_)),
+        ));
     }
 }

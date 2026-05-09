@@ -1,6 +1,8 @@
 //! Cross-subcommand helpers for the `leonardo` importer: env loading,
 //! MySQL connection (source), and Postgres connection (destination).
 
+use std::path::PathBuf;
+
 use anyhow::Context;
 use sqlx::{MySqlPool, PgPool, mysql::MySqlPoolOptions, postgres::PgPoolOptions};
 
@@ -43,6 +45,17 @@ pub async fn connect_pg_pool() -> anyhow::Result<PgPool> {
         .connect(&url)
         .await
         .context("connecting to Postgres")
+}
+
+/// Where Leonardo's track tarball was unpacked. Read from
+/// `LEONARDO_TRACKS_ROOT`; required.
+pub fn tracks_root() -> anyhow::Result<PathBuf> {
+    let _ = dotenvy::from_filename(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
+    let root = std::env::var("LEONARDO_TRACKS_ROOT").unwrap_or_default();
+    if root.is_empty() {
+        anyhow::bail!("LEONARDO_TRACKS_ROOT must be set (try server/.env)");
+    }
+    Ok(PathBuf::from(root))
 }
 
 /// Spin up a single-threaded Tokio runtime on demand. The CLI is

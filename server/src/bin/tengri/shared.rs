@@ -1,101 +1,13 @@
-//! Cross-subcommand utilities for the `tengri` CLI: format detection,
-//! gzip helpers, NanoID generation, and Postgres connection.
-
-use std::{io::Write, path::Path};
+//! Cross-subcommand utilities for the `tengri` CLI: NanoID, env loading,
+//! and the Postgres pool. Format/parse/gzip helpers live in the library
+//! crate as `tengri_server::flight::ingest` so the leonardo importer
+//! can reuse them.
 
 use anyhow::{Context, anyhow};
-use flate2::{Compression, write::GzEncoder};
 use rand::Rng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tengri_server::flight::{Track, gpx, igc, kml, kmz};
 
-/// Recognised input format. Wraps file-extension dispatch so the
-/// matching `flight_source_format` enum value and the parser stay in
-/// lockstep. Add a variant here whenever the parser zoo grows.
-///
-/// `Kmz` is a transport wrapper rather than a real parsed format —
-/// `normalize_for_storage` cracks it open and downgrades it to `Kml`
-/// before anything talks to the database, so the `flight_source_format`
-/// enum stays a tidy `('igc', 'gpx', 'kml')`.
-#[derive(Debug, Clone, Copy)]
-pub enum InputFormat {
-    Igc,
-    Kml,
-    Gpx,
-    Kmz,
-}
-
-impl InputFormat {
-    pub fn db_name(self) -> &'static str {
-        match self {
-            InputFormat::Igc => "igc",
-            InputFormat::Kml | InputFormat::Kmz => "kml",
-            InputFormat::Gpx => "gpx",
-        }
-    }
-}
-
-pub fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
-    let ext = input
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|s| s.to_ascii_lowercase());
-    match ext.as_deref() {
-        Some("igc") => Ok(InputFormat::Igc),
-        Some("kml") => Ok(InputFormat::Kml),
-        Some("kmz") => Ok(InputFormat::Kmz),
-        Some("gpx") => Ok(InputFormat::Gpx),
-        Some(other) => Err(anyhow!("unsupported input format: .{other}")),
-        None => Err(anyhow!(
-            "input has no extension; cannot detect format: {}",
-            input.display()
-        )),
-    }
-}
-
-pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> {
-    match format {
-        InputFormat::Igc => {
-            let raw = igc::decode_text(bytes);
-            igc::parse_str(&raw).context("parsing IGC")
-        }
-        InputFormat::Kml => kml::parse_bytes(bytes).context("parsing KML"),
-        InputFormat::Kmz => kmz::parse_bytes(bytes).context("parsing KMZ"),
-        InputFormat::Gpx => gpx::parse_bytes(bytes).context("parsing GPX"),
-    }
-}
-
-pub fn parse_input(input: &Path) -> anyhow::Result<Track> {
-    let format = detect_format(input)?;
-    let bytes = std::fs::read(input).with_context(|| format!("reading {}", input.display()))?;
-    parse_format(format, &bytes)
-}
-
-/// Translate the upload as it lives on disk into the bytes we store in
-/// `flight_sources` and the matching `flight_source_format` enum value.
-///
-/// For IGC/KML/GPX this is identity. For KMZ we unzip and store the
-/// inner KML — `flight_sources` then carries a value that
-/// `upgrade-tracks` can re-parse without ever needing to know the
-/// upload was zipped, and the `flight_source_format` enum stays small.
-pub fn normalize_for_storage(
-    format: InputFormat,
-    bytes: Vec<u8>,
-) -> anyhow::Result<(InputFormat, Vec<u8>)> {
-    match format {
-        InputFormat::Kmz => {
-            let inner = kmz::extract_kml_bytes(&bytes).context("extracting KML from KMZ")?;
-            Ok((InputFormat::Kml, inner))
-        }
-        _ => Ok((format, bytes)),
-    }
-}
-
-pub fn gzip_bytes(raw: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut gz = GzEncoder::new(Vec::new(), Compression::default());
-    gz.write_all(raw)?;
-    Ok(gz.finish()?)
-}
+pub use tengri_server::flight::ingest::parse_input;
 
 /// 8-char NanoID with the `[A-Za-z0-9_-]` alphabet declared in the schema
 /// comment. 64 symbols × 8 chars = 48 bits of entropy, ample for the

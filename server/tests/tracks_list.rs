@@ -90,8 +90,10 @@ async fn list_paginates_with_cursor() {
         .as_str()
         .expect("next_cursor present on full page")
         .to_owned();
-    // Sanity: 12 raw bytes -> 16 base64url chars.
-    assert_eq!(cursor.len(), 16);
+    // Sanity: cursor is `[u32 timestamp | u8 id_len | id bytes]`.
+    // For an 8-char NanoID id that's 4 + 1 + 8 = 13 raw bytes, which
+    // base64url-no-pad encodes to 18 chars.
+    assert_eq!(cursor.len(), 18);
 
     // Page 2: pass the cursor → last item only, no further cursor.
     let resp = app
