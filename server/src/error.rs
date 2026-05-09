@@ -19,8 +19,13 @@ pub enum AppError {
     #[error("not found")]
     NotFound,
 
+    /// No session / bad cookie / revoked session.
     #[error("unauthorized")]
     Unauthorized,
+
+    /// Authenticated but lacks the required permission.
+    #[error("forbidden")]
+    Forbidden,
 
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
@@ -38,6 +43,7 @@ impl AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -47,6 +53,7 @@ impl AppError {
             AppError::BadRequest(_) => "bad_request",
             AppError::NotFound => "not_found",
             AppError::Unauthorized => "unauthorized",
+            AppError::Forbidden => "forbidden",
             AppError::Internal(_) => "internal_error",
         }
     }

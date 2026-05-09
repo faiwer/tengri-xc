@@ -17,7 +17,7 @@
 //! | `permissions`        | bit `CAN_AUTHORIZE` set iff `user_active = 1`            |
 //! | `email_verified_at`  | `to_timestamp(user_regdate)` if email present and reg>0  |
 //! | `created_at`         | `to_timestamp(user_regdate)` if `>0`, else default now() |
-//! | `last_seen_at`       | `to_timestamp(user_lastvisit)` if `>0`                   |
+//! | `last_login_at`      | `to_timestamp(user_lastvisit)` if `>0`                   |
 //!
 //! Why we ignore `serverID > 0`: the Leonardo schema is built for a
 //! federated network where pilots from peer servers are mirrored
@@ -142,7 +142,7 @@ struct Resolved {
     permissions: Permissions,
     active: bool,
     created_at: Option<DateTime<Utc>>,
-    last_seen_at: Option<DateTime<Utc>>,
+    last_login_at: Option<DateTime<Utc>>,
     email_verified_at: Option<DateTime<Utc>>,
 }
 
@@ -300,7 +300,7 @@ fn compose(pilots: &[SourcePilot]) -> Composed {
             Permissions::empty()
         };
         let created_at = unix_to_utc(p.user_regdate);
-        let last_seen_at = unix_to_utc(p.user_lastvisit);
+        let last_login_at = unix_to_utc(p.user_lastvisit);
         // Leonardo doesn't carry an explicit "email verified"
         // timestamp; it just doesn't let `user_active` flip until
         // the activation key in the welcome email is used. So if
@@ -325,7 +325,7 @@ fn compose(pilots: &[SourcePilot]) -> Composed {
             permissions,
             active: p.user_active,
             created_at,
-            last_seen_at,
+            last_login_at,
             email_verified_at,
         });
     }
@@ -395,7 +395,7 @@ async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome
             "INSERT INTO users ( \
                  id, name, login, email, password_hash, \
                  source, permissions, \
-                 email_verified_at, last_seen_at, created_at \
+                 email_verified_at, last_login_at, created_at \
              ) \
              VALUES ( \
                  $1, $2, $3, $4, $5, \
@@ -413,7 +413,7 @@ async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome
         .bind(UserSource::Leo.pg_enum_value())
         .bind(u.permissions.bits())
         .bind(u.email_verified_at)
-        .bind(u.last_seen_at)
+        .bind(u.last_login_at)
         .bind(u.created_at)
         .fetch_optional(pg)
         .await;

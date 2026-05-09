@@ -43,7 +43,7 @@ ALTER TABLE users
     -- See `tengri_server::user::Permissions` for the full layout.
     ADD COLUMN permissions       int         NOT NULL DEFAULT 1,
     ADD COLUMN email_verified_at timestamptz,
-    ADD COLUMN last_seen_at      timestamptz,
+    ADD COLUMN last_login_at     timestamptz,
     ADD COLUMN created_at        timestamptz NOT NULL DEFAULT now(),
     ADD COLUMN updated_at        timestamptz NOT NULL DEFAULT now();
 

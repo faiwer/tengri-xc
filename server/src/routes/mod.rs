@@ -1,19 +1,25 @@
-use axum::Router;
+use axum::{Router, middleware::from_fn_with_state};
 
-use crate::AppState;
+use crate::{AppState, auth::session_layer};
 
 mod health;
 mod tracks;
 mod tracks_list;
 mod tracks_md;
+mod users;
 
-/// Top-level router. Mount sub-routers here as the API grows; group related
-/// handlers into their own modules and expose a `pub fn router() -> Router<AppState>`
-/// from each, then `.merge` or `.nest` them in below.
-pub fn router() -> Router<AppState> {
-    Router::new()
+/// `users::public_router()` (login/logout) bypasses the slide
+/// middleware; everything else sits behind it.
+pub fn router(state: AppState) -> Router<AppState> {
+    let session_aware = Router::new()
         .merge(health::router())
         .merge(tracks::router())
         .merge(tracks_list::router())
         .merge(tracks_md::router())
+        .merge(users::session_router())
+        .layer(from_fn_with_state(state, session_layer));
+
+    Router::new()
+        .merge(users::public_router())
+        .merge(session_aware)
 }

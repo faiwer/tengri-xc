@@ -13,6 +13,12 @@ pub struct Config {
     /// bytes) so a short value can't slip through and weaken
     /// the signature.
     pub jwt_secret: Vec<u8>,
+    /// `true` when the server is reachable over TLS (directly or
+    /// behind a terminating proxy). Drives the `Secure` flag on
+    /// session cookies and any future https-aware behavior. Read
+    /// from the `HTTPS` env var; defaults to `false` so local dev
+    /// over plain HTTP just works.
+    pub https: bool,
 }
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
@@ -40,17 +46,41 @@ pub enum ConfigError {
     JwtSecretTooShort { got: usize, min: usize },
 }
 
+#[derive(Debug, Error)]
+#[error("expected true/false/1/0/yes/no, got {0:?}")]
+struct BoolParseError(String);
+
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let server_addr = parse_env("SERVER_ADDR", "0.0.0.0:3000")?;
         let database_url =
             env::var("DATABASE_URL").map_err(|_| ConfigError::Missing("DATABASE_URL"))?;
         let jwt_secret = load_jwt_secret()?;
+        let https = parse_bool_env("HTTPS", false)?;
         Ok(Self {
             server_addr,
             database_url,
             jwt_secret,
+            https,
         })
+    }
+}
+
+/// Parse a boolean env var. Accepts the same values `serde-toml` and
+/// most CI tooling do: `true`/`false`, `1`/`0`, `yes`/`no`,
+/// case-insensitive. Anything else fails loudly because silently
+/// defaulting `HTTPS=YEs` to `false` is a security foot-gun.
+fn parse_bool_env(var: &'static str, default: bool) -> Result<bool, ConfigError> {
+    let Ok(raw) = env::var(var) else {
+        return Ok(default);
+    };
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" => Ok(false),
+        other => Err(ConfigError::InvalidValue {
+            var,
+            source: Box::new(BoolParseError(other.to_owned())),
+        }),
     }
 }
 

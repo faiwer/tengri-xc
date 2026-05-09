@@ -14,7 +14,7 @@ async fn health_returns_ok_with_version() {
     let pool = PgPoolOptions::new()
         .connect_lazy("postgres://test:test@localhost/test")
         .expect("build lazy pool");
-    let app = build_app(AppState::new(pool));
+    let app = build_app(AppState::new(pool, &[0u8; 32], false));
 
     let response = app
         .oneshot(

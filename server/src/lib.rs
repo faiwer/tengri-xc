@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod config;
 pub mod error;
 pub mod flight;
@@ -32,5 +33,8 @@ pub fn build_app(state: AppState) -> Router {
                 .latency_unit(tower_http::LatencyUnit::Millis),
         );
 
-    routes::router().with_state(state).layer(cors).layer(trace)
+    routes::router(state.clone())
+        .with_state(state)
+        .layer(cors)
+        .layer(trace)
 }

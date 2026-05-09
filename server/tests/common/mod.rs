@@ -124,7 +124,7 @@ async fn reset_schema(pool: &PgPool) {
 /// with the FK chain (flights → tracks/sources).
 async fn truncate_data(pool: &PgPool) {
     sqlx::query(
-        "TRUNCATE flight_tracks, flight_sources, flights, users \
+        "TRUNCATE flight_tracks, flight_sources, flights, user_profiles, users \
          RESTART IDENTITY CASCADE",
     )
     .execute(pool)
@@ -135,7 +135,13 @@ async fn truncate_data(pool: &PgPool) {
 /// Convenience: build the app router on top of a pooled `AppState`.
 pub async fn test_app() -> (Router, PgPool) {
     let pool = test_pool().await;
-    let app = build_app(AppState::new(pool.clone()));
+    // Test fixture: 32 zero bytes is a valid HS256 secret length;
+    // tests that exercise auth flows mint and verify against the
+    // same `AppState`, so the value is irrelevant to correctness.
+    // `https=false` keeps the cookie un-`Secure` so the test
+    // client (plain HTTP) doesn't have its cookie silently
+    // dropped by the cookie crate.
+    let app = build_app(AppState::new(pool.clone(), &[0u8; 32], false));
     (app, pool)
 }
 

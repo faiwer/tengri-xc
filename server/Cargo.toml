@@ -8,15 +8,19 @@ default-run = "tengri-server"
 
 [dependencies]
 anyhow = "1.0.102"
+argon2 = "0.5.3"
 axum = "0.8.9"
 base64 = "0.22.1"
 bincode = { version = "2.0", features = ["serde"] }
 bitflags = "2.11.1"
 chrono = { version = "0.4.44", features = ["serde"] }
 clap = { version = "4.6.1", features = ["derive"] }
+cookie = "0.18.1"
 dotenvy = "0.15.7"
 encoding_rs = "0.8.35"
 flate2 = "1.1.9"
+jsonwebtoken = { version = "10.3.0", default-features = false, features = ["rust_crypto"] }
+md-5 = "0.11.0"
 rand = { version = "0.9.2", default-features = false, features = ["std", "std_rng", "thread_rng"] }
 roxmltree = "0.21.1"
 serde = { version = "1.0.228", features = ["derive"] }
