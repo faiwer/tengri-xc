@@ -1,5 +1,5 @@
 import { Button, Form, Input } from 'antd';
-import { useNavigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { HttpError } from '../../api/core';
 import { login } from '../../api/users';
 import { useAsync, useErrorToast } from '../../core/hooks';
@@ -18,18 +18,22 @@ interface LoginFormValues {
  * `/flights`. The session cookie is set by the server (HttpOnly).
  */
 export function LoginPage() {
-  const { setMe } = useIdentity();
+  const { me, setMe } = useIdentity();
   const navigate = useNavigate();
 
   const [submit, isLoading, error] = useAsync(
     async (values: LoginFormValues) => {
-      const me = await login(values);
-      setMe(me);
+      const next = await login(values);
+      setMe(next);
       navigate(routes.flights());
     },
   );
 
   useErrorToast(loginErrorMessage(error), { title: "Couldn't sign in" });
+
+  if (me) {
+    return <Navigate to={routes.flights()} replace />;
+  }
 
   return (
     <main className={styles.page}>
