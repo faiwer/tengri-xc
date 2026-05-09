@@ -19,25 +19,29 @@ const DEFAULT_TITLE = 'Oops. Something went wrong';
  * nullish to a value. Subsequent renders with the same error don't
  * re-fire — only a fresh error (or a clear-then-set cycle) does.
  *
- * Pass `null` / `undefined` when nothing's wrong; the hook does
- * nothing in that case, which makes it safe to call unconditionally
- * from a component body that may or may not be in an error state.
+ * Accepts whatever `useAsync` / a `catch` block hands you (`unknown`):
+ * `Error` instances render as their `.message`, primitives string-coerce,
+ * `null` / `undefined` are no-ops. Domain-specific rewrites (e.g. mapping
+ * a 401 to "Wrong password") still belong at the call site — pass the
+ * mapped string in directly.
  */
 export function useErrorToast(
-  error: string | null | undefined,
+  error: unknown,
   options: UseErrorToastOptions = {},
 ): void {
   const { notification } = App.useApp();
   const { title = DEFAULT_TITLE, description } = options;
 
   useAsyncEffect(() => {
-    if (error === null || error === undefined) {
+    const message =
+      error instanceof Error ? error.message : error ? String(error) : null;
+    if (!message) {
       return;
     }
 
     notification.error({
       message: title,
-      description: description ?? error,
+      description: description ?? message,
       placement: 'bottomRight',
     });
   }, [error]);

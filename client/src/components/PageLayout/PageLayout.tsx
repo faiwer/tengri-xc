@@ -26,7 +26,7 @@ export function PageLayout({ children }: PageLayoutProps) {
     navigate(routes.login());
   });
 
-  useErrorToast(toErrorMessage(signOutError), { title: "Couldn't sign out" });
+  useErrorToast(signOutError, { title: "Couldn't sign out" });
 
   return (
     <main className={styles.page}>
@@ -44,10 +44,3 @@ export function PageLayout({ children }: PageLayoutProps) {
     </main>
   );
 }
-
-const toErrorMessage = (error: unknown): string | null => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return error ? String(error) : null;
-};

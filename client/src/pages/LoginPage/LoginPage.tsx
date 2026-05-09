@@ -30,7 +30,9 @@ export function LoginPage() {
     },
   );
 
-  useErrorToast(loginErrorMessage(error), { title: "Couldn't sign in" });
+  useErrorToast(loginErrorMessage(error) ?? error, {
+    title: "Couldn't sign in",
+  });
 
   if (me) {
     return <Navigate to={routes.flights()} replace />;
@@ -75,10 +77,5 @@ const loginErrorMessage = (error: unknown): string | null => {
   if (error instanceof HttpError && error.status === 401) {
     return 'Wrong login or password';
   }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return error ? String(error) : null;
+  return null;
 };
