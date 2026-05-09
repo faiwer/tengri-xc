@@ -5,7 +5,8 @@
   "description": "Repo-root tooling (git hooks, formatters). Real packages live in server/ and client/.",
   "scripts": {
     "prepare": "husky",
-    "db": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- db"
+    "db": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- db",
+    "prune": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- prune"
   },
   "lint-staged": {
     "server/**/*.rs": [

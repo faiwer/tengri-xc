@@ -33,6 +33,7 @@
 //!    their parents) and push its report onto `reports`.
 
 mod flights;
+mod progress;
 mod users;
 
 use super::shared::{connect_mysql_pool, connect_pg_pool};

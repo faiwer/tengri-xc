@@ -27,6 +27,7 @@ use tengri_server::flight::{
 };
 
 use super::super::shared::tracks_root;
+use super::progress::Progress;
 use super::{Failure, Report};
 
 pub async fn run(mysql: &MySqlPool, pg: &PgPool) -> anyhow::Result<Report> {
@@ -44,6 +45,7 @@ pub async fn run(mysql: &MySqlPool, pg: &PgPool) -> anyhow::Result<Report> {
         .push(format!("source flights scanned: {}", flights.len()));
 
     let mut tally = Tally::default();
+    let mut progress = Progress::new("flights", flights.len());
     for src in &flights {
         let path = expected_path(&root, src);
         let outcome = if path.exists() {
@@ -52,7 +54,9 @@ pub async fn run(mysql: &MySqlPool, pg: &PgPool) -> anyhow::Result<Report> {
             Err(ProcessError::MissingFile)
         };
         record(&mut report, &mut tally, src, &path, outcome);
+        progress.tick();
     }
+    progress.finish();
     tally.write_notes(&mut report);
 
     Ok(report)
