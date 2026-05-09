@@ -29,7 +29,12 @@ async fn main() -> anyhow::Result<()> {
         .context("running migrations")?;
     tracing::info!("migrations applied");
 
-    let state = AppState::new(pool, &config.jwt_secret, config.https);
+    let state = AppState::with_origins(
+        pool,
+        &config.jwt_secret,
+        config.https,
+        config.client_origins.clone(),
+    );
     let app = build_app(state);
 
     let listener = TcpListener::bind(config.server_addr)

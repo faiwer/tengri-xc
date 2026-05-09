@@ -15,16 +15,28 @@ struct AppStateInner {
     jwt_decoding_key: DecodingKey,
     /// `true` → session cookies get the `Secure` flag.
     https: bool,
+    /// Cross-origin browsers allowed to send the session cookie.
+    client_origins: Vec<String>,
 }
 
 impl AppState {
     pub fn new(pool: PgPool, jwt_secret: &[u8], https: bool) -> Self {
+        Self::with_origins(pool, jwt_secret, https, Vec::new())
+    }
+
+    pub fn with_origins(
+        pool: PgPool,
+        jwt_secret: &[u8],
+        https: bool,
+        client_origins: Vec<String>,
+    ) -> Self {
         Self {
             inner: Arc::new(AppStateInner {
                 pool,
                 jwt_encoding_key: EncodingKey::from_secret(jwt_secret),
                 jwt_decoding_key: DecodingKey::from_secret(jwt_secret),
                 https,
+                client_origins,
             }),
         }
     }
@@ -43,5 +55,9 @@ impl AppState {
 
     pub fn https(&self) -> bool {
         self.inner.https
+    }
+
+    pub fn client_origins(&self) -> &[String] {
+        &self.inner.client_origins
     }
 }

@@ -19,6 +19,11 @@ pub struct Config {
     /// from the `HTTPS` env var; defaults to `false` so local dev
     /// over plain HTTP just works.
     pub https: bool,
+    /// Browser origins allowed to call us with credentials (the
+    /// session cookie). Comma-separated `CLIENT_ORIGINS` env var,
+    /// e.g. `http://localhost:5173,https://app.tengri.xc`. Empty
+    /// list locks the API down to same-origin clients only.
+    pub client_origins: Vec<String>,
 }
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
@@ -57,13 +62,29 @@ impl Config {
             env::var("DATABASE_URL").map_err(|_| ConfigError::Missing("DATABASE_URL"))?;
         let jwt_secret = load_jwt_secret()?;
         let https = parse_bool_env("HTTPS", false)?;
+        let client_origins = parse_origins("CLIENT_ORIGINS");
         Ok(Self {
             server_addr,
             database_url,
             jwt_secret,
             https,
+            client_origins,
         })
     }
+}
+
+/// Parse a comma-separated origin list. Trailing slashes get
+/// trimmed because browsers send `Origin: https://x.com` (no
+/// slash) and a config typo would silently lock everyone out.
+fn parse_origins(var: &'static str) -> Vec<String> {
+    let Ok(raw) = env::var(var) else {
+        return Vec::new();
+    };
+    raw.split(',')
+        .map(|s| s.trim().trim_end_matches('/'))
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Parse a boolean env var. Accepts the same values `serde-toml` and
