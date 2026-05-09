@@ -2,6 +2,15 @@ import { App as AntdApp, ConfigProvider, type ThemeConfig } from 'antd';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { IdentityProvider } from './core/identity';
 import { LoginPage } from './pages/LoginPage';
+import {
+  AuthorizationSettings,
+  MyFlightsSettings,
+  ProfileSettings,
+  SettingsLayout,
+  StatsSettings,
+  SystemSettings,
+  UsersSettings,
+} from './pages/SettingsPage';
 import { TracksPage } from './pages/TracksPage';
 import { TrackPage } from './pages/TrackPage';
 import styles from './App.module.scss';
@@ -25,6 +34,17 @@ export function App() {
               <Route path="/flights" element={<TracksPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/track/:id" element={<TrackPage />} />
+              <Route path="/settings" element={<SettingsLayout />}>
+                <Route path="profile/:id" element={<ProfileSettings />} />
+                <Route
+                  path="authorization"
+                  element={<AuthorizationSettings />}
+                />
+                <Route path="stats" element={<StatsSettings />} />
+                <Route path="my-flights" element={<MyFlightsSettings />} />
+                <Route path="system" element={<SystemSettings />} />
+                <Route path="users" element={<UsersSettings />} />
+              </Route>
             </Routes>
           </BrowserRouter>
         </IdentityProvider>

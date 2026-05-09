@@ -1,9 +1,14 @@
+import {
+  LogoutOutlined,
+  SettingOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import { Button } from 'antd';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { logout } from '../../api/users';
 import { useAsync, useErrorToast } from '../../core/hooks';
-import { useIdentity } from '../../core/identity';
+import { isAdmin, useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
 import styles from './PageLayout.module.scss';
 
@@ -35,12 +40,23 @@ export function PageLayout({ children }: PageLayoutProps) {
           <h1 className={styles.title}>Tengri XC</h1>
         </Link>
         {me && (
-          <Button onClick={signOut} loading={isSigningOut}>
-            Sign out
-          </Button>
+          <span className={styles.actions}>
+            <Link to={routes.settings.profile(me.id)}>
+              <Button
+                icon={isAdmin(me) ? <SettingOutlined /> : <UserOutlined />}
+                aria-label="Account settings"
+              />
+            </Link>
+            <Button
+              icon={<LogoutOutlined />}
+              loading={isSigningOut}
+              onClick={signOut}
+              aria-label="Sign out"
+            />
+          </span>
         )}
       </header>
-      {children}
+      <div className={styles.content}>{children}</div>
     </main>
   );
 }
