@@ -45,8 +45,14 @@ use axum::{
     body::Body,
     http::{HeaderName, Request, header},
 };
+use jsonwebtoken::EncodingKey;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tengri_server::{AppState, build_app};
+use tengri_server::{
+    AppState,
+    auth::{Claims, token::encode_jwt},
+    build_app,
+    user::Permissions,
+};
 
 const DEFAULT_TEST_DB_URL: &str = "postgres://tengri:tengri@localhost:5432/tengri_test";
 
@@ -223,6 +229,41 @@ pub fn get_with_header(
 /// Sugar for the conditional-GET case with `If-None-Match`.
 pub fn get_if_none_match(uri: impl AsRef<str>, etag: impl AsRef<str>) -> Request<Body> {
     get_with_header(uri, header::IF_NONE_MATCH, etag)
+}
+
+/// Same dummy secret as [`test_app`]; tests that hand-craft JWTs sign
+/// with this so the verifier inside the app accepts them.
+pub const TEST_JWT_SECRET: &[u8; 32] = &[0u8; 32];
+
+/// Build a `Cookie:` header value carrying a freshly-signed JWT for
+/// `user_id` with `CAN_AUTHORIZE` permissions. Use when the test needs
+/// an authenticated request and doesn't care to go through `/users/login`.
+pub fn auth_cookie(user_id: i32, name: &str) -> String {
+    auth_cookie_with_permissions(user_id, name, Permissions::CAN_AUTHORIZE)
+}
+
+/// Like [`auth_cookie`] but lets the test pick the permission bits.
+pub fn auth_cookie_with_permissions(user_id: i32, name: &str, permissions: Permissions) -> String {
+    let now = chrono::Utc::now().timestamp();
+    let claims = Claims::new(user_id, name.to_owned(), permissions, now);
+    let key = EncodingKey::from_secret(TEST_JWT_SECRET);
+    let jwt = encode_jwt(&claims, &key).expect("mint test jwt");
+    format!("tengri-jwt={jwt}")
+}
+
+/// JSON `PATCH` request with a `Cookie:` header.
+pub fn json_patch_with_cookie(
+    uri: impl AsRef<str>,
+    body: serde_json::Value,
+    cookie: &str,
+) -> Request<Body> {
+    Request::builder()
+        .method("PATCH")
+        .uri(uri.as_ref())
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::COOKIE, cookie)
+        .body(Body::from(body.to_string()))
+        .unwrap()
 }
 
 // -----------------------------------------------------------------------------

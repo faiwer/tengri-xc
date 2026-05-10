@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use axum::{
     Json,
     http::StatusCode,
@@ -5,6 +7,8 @@ use axum::{
 };
 use serde::Serialize;
 use thiserror::Error;
+
+use crate::validation::FieldErrors;
 
 /// Top-level error type for handlers.
 ///
@@ -27,6 +31,11 @@ pub enum AppError {
     #[error("forbidden")]
     Forbidden,
 
+    /// Per-field input errors. Status 422 with a `{ fields: { … } }`
+    /// body the FE can feed straight into AntD `Form.setFields`.
+    #[error("validation failed")]
+    Validation(FieldErrors),
+
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
 }
@@ -35,6 +44,12 @@ pub enum AppError {
 struct ErrorBody<'a> {
     error: &'a str,
     message: String,
+    /// Present only for `Validation`; mirrors the [`FieldErrors`]
+    /// map so callers can do `body.fields.email` (etc) directly.
+    /// `#[serde(skip_serializing_if = ...)]` keeps it out of every
+    /// other error response.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fields: Option<&'a BTreeMap<String, String>>,
 }
 
 impl AppError {
@@ -44,6 +59,7 @@ impl AppError {
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
+            AppError::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -54,6 +70,7 @@ impl AppError {
             AppError::NotFound => "not_found",
             AppError::Unauthorized => "unauthorized",
             AppError::Forbidden => "forbidden",
+            AppError::Validation(_) => "validation",
             AppError::Internal(_) => "internal_error",
         }
     }
@@ -73,12 +90,17 @@ impl IntoResponse for AppError {
             AppError::Internal(_) => "internal server error".to_owned(),
             other => other.to_string(),
         };
+        let fields = match &self {
+            AppError::Validation(errors) => Some(&errors.fields),
+            _ => None,
+        };
 
         (
             status,
             Json(ErrorBody {
                 error: code,
                 message,
+                fields,
             }),
         )
             .into_response()

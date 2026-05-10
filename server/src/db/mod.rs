@@ -1,3 +1,3 @@
 pub mod sql;
 
-pub use sql::{Order, Sql};
+pub use sql::{Order, Sql, Update, Upsert};

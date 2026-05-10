@@ -8,6 +8,7 @@ pub mod routes;
 pub mod state;
 pub mod telemetry;
 pub mod user;
+pub mod validation;
 
 use axum::{Router, http::HeaderValue};
 use tower_http::{

@@ -26,7 +26,12 @@ use crate::{
         password::{self, Verified},
         token::encode_jwt,
     },
-    user::{MeDto, Permissions, fetch_me},
+    user::{
+        MeDto, Permissions, UpdatePreferencesRequest, UpdateProfileRequest,
+        apply_preferences_update, apply_profile_update, fetch_me, validate_preferences_update,
+        validate_profile_update,
+    },
+    validation::FieldErrors,
 };
 
 /// Routes that set/clear the cookie inline; mounted *outside*
@@ -40,7 +45,7 @@ pub fn public_router() -> Router<AppState> {
 /// Routes that read identity from extensions; mounted behind the
 /// slide middleware.
 pub fn session_router() -> Router<AppState> {
-    Router::new().route("/users/me", get(me))
+    Router::new().route("/users/me", get(me).patch(update_me))
 }
 
 // -----------------------------------------------------------------
@@ -186,6 +191,87 @@ async fn me(
     // Row missing = user hard-deleted between the last slide and
     // now. Treat as anonymous; the next request slides cleanly.
     Ok(Json(fetch_me(state.pool(), identity.user_id).await?))
+}
+
+// -----------------------------------------------------------------
+// PATCH /users/me
+// -----------------------------------------------------------------
+
+/// Owner-edit envelope. Each top-level block is optional and applied
+/// independently — the FE form for preferences sends only `preferences`,
+/// a future profile form sends only `profile`, and a "save everything"
+/// flow can send both. Empty body = 400 (no-op PATCH is a misuse).
+///
+/// Admin endpoints don't share this struct: the admin form has its own
+/// envelope (with `permissions`, etc.) but reuses the same per-section
+/// validators and appliers from `user::profile` / `user::preferences`.
+#[derive(Debug, Deserialize)]
+pub struct UpdateMeRequest {
+    #[serde(default)]
+    pub profile: Option<UpdateProfileRequest>,
+    #[serde(default)]
+    pub preferences: Option<UpdatePreferencesRequest>,
+}
+
+async fn update_me(
+    State(state): State<AppState>,
+    identity: Identity,
+    Json(req): Json<UpdateMeRequest>,
+) -> Result<Json<MeDto>, AppError> {
+    if req.profile.is_none() && req.preferences.is_none() {
+        return Err(AppError::BadRequest(
+            "PATCH body must include at least one of: profile, preferences".into(),
+        ));
+    }
+
+    // Two-pass: validate everything first, accumulate per-field errors
+    // under namespaced keys, *then* apply. A single bad field shouldn't
+    // half-write the request.
+    let mut errors = FieldErrors::new();
+    let mut profile_update = None;
+    if let Some(input) = req.profile {
+        match validate_profile_update(input) {
+            Ok(u) => profile_update = Some(u),
+            Err(field_errors) => errors.merge_prefixed("profile", field_errors),
+        }
+    }
+    let mut preferences_update = None;
+    if let Some(input) = req.preferences {
+        match validate_preferences_update(input) {
+            Ok(u) => preferences_update = Some(u),
+            Err(field_errors) => errors.merge_prefixed("preferences", field_errors),
+        }
+    }
+    errors.into_result()?;
+
+    // Single transaction so a profile-write that succeeds is rolled
+    // back if the preferences-write trips on a constraint (or vice
+    // versa). Failures here are infra-level (DB went away mid-request);
+    // user-input failures already turned into 422 above.
+    let mut tx = state
+        .pool()
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
+    if let Some(u) = profile_update {
+        apply_profile_update(&mut tx, identity.user_id, &u).await?;
+    }
+    if let Some(u) = preferences_update {
+        apply_preferences_update(&mut tx, identity.user_id, &u).await?;
+    }
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
+
+    let body = fetch_me(state.pool(), identity.user_id)
+        .await?
+        .ok_or_else(|| {
+            AppError::Internal(anyhow::anyhow!(
+                "user {} vanished mid-update",
+                identity.user_id
+            ))
+        })?;
+    Ok(Json(body))
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {
