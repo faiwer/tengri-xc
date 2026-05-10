@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { TrackWindow } from '../../track/toPaths';
+import { altitudeLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
 import { useAltitudeSeries } from './useAltitudeSeries';
@@ -30,8 +33,17 @@ interface AltitudeChartProps {
  * container.
  */
 export function AltitudeChart({ track, window }: AltitudeChartProps) {
-  const { data, hasBaro } = useAltitudeSeries(track, window);
-  const ref = useUPlot(data, hasBaro ? OPTS_WITH_BARO : OPTS_GPS_ONLY);
+  const prefs = usePreferences();
+  const { data, hasBaro } = useAltitudeSeries(track, window, prefs);
+  const opts = useMemo(
+    () => ({
+      axes: [X_AXIS, buildYAxis(prefs.units)],
+      series: hasBaro ? SERIES_WITH_BARO : SERIES_GPS_ONLY,
+    }),
+    [hasBaro, prefs.units],
+  );
+  const ref = useUPlot(data, opts);
+
   return <div ref={ref} className={styles.chart} />;
 }
 
@@ -54,12 +66,19 @@ const X_AXIS: Axis = {
     splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
 };
 
-const Y_AXIS: Axis = {
-  stroke: AXIS_STROKE,
-  grid: { stroke: AXIS_GRID },
-  ticks: { stroke: AXIS_GRID },
-  values: (_self, splits) => splits.map((m) => `${Math.round(m)} m`),
-  size: 72,
+const buildYAxis = (units: 'metric' | 'imperial'): Axis => {
+  const suffix = altitudeLabel({ units });
+
+  return {
+    stroke: AXIS_STROKE,
+    grid: { stroke: AXIS_GRID },
+    ticks: { stroke: AXIS_GRID },
+    values: (_self, splits) =>
+      splits.map((v) => `${Math.round(v).toLocaleString()} ${suffix}`),
+    // ft ticks reach "10,000 ft" on real flights; m ticks stay around
+    // "1,234 m" so the metric case keeps the tighter axis.
+    size: units === 'imperial' ? 84 : 72,
+  };
 };
 
 // Two preset series arrays. uPlot's series array length must match the
@@ -99,9 +118,3 @@ const SERIES_GPS_ONLY: Series[] = [
     points: { show: false },
   },
 ];
-
-// Stable references; useUPlot rebuilds the chart whenever opts changes
-// by identity, so the with-/without-baro pair must be module-scoped
-// constants picked at render time rather than rebuilt per render.
-const OPTS_WITH_BARO = { axes: [X_AXIS, Y_AXIS], series: SERIES_WITH_BARO };
-const OPTS_GPS_ONLY = { axes: [X_AXIS, Y_AXIS], series: SERIES_GPS_ONLY };

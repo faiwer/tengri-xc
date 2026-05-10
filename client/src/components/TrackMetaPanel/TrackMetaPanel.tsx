@@ -1,8 +1,10 @@
-import { useMemo, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import type { TrackMetadata } from '../../api/tracks.io';
+import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
-import { formatDuration } from '../../utils/formatDateTime';
+import { formatDuration, formatShortTime } from '../../utils/formatDateTime';
+import { formatAltitude, formatVario } from '../../utils/formatUnits';
 import { Flag } from '../Flag';
 import styles from './TrackMetaPanel.module.scss';
 
@@ -26,11 +28,7 @@ export function TrackMetaPanel({
   peaks,
   altitudes,
 }: TrackMetaPanelProps) {
-  const takeoff = useMemo(
-    () => new Date(data.takeoffAt * 1000),
-    [data.takeoffAt],
-  );
-  const landed = useMemo(() => new Date(data.landedAt * 1000), [data.landedAt]);
+  const prefs = usePreferences();
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
@@ -43,21 +41,23 @@ export function TrackMetaPanel({
         )}
         {data.pilot.name}
       </Cell>
-      <Cell label="Date">{formatDate(takeoff)}</Cell>
-      <Cell label="Takeoff">{formatTime(takeoff)}</Cell>
-      <Cell label="Landing">{formatTime(landed)}</Cell>
+      <Cell label="Date">{formatVerboseDate(data.takeoffAt)}</Cell>
+      <Cell label="Takeoff">{formatShortTime(data.takeoffAt, prefs)}</Cell>
+      <Cell label="Landing">{formatShortTime(data.landedAt, prefs)}</Cell>
       <Cell label="Duration">
         {formatDuration(data.landedAt - data.takeoffAt)}
       </Cell>
       <Cell label="Best climb">
-        {peaks ? formatVario(peaks.peakClimb) : '—'}
+        {peaks ? formatVario(peaks.peakClimb, prefs) : '—'}
       </Cell>
-      <Cell label="Best sink">{peaks ? formatVario(peaks.peakSink) : '—'}</Cell>
+      <Cell label="Best sink">
+        {peaks ? formatVario(peaks.peakSink, prefs) : '—'}
+      </Cell>
       <Cell label="Max alt">
-        {altitudes ? formatAltitude(altitudes.maxAlt) : '—'}
+        {altitudes ? formatAltitude(altitudes.maxAlt, prefs) : '—'}
       </Cell>
       <Cell label="Min alt">
-        {altitudes ? formatAltitude(altitudes.minAlt) : '—'}
+        {altitudes ? formatAltitude(altitudes.minAlt, prefs) : '—'}
       </Cell>
       <Cell label="Flight" title={data.id} mono>
         {data.id}
@@ -84,23 +84,18 @@ function Cell({ label, children, mono, title }: CellProps) {
   );
 }
 
-const formatDate = (date: Date): string =>
-  date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+// Verbose date for the meta cell ("May 3, 2026" / "3 May 2026"). Stays
+// locale-driven rather than honouring the dmy/mdy preference because
+// the preference is intentionally about *short numeric* dates; the
+// verbose form picks its month-name language from the locale, and
+// forcing en-US/en-GB to control ordering would also force English
+// month names on, say, German users. Worth revisiting once a locale
+// preference exists.
+const VERBOSE_DATE_FMT = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
 
-const formatTime = (date: Date): string =>
-  date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-const formatVario = (mps: number): string => {
-  const sign = mps > 0 ? '+' : mps < 0 ? '−' : '';
-  return `${sign}${Math.abs(mps).toFixed(1)} m/s`;
-};
-
-const formatAltitude = (metres: number): string =>
-  `${metres.toLocaleString()} m`;
+const formatVerboseDate = (epochSeconds: number): string =>
+  VERBOSE_DATE_FMT.format(new Date(epochSeconds * 1000));

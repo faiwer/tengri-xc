@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { TrackWindow } from '../../track/toPaths';
+import { speedLabel } from '../../utils/formatUnits';
 import { formatHourMinute } from './formatHourMinute';
 import styles from './SpeedChart.module.scss';
 import { useSpeedSeries } from './useSpeedSeries';
@@ -39,8 +42,20 @@ interface SpeedChartProps {
  * container.
  */
 export function SpeedChart({ track, window }: SpeedChartProps) {
-  const { data } = useSpeedSeries(track, window);
-  const ref = useUPlot(data, track.tas ? OPTS_WITH_TAS : OPTS_NO_TAS);
+  const prefs = usePreferences();
+  const { data } = useSpeedSeries(track, window, prefs);
+  const hasTas = !!track.tas;
+  const opts = useMemo(
+    () => ({
+      axes: [X_AXIS, buildYAxis(prefs.speedUnit)],
+      series: hasTas
+        ? [{}, GPS_SERIES, PATH_SERIES, TAS_SERIES]
+        : [{}, GPS_SERIES, PATH_SERIES],
+    }),
+    [hasTas, prefs.speedUnit],
+  );
+  const ref = useUPlot(data, opts);
+
   return <div ref={ref} className={styles.chart} />;
 }
 
@@ -65,12 +80,15 @@ const X_AXIS: Axis = {
     splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
 };
 
-const Y_AXIS: Axis = {
-  stroke: AXIS_STROKE,
-  grid: { stroke: AXIS_GRID },
-  ticks: { stroke: AXIS_GRID },
-  values: (_self, splits) => splits.map((kmh) => `${Math.round(kmh)} km/h`),
-  size: 80,
+const buildYAxis = (speedUnit: 'kmh' | 'mph'): Axis => {
+  const suffix = speedLabel({ speedUnit });
+  return {
+    stroke: AXIS_STROKE,
+    grid: { stroke: AXIS_GRID },
+    ticks: { stroke: AXIS_GRID },
+    values: (_self, splits) => splits.map((v) => `${Math.round(v)} ${suffix}`),
+    size: 80,
+  };
 };
 
 const GPS_SERIES: Series = {
@@ -93,16 +111,4 @@ const TAS_SERIES: Series = {
   stroke: TAS_STROKE,
   width: SERIES_WIDTH,
   points: { show: false },
-};
-
-// Stable references; useUPlot rebuilds the chart whenever opts changes
-// by identity, so the variants must be module-scoped constants picked
-// at render time rather than rebuilt per render.
-const OPTS_WITH_TAS = {
-  axes: [X_AXIS, Y_AXIS],
-  series: [{}, GPS_SERIES, PATH_SERIES, TAS_SERIES],
-};
-const OPTS_NO_TAS = {
-  axes: [X_AXIS, Y_AXIS],
-  series: [{}, GPS_SERIES, PATH_SERIES],
 };

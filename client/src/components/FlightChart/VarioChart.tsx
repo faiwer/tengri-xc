@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import type uPlot from 'uplot';
 import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { TrackWindow } from '../../track/toPaths';
+import { varioLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
 import { useUPlot } from './useUPlot';
@@ -30,8 +33,17 @@ interface VarioChartProps {
  * "rule" primitive.
  */
 export function VarioChart({ track, window }: VarioChartProps) {
-  const { data } = useVarioSeries(track, window);
-  const ref = useUPlot(data, OPTS);
+  const prefs = usePreferences();
+  const { data } = useVarioSeries(track, window, prefs);
+  const opts = useMemo(
+    () => ({
+      axes: [X_AXIS, buildYAxis(prefs.varioUnit)],
+      series: [{}, VARIO_SERIES],
+      hooks: { draw: [drawZeroRule] },
+    }),
+    [prefs.varioUnit],
+  );
+  const ref = useUPlot(data, opts);
   return <div ref={ref} className={styles.chart} />;
 }
 
@@ -56,12 +68,21 @@ const X_AXIS: Axis = {
     splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
 };
 
-const Y_AXIS: Axis = {
-  stroke: AXIS_STROKE,
-  grid: { stroke: AXIS_GRID },
-  ticks: { stroke: AXIS_GRID },
-  values: (_self, splits) => splits.map(formatVarioTick),
-  size: 72,
+const buildYAxis = (varioUnit: 'mps' | 'fpm'): Axis => {
+  const suffix = varioLabel({ varioUnit });
+  return {
+    stroke: AXIS_STROKE,
+    grid: { stroke: AXIS_GRID },
+    ticks: { stroke: AXIS_GRID },
+    // Splits are already in the displayed unit — `useVarioSeries` did
+    // the conversion. The tick label drops the unit on m/s (kept the
+    // legacy compact look) and prints it on ft/min where the magnitude
+    // (3-digit ft/min vs 1-digit m/s) makes the suffix worth its width.
+    values: (_self, splits) => splits.map((v) => formatVarioTick(v, suffix)),
+    // fpm ticks read like "+1,000 ft/min" — 13 glyphs at the comma'd
+    // four-digit max — and need real estate the m/s case doesn't.
+    size: varioUnit === 'fpm' ? 104 : 72,
+  };
 };
 
 /**
@@ -133,19 +154,16 @@ const drawZeroRule = (u: uPlot): void => {
   ctx.restore();
 };
 
-const OPTS = {
-  axes: [X_AXIS, Y_AXIS],
-  series: [{}, VARIO_SERIES],
-  hooks: { draw: [drawZeroRule] },
-};
-
-function formatVarioTick(mps: number): string {
-  if (mps === 0) {
+function formatVarioTick(value: number, suffix: string): string {
+  if (value === 0) {
     return '0';
   }
-
-  // Compact, signed, one decimal. Vario rarely exceeds ±5 m/s on the y-axis,
-  // and the leading sign is the most informative bit on the label.
-  const sign = mps > 0 ? '+' : '−';
-  return `${sign}${Math.abs(mps).toFixed(1)}`;
+  // Compact, signed. m/s gets one decimal (range typically ±5),
+  // ft/min gets whole numbers (range typically ±1000) and a suffix
+  // because the magnitude alone wouldn't read as vertical velocity.
+  const sign = value > 0 ? '+' : '−';
+  if (suffix === 'ft/min') {
+    return `${sign}${Math.round(Math.abs(value)).toLocaleString()} ${suffix}`;
+  }
+  return `${sign}${Math.abs(value).toFixed(1)}`;
 }

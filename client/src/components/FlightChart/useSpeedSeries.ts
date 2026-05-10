@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import type { AlignedData } from 'uplot';
+import type { ResolvedPreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import { computeGroundSpeed } from '../../track/groundSpeed';
 import { computePathSpeed } from '../../track/pathSpeed';
 import type { TrackWindow } from '../../track/toPaths';
 import { bucketMean } from '../../utils/bucketMean';
+import { KMH_TO_MPH } from '../../utils/formatUnits';
 import { movingAverage } from '../../utils/movingAverage';
 
 /**
@@ -47,10 +49,10 @@ export interface SpeedSeries {
   /**
    * uPlot-shaped series data. Slot 0 is epoch seconds (mean-bucketed
    * centroids, hence `Float64Array`); slot 1 is windowed ground speed
-   * in km/h ("GPS"); slot 2 is path speed in km/h ("Path"); slot 3,
-   * when present, is the recorded true-airspeed channel in km/h
-   * ("TAS"). All three y-series are bucketed against the same x slice,
-   * so they line up index-for-index.
+   * ("GPS"); slot 2 is path speed ("Path"); slot 3, when present, is
+   * the recorded true-airspeed channel ("TAS"). All y-series are in
+   * the user's chosen unit (km/h or mph) and bucketed against the
+   * same x slice, so they line up index-for-index.
    */
   data: AlignedData;
 }
@@ -79,6 +81,7 @@ export interface SpeedSeries {
 export const useSpeedSeries = (
   rawTrack: Track,
   window: TrackWindow,
+  prefs: Pick<ResolvedPreferences, 'speedUnit'>,
 ): SpeedSeries => {
   return useMemo((): SpeedSeries => {
     const fromIdx = window.takeoffIdx;
@@ -105,6 +108,16 @@ export const useSpeedSeries = (
     const gsBucketed = bucketMean(xs, gs, SPEED_CHART_TARGET_POINTS);
     const pathBucketed = bucketMean(xs, path, SPEED_CHART_TARGET_POINTS);
 
+    // Unit conversion runs *after* bucketing because the math is
+    // linear (mean of converted = converted of mean) and post-bucket
+    // arrays are an order of magnitude smaller. The whole-array
+    // multiply also leaves the upstream math in km/h, which is what
+    // every callsite already assumes.
+    if (prefs.speedUnit === 'mph') {
+      multiplyInPlace(gsBucketed.ys, KMH_TO_MPH);
+      multiplyInPlace(pathBucketed.ys, KMH_TO_MPH);
+    }
+
     if (!track.tas) {
       return { data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys] };
     }
@@ -117,11 +130,20 @@ export const useSpeedSeries = (
     );
     const tas = tasSmoothedPadded.slice(flightStart, flightEnd);
     const tasBucketed = bucketMean(xs, tas, SPEED_CHART_TARGET_POINTS);
+    if (prefs.speedUnit === 'mph') {
+      multiplyInPlace(tasBucketed.ys, KMH_TO_MPH);
+    }
 
     return {
       data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys, tasBucketed.ys],
     };
-  }, [rawTrack, window]);
+  }, [rawTrack, window, prefs.speedUnit]);
+};
+
+const multiplyInPlace = (arr: Float32Array, factor: number): void => {
+  for (let i = 0; i < arr.length; i++) {
+    arr[i]! *= factor;
+  }
 };
 
 /**
