@@ -1,4 +1,5 @@
 import camelcaseKeys from 'camelcase-keys';
+import snakecaseKeys from 'snakecase-keys';
 import type { z } from 'zod';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL;
@@ -21,6 +22,26 @@ export class HttpError extends ApiError {
   constructor(status: number, message?: string) {
     super(message ?? `HTTP ${status}`);
     this.status = status;
+  }
+}
+
+/**
+ * 422 with a `{ fields: { … } }` body. Carries the per-field messages
+ * keyed by the server's dotted path (e.g. `'profile.country'`) so a
+ * form can drive `Form.setFields` directly without re-deriving the
+ * shape from the human message.
+ *
+ * Field paths arrive snake_case from the server (`'profile.civl_id'`)
+ * and are camelized at this boundary (`'profile.civlId'`) so the FE
+ * keys match `Form.Item name={['profile', 'civlId']}` without
+ * per-call-site translation.
+ */
+export class ValidationError extends HttpError {
+  readonly fields: Record<string, string>;
+
+  constructor(fields: Record<string, string>, message?: string) {
+    super(422, message ?? 'Validation failed');
+    this.fields = fields;
   }
 }
 
@@ -66,7 +87,13 @@ async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
   };
   if (options.body !== undefined) {
     init.headers = { 'Content-Type': 'application/json' };
-    init.body = JSON.stringify(options.body);
+    // Mirror image of the inbound camelcase step: the wire is
+    // snake_case, so transform the body once at this boundary.
+    const wireBody =
+      options.body !== null && typeof options.body === 'object'
+        ? snakecaseKeys(options.body as Record<string, unknown>, { deep: true })
+        : options.body;
+    init.body = JSON.stringify(wireBody);
   }
 
   let response: Response;
@@ -80,9 +107,46 @@ async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
     throw new NetworkError(`${method} ${url} failed`, { cause });
   }
   if (!response.ok) {
-    throw new HttpError(response.status);
+    throw await readErrorBody(response);
   }
   return response;
+}
+
+/**
+ * Build the right `ApiError` subclass for a non-OK response. 422 with
+ * a `{ fields }` body becomes [`ValidationError`]; everything else
+ * stays a plain [`HttpError`]. Body parsing failures fall back to a
+ * status-only `HttpError` (the request did fail; the failure shape
+ * is just opaque to the caller).
+ */
+async function readErrorBody(response: Response): Promise<HttpError> {
+  if (response.status !== 422) {
+    return new HttpError(response.status);
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch {
+    return new HttpError(422);
+  }
+
+  // Same camelcase rewrite as success bodies: server keys are
+  // snake_case (`profile.civl_id`), the FE wants camelCase tail
+  // segments (`profile.civlId`) so they match `Form.Item name={…}`.
+  const camelized =
+    raw !== null && typeof raw === 'object'
+      ? (camelcaseKeys(raw as Record<string, unknown>, { deep: true }) as {
+          message?: string;
+          fields?: Record<string, string>;
+        })
+      : null;
+  const fields = camelized?.fields;
+  if (!fields || typeof fields !== 'object') {
+    return new HttpError(422, camelized?.message);
+  }
+
+  return new ValidationError(fields, camelized?.message);
 }
 
 /**
@@ -124,6 +188,21 @@ export async function apiPostVoid(
   options: ApiRequestOptions = {},
 ): Promise<void> {
   await fetchOk(path, { ...options, method: 'POST', body });
+}
+
+/**
+ * PATCH JSON `body` to `path` and validate the response against
+ * `schema`. Errors mirror `apiPost`; 422s with a `fields` body land
+ * as [`ValidationError`].
+ */
+export async function apiPatch<T extends z.ZodTypeAny>(
+  path: string,
+  body: unknown,
+  schema: T,
+  options: ApiRequestOptions = {},
+): Promise<z.infer<T>> {
+  const response = await fetchOk(path, { ...options, method: 'PATCH', body });
+  return decodeJson(response, schema);
 }
 
 /**

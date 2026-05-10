@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MeIo } from '../users.io';
+import { UserIo as SharedUserIo } from '../users.io';
 
 /** One row of `GET /admin/users`. Trimmed projection — no profile join. */
 export const UserListItemIo = z.object({
@@ -27,9 +27,10 @@ export const UsersPageIo = z.object({
 export type UsersPage = z.infer<typeof UsersPageIo>;
 
 /**
- * `GET /admin/users/:id` returns the same shape as `/users/me` — the
- * server's `UserDto`. Re-export `MeIo` rather than re-declare it so a
- * field added on the server only needs one schema update on the client.
+ * `GET /admin/users/:id` returns the server's `UserDto` — the same
+ * base record that `/users/me` extends with preferences. We re-export
+ * the shared schema rather than re-declare it so a field added on the
+ * server only needs one client-side schema change.
  */
-export const UserIo = MeIo;
+export const UserIo = SharedUserIo;
 export type User = z.infer<typeof UserIo>;

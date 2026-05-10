@@ -1,5 +1,11 @@
-import { apiGet, apiPost, apiPostVoid, type ApiRequestOptions } from './core';
-import { MeIo, MeResponseIo, type Me } from './users.io';
+import {
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPostVoid,
+  type ApiRequestOptions,
+} from './core';
+import { MeIo, MeResponseIo, type Me, type UpdateMeRequest } from './users.io';
 
 export interface LoginParams {
   /** `login` or `email`, case-insensitive. */
@@ -31,3 +37,17 @@ export async function getMe(
 ): Promise<Me | null> {
   return apiGet('/users/me', MeResponseIo, options);
 }
+
+/**
+ * `PATCH /users/me` — owner-self update for any subset of editable
+ * sections (currently `profile` and `preferences`). Returns the
+ * full updated [`Me`] so the caller can swap it into the identity
+ * context wholesale.
+ *
+ * On 422, throws [`ValidationError`] (from `core`) carrying the
+ * per-field messages.
+ */
+export const updateMe = async (
+  body: UpdateMeRequest,
+  options: ApiRequestOptions = {},
+): Promise<Me> => apiPatch('/users/me', body, MeIo, options);
