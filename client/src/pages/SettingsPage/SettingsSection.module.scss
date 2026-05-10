@@ -39,8 +39,11 @@
 
 // Stack rule for the page body — only matters when a page renders
 // multiple top-level children (e.g. UsersSettings: table + load-more).
+// `min-width: 0` so flex children with intrinsic min-content wider
+// than the column (a wide AntD Table) can still shrink to fit.
 .body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
 }

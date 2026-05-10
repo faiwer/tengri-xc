@@ -4,6 +4,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { Button } from 'antd';
+import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { logout } from '../../api/users';
@@ -14,6 +15,13 @@ import styles from './PageLayout.module.scss';
 
 interface PageLayoutProps {
   children: ReactNode;
+  /**
+   * Default: content card stretches to fill the viewport (so pages with
+   * map+chart can size against a definite parent). When `true`, the card sizes
+   * to its content — used by the settings shell so an empty stub page doesn't
+   * leave a tall white expanse below it.
+   */
+  fit?: boolean;
 }
 
 /**
@@ -21,7 +29,7 @@ interface PageLayoutProps {
  * users), page body below. Every route renders one. Width and gutters
  * are owned here so individual pages don't redefine the same shell.
  */
-export function PageLayout({ children }: PageLayoutProps) {
+export function PageLayout({ children, fit = false }: PageLayoutProps) {
   const { me, setMe } = useIdentity();
   const navigate = useNavigate();
 
@@ -56,7 +64,9 @@ export function PageLayout({ children }: PageLayoutProps) {
           </span>
         )}
       </header>
-      <div className={styles.content}>{children}</div>
+      <div className={clsx(styles.content, fit && styles.contentFit)}>
+        {children}
+      </div>
     </main>
   );
 }

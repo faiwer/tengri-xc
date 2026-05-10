@@ -24,6 +24,7 @@ export function UsersSettings() {
         title: 'Name',
         dataIndex: 'name',
         key: 'name',
+        ellipsis: true,
         render: (_value, user) => (
           <Link to={routes.settings.user(user.id)}>{user.name}</Link>
         ),
@@ -32,12 +33,14 @@ export function UsersSettings() {
         title: 'Login',
         dataIndex: 'login',
         key: 'login',
+        ellipsis: true,
         render: (login: string | null) => login ?? <Muted>—</Muted>,
       },
       {
         title: 'Email',
         dataIndex: 'email',
         key: 'email',
+        ellipsis: true,
         render: (email: string | null) => email ?? <Muted>—</Muted>,
       },
       {

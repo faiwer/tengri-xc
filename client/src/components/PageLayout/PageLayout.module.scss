@@ -35,6 +35,14 @@
   min-height: 0;
 }
 
+// Opt-in via the `fit` prop. Cancels the `flex: 1` stretch so the
+// card sits at its natural content height — used by the settings
+// shell where short stub pages would otherwise leave a tall white
+// expanse below the form.
+.contentFit {
+  flex: 0 0 auto;
+}
+
 .titleLink {
   color: inherit;
   text-decoration: none;

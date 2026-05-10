@@ -1,4 +1,14 @@
+import {
+  BarChartOutlined,
+  ControlOutlined,
+  LockOutlined,
+  RiseOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import clsx from 'clsx';
+import type { ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { PageLayout } from '../../components/PageLayout';
 import { isAdmin, useIdentity } from '../../core/identity';
@@ -8,6 +18,7 @@ import styles from './SettingsLayout.module.scss';
 interface NavItem {
   label: string;
   to: string;
+  icon: ReactNode;
 }
 
 interface NavGroup {
@@ -27,11 +38,31 @@ export function SettingsLayout() {
     {
       label: 'Account',
       items: [
-        { label: 'Profile', to: routes.settings.profile() },
-        { label: 'Preferences', to: routes.settings.preferences() },
-        { label: 'Authorization', to: routes.settings.authorization() },
-        { label: 'Stats', to: routes.settings.stats() },
-        { label: 'My flights', to: routes.settings.myFlights() },
+        {
+          label: 'Profile',
+          to: routes.settings.profile(),
+          icon: <UserOutlined />,
+        },
+        {
+          label: 'Preferences',
+          to: routes.settings.preferences(),
+          icon: <ControlOutlined />,
+        },
+        {
+          label: 'Authorization',
+          to: routes.settings.authorization(),
+          icon: <LockOutlined />,
+        },
+        {
+          label: 'Stats',
+          to: routes.settings.stats(),
+          icon: <BarChartOutlined />,
+        },
+        {
+          label: 'My flights',
+          to: routes.settings.myFlights(),
+          icon: <RiseOutlined />,
+        },
       ],
     },
   ];
@@ -40,14 +71,22 @@ export function SettingsLayout() {
     groups.push({
       label: 'System',
       items: [
-        { label: 'Settings', to: routes.settings.system() },
-        { label: 'Users', to: routes.settings.users() },
+        {
+          label: 'Settings',
+          to: routes.settings.system(),
+          icon: <SettingOutlined />,
+        },
+        {
+          label: 'Users',
+          to: routes.settings.users(),
+          icon: <TeamOutlined />,
+        },
       ],
     });
   }
 
   return (
-    <PageLayout>
+    <PageLayout fit>
       <div className={styles.layout}>
         <nav className={styles.nav}>
           {groups.map((group) => (
@@ -62,7 +101,8 @@ export function SettingsLayout() {
                     clsx(styles.item, isActive && styles.itemActive)
                   }
                 >
-                  {item.label}
+                  <span className={styles.itemIcon}>{item.icon}</span>
+                  <span className={styles.itemLabel}>{item.label}</span>
                 </NavLink>
               ))}
             </div>
