@@ -29,19 +29,27 @@ struct TrackMd {
 #[derive(Serialize)]
 struct Pilot {
     name: String,
+    /// ISO 3166-1 alpha-2 country code from the user's profile, or
+    /// `None` if no profile / no country recorded. The client renders
+    /// it as a flag emoji prepended to the pilot name.
+    country: Option<String>,
 }
 
 async fn get_track_md(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<TrackMd>, AppError> {
-    let row: Option<(String, String, i64, i64, f32)> = sqlx::query_as(
-        "SELECT f.id, u.name, \
+    // `LEFT JOIN user_profiles` because country is profile-side and
+    // optional; users without a profile row still resolve with a
+    // `null` country rather than dropping the flight to a 404.
+    let row: Option<(String, String, Option<String>, i64, i64, f32)> = sqlx::query_as(
+        "SELECT f.id, u.name, p.country, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
                 EXTRACT(EPOCH FROM f.landed_at)::bigint, \
                 t.compression_ratio \
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
+         LEFT JOIN user_profiles p ON p.user_id = u.id \
          JOIN flight_tracks t ON t.flight_id = f.id AND t.kind = 'full' \
          WHERE f.id = $1",
     )
@@ -50,13 +58,18 @@ async fn get_track_md(
     .await
     .map_err(anyhow::Error::from)?;
 
-    let Some((flight_id, pilot_name, takeoff_at, landed_at, compression_ratio)) = row else {
+    let Some((flight_id, pilot_name, pilot_country, takeoff_at, landed_at, compression_ratio)) =
+        row
+    else {
         return Err(AppError::NotFound);
     };
 
     Ok(Json(TrackMd {
         id: flight_id,
-        pilot: Pilot { name: pilot_name },
+        pilot: Pilot {
+            name: pilot_name,
+            country: pilot_country,
+        },
         takeoff_at,
         landed_at,
         compression_ratio,

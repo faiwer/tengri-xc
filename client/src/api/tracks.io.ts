@@ -21,6 +21,8 @@ export const TrackMetadataIo = z.object({
   id: z.string(),
   pilot: z.object({
     name: z.string(),
+    /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
+    country: z.string().nullable(),
   }),
   /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
   takeoffAt: z.number().int(),

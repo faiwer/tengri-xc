@@ -3,6 +3,7 @@ import type { TrackMetadata } from '../../api/tracks.io';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
 import { formatDuration } from '../../utils/formatDateTime';
+import { Flag } from '../Flag';
 import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
@@ -33,7 +34,15 @@ export function TrackMetaPanel({
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
-      <Cell label="Pilot">{data.pilot.name}</Cell>
+      <Cell label="Pilot">
+        {data.pilot.country && (
+          <>
+            <Flag code={data.pilot.country} />
+            &nbsp;&nbsp;
+          </>
+        )}
+        {data.pilot.name}
+      </Cell>
       <Cell label="Date">{formatDate(takeoff)}</Cell>
       <Cell label="Takeoff">{formatTime(takeoff)}</Cell>
       <Cell label="Landing">{formatTime(landed)}</Cell>
