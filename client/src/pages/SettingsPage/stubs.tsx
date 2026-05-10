@@ -1,10 +1,12 @@
+import { SettingsSection } from './SettingsSection';
+
 const Stub = ({ title }: { title: string }) => (
-  <section>
-    <h2>{title}</h2>
+  <SettingsSection title={title}>
     <p>Coming soon.</p>
-  </section>
+  </SettingsSection>
 );
 
+export const ProfileSettings = () => <Stub title="Profile" />;
 export const AuthorizationSettings = () => <Stub title="Authorization" />;
 export const StatsSettings = () => <Stub title="Stats" />;
 export const MyFlightsSettings = () => <Stub title="My flights" />;

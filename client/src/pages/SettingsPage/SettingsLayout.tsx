@@ -27,7 +27,8 @@ export function SettingsLayout() {
     {
       label: 'Account',
       items: [
-        { label: 'Settings', to: routes.settings.profile() },
+        { label: 'Profile', to: routes.settings.profile() },
+        { label: 'Preferences', to: routes.settings.preferences() },
         { label: 'Authorization', to: routes.settings.authorization() },
         { label: 'Stats', to: routes.settings.stats() },
         { label: 'My flights', to: routes.settings.myFlights() },

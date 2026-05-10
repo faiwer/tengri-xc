@@ -9,6 +9,7 @@ import { usePreferences } from '../../core/preferences';
 import { routes } from '../../core/routes';
 import { formatShortDate } from '../../utils/formatDateTime';
 import { PermissionBadges } from './PermissionBadges';
+import { SettingsSection } from './SettingsSection';
 import styles from './UsersSettings.module.scss';
 import { useUsersFeed } from './useUsersFeed';
 
@@ -69,9 +70,9 @@ export function UsersSettings() {
   const hasInlineError = feed.error !== null && feed.items === null;
 
   return (
-    <section className={styles.section}>
-      <header className={styles.header}>
-        <h2 className={styles.title}>Users</h2>
+    <SettingsSection
+      title="Users"
+      action={
         <Input.Search
           allowClear
           placeholder="Search by name or email"
@@ -79,8 +80,8 @@ export function UsersSettings() {
           onChange={(e) => feed.setQuery(e.target.value)}
           className={styles.search}
         />
-      </header>
-
+      }
+    >
       {hasInlineError ? (
         <Alert
           type="error"
@@ -123,7 +124,7 @@ export function UsersSettings() {
           )}
         </>
       )}
-    </section>
+    </SettingsSection>
   );
 }
 

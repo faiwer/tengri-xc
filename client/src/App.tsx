@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import {
   AuthorizationSettings,
   MyFlightsSettings,
+  PreferencesSettings,
   ProfileSettings,
   SettingsLayout,
   StatsSettings,
@@ -39,6 +40,7 @@ export function App() {
                 <Route path="/flight/:id" element={<TrackPage />} />
                 <Route path="/settings" element={<SettingsLayout />}>
                   <Route path="profile" element={<ProfileSettings />} />
+                  <Route path="preferences" element={<PreferencesSettings />} />
                   <Route
                     path="authorization"
                     element={<AuthorizationSettings />}

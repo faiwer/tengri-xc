@@ -6,6 +6,7 @@ export const routes = {
   settings: {
     index: () => '/settings',
     profile: () => '/settings/profile',
+    preferences: () => '/settings/preferences',
     authorization: () => '/settings/authorization',
     stats: () => '/settings/stats',
     myFlights: () => '/settings/my-flights',

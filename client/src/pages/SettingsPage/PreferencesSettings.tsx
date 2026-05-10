@@ -8,15 +8,13 @@ import { useIdentity } from '../../core/identity';
 import { resolvePreferences } from '../../core/preferences';
 import { routes } from '../../core/routes';
 import { shallowEqual } from '../../utils/shallowEqual';
-import styles from './ProfileSettings.module.scss';
+import { SettingsSection } from './SettingsSection';
 
 /**
- * Owner-self settings page at `/settings/profile`. Exposes the user's
- * display preferences as an AntD `Form` of {@link Segmented} controls;
- * profile fields (CIVL id / country / sex) will land here in a
- * follow-up.
+ * Owner-self settings page at `/settings/preferences`. Exposes the user's
+ * display preferences as an AntD `Form` of {@link Segmented} controls.
  */
-export function ProfileSettings() {
+export function PreferencesSettings() {
   const { me, isLoading, setMe } = useIdentity();
 
   if (isLoading) {
@@ -45,6 +43,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
     successTitle: 'Preferences saved',
     errorTitle: "Couldn't save preferences",
   });
+
   const values = Form.useWatch([], form) as
     | UpdatePreferencesRequest
     | undefined;
@@ -54,19 +53,11 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
   );
 
   return (
-    <section className={styles.section}>
-      <header className={styles.header}>
-        <div className={styles.headerText}>
-          <h2 className={styles.title}>Preferences</h2>
-          <p className={styles.subtitle}>
-            Pick how dates, times, and units render across the app.
-          </p>
-        </div>
-        {/* Save lives in the header so it stays put as the form grows;
-            renders only when there's something to save so the user
-            isn't tempted to click a no-op. `form.submit()` because the
-            button is outside the <Form>. */}
-        {isDirty && (
+    <SettingsSection
+      title="Preferences"
+      subtitle="Pick how dates, times, and units render across the app."
+      action={
+        isDirty && (
           <Button
             type="primary"
             loading={isSubmitting}
@@ -74,10 +65,10 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           >
             Save
           </Button>
-        )}
-      </header>
+        )
+      }
+    >
       <Form
-        className={styles.form}
         form={form}
         layout="horizontal"
         labelCol={{ flex: '11rem' }}
@@ -90,7 +81,6 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           name="units"
           label="Altitude & distance"
           tooltip="One choice for both — m + km vs ft + mi."
-          className={styles.field}
         >
           <Segmented
             block
@@ -105,7 +95,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
 
-        <Form.Item name="varioUnit" label="Vario" className={styles.field}>
+        <Form.Item name="varioUnit" label="Vario">
           <Segmented
             block
             options={[
@@ -119,11 +109,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
 
-        <Form.Item
-          name="speedUnit"
-          label="Ground speed"
-          className={styles.field}
-        >
+        <Form.Item name="speedUnit" label="Ground speed">
           <Segmented
             block
             options={[
@@ -137,11 +123,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
 
-        <Form.Item
-          name="timeFormat"
-          label="Time format"
-          className={styles.field}
-        >
+        <Form.Item name="timeFormat" label="Time format">
           <Segmented
             block
             options={[
@@ -155,11 +137,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
 
-        <Form.Item
-          name="dateFormat"
-          label="Date format"
-          className={styles.field}
-        >
+        <Form.Item name="dateFormat" label="Date format">
           <Segmented
             block
             options={[
@@ -173,11 +151,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
 
-        <Form.Item
-          name="weekStart"
-          label="Week starts on"
-          className={styles.field}
-        >
+        <Form.Item name="weekStart" label="Week starts on">
           <Segmented
             block
             options={[
@@ -191,12 +165,10 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
           />
         </Form.Item>
       </Form>
-    </section>
+    </SettingsSection>
   );
 }
 
-// Display labels for the hints. `'system'` itself never appears here
-// because the resolved view always collapses to a concrete value.
 const UNITS_LABEL = { metric: 'metric', imperial: 'imperial' } as const;
 const VARIO_LABEL = { mps: 'm/s', fpm: 'ft/min' } as const;
 const SPEED_LABEL = { kmh: 'km/h', mph: 'mph' } as const;
