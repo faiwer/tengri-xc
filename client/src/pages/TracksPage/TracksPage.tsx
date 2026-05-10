@@ -43,7 +43,6 @@ export function TracksPage() {
             <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
             <th className={styles.colDate}>Date</th>
             <th className={styles.colTime}>Takeoff</th>
-            <th className={styles.colCountry} aria-label="Country" />
             <th>Pilot</th>
             <th className={`${styles.colDuration} ${styles.alignRight}`}>
               Duration
@@ -104,11 +103,19 @@ function buildHomeRowCells(
       className: styles.colTime,
     },
     {
-      key: 'country',
-      content: <Flag code={item.pilot.country} />,
-      className: styles.colCountry,
+      key: 'pilot',
+      content: (
+        <>
+          {item.pilot.country && (
+            <>
+              <Flag code={item.pilot.country} />
+              &nbsp;&nbsp;
+            </>
+          )}
+          {item.pilot.name}
+        </>
+      ),
     },
-    { key: 'pilot', content: item.pilot.name },
     {
       key: 'duration',
       content: formatDuration(item.track.duration),
@@ -123,7 +130,7 @@ function SkeletonRows() {
     <>
       {Array.from({ length: LOADING_SKELETON_COUNT }, (_, i) => (
         <tr key={`sk-${i}`} className={styles.skeletonRow}>
-          <td colSpan={6}>
+          <td colSpan={5}>
             <Skeleton.Input active block size="small" />
           </td>
         </tr>

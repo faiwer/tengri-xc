@@ -1,4 +1,7 @@
-import { formatCountry } from '../../utils/formatCountry';
+import {
+  type FormattedCountry,
+  formatCountry,
+} from '../../utils/formatCountry';
 import styles from './Flag.module.scss';
 
 export interface FlagProps {
@@ -11,20 +14,40 @@ export interface FlagProps {
    * flag is the only signal and gets an `aria-label` of the name.
    */
   decorative?: boolean;
+  /**
+   * Render a placeholder glyph when `code` is missing or unrecognised
+   * instead of nothing. Use to keep neighbouring text aligned across
+   * rows where some entries have a flag and some don't.
+   *
+   * - `'white'` — neutral white flag (🏳️). Visually matches the
+   *   sibling country flags (same height, same shape).
+   * - `'world'` — globe (🌐). Reads as "place / origin unknown" but
+   *   stands out next to country flags.
+   *
+   * Default omitted: render `null`.
+   */
+  fallback?: 'white' | 'world';
 }
+
+const FALLBACKS: Record<
+  NonNullable<FlagProps['fallback']>,
+  FormattedCountry
+> = {
+  white: { flag: '🏳️', name: 'Unknown' },
+  world: { flag: '🌐', name: 'Unknown' },
+};
 
 /**
  * Country flag emoji with a hover tooltip + accessible label of the
  * localized country name. Returns `null` when the code is missing or
- * unrecognised by the runtime, so consumers can decide whether to
- * substitute a placeholder.
+ * unrecognised by the runtime unless [`fallback`](FlagProps.fallback)
+ * picks a placeholder.
  */
-export const Flag = ({ code, decorative = false }: FlagProps) => {
-  if (!code) {
-    return null;
-  }
+export const Flag = ({ code, decorative = false, fallback }: FlagProps) => {
+  const formatted =
+    (code ? formatCountry(code) : null) ??
+    (fallback ? FALLBACKS[fallback] : null);
 
-  const formatted = formatCountry(code);
   if (formatted === null) {
     return null;
   }
