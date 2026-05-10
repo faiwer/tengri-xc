@@ -7,8 +7,19 @@ use sqlx::Row;
 
 use crate::{
     AppError,
-    user::{UserSex, UserSource},
+    user::{PreferencesDto, UserSex, UserSource, fetch_preferences},
 };
+
+/// `/users/me` payload: full user record plus that user's display
+/// preferences. Admin endpoints (`/admin/users/:id`) keep returning
+/// [`UserDto`] alone — preferences are private to the owning user
+/// and have no business in an audit/management view.
+#[derive(Debug, Serialize)]
+pub struct MeDto {
+    #[serde(flatten)]
+    pub user: UserDto,
+    pub preferences: PreferencesDto,
+}
 
 #[derive(Debug, Serialize)]
 pub struct UserDto {
@@ -85,6 +96,25 @@ pub async fn fetch_user(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<User
         created_at: row.try_get("created_at").map_err(sqlx_to_internal)?,
         profile,
     }))
+}
+
+/// Fetch the `/users/me` payload: user record + preferences. `None`
+/// if the user is gone (caller decides whether that's a 200 with
+/// `null` for `/me`, or a 500 mid-login).
+pub async fn fetch_me(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<MeDto>, AppError> {
+    let Some(user) = fetch_user(pool, user_id).await? else {
+        return Ok(None);
+    };
+    // The trigger in 0004_user_preferences guarantees a row for every
+    // user, so a missing row here means the trigger was dropped or the
+    // schema diverged. Surface that as a 500 instead of papering over
+    // it with defaults.
+    let preferences = fetch_preferences(pool, user_id).await?.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!(
+            "user_preferences row missing for user {user_id}"
+        ))
+    })?;
+    Ok(Some(MeDto { user, preferences }))
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

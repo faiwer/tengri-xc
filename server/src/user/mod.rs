@@ -5,10 +5,12 @@
 
 pub mod dto;
 pub mod permissions;
+pub mod preferences;
 pub mod sex;
 pub mod source;
 
-pub use dto::{UserDto, UserProfileDto, fetch_user};
+pub use dto::{MeDto, UserDto, UserProfileDto, fetch_me, fetch_user};
 pub use permissions::Permissions;
+pub use preferences::{PreferencesDto, fetch_preferences};
 pub use sex::UserSex;
 pub use source::UserSource;

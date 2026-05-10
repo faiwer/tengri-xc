@@ -26,7 +26,7 @@ use crate::{
         password::{self, Verified},
         token::encode_jwt,
     },
-    user::{Permissions, UserDto, fetch_user},
+    user::{MeDto, Permissions, fetch_me},
 };
 
 /// Routes that set/clear the cookie inline; mounted *outside*
@@ -148,7 +148,7 @@ async fn login(
         HeaderValue::from_str(&set_session(&jwt, state.https())).map_err(into_internal)?,
     );
 
-    let body = fetch_user(state.pool(), user_id)
+    let body = fetch_me(state.pool(), user_id)
         .await?
         .ok_or_else(|| AppError::Internal(anyhow::anyhow!("user {user_id} vanished mid-login")))?;
     Ok((StatusCode::OK, headers, Json(body)).into_response())
@@ -179,13 +179,13 @@ async fn logout(State(state): State<AppState>) -> Result<Response, AppError> {
 async fn me(
     State(state): State<AppState>,
     identity: Option<Identity>,
-) -> Result<Json<Option<UserDto>>, AppError> {
+) -> Result<Json<Option<MeDto>>, AppError> {
     let Some(identity) = identity else {
         return Ok(Json(None));
     };
     // Row missing = user hard-deleted between the last slide and
     // now. Treat as anonymous; the next request slides cleanly.
-    Ok(Json(fetch_user(state.pool(), identity.user_id).await?))
+    Ok(Json(fetch_me(state.pool(), identity.user_id).await?))
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

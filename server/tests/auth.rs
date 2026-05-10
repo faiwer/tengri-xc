@@ -212,6 +212,12 @@ async fn login_with_phpass_rehashes_to_argon2_and_round_trips_me() {
     let me = body_json(resp).await;
     assert_eq!(me["id"], 1);
     assert_eq!(me["login"], "TestPilot");
+    // Preferences come from the eager `user_preferences` row created
+    // by the trigger on user insert — every user always has one,
+    // all-system until the (future) settings UI lets them change it.
+    assert_eq!(me["preferences"]["time_format"], "system");
+    assert_eq!(me["preferences"]["units"], "system");
+    assert_eq!(me["preferences"]["vario_unit"], "system");
 
     // 4. Same login works again with the *new* (argon2) hash and
     //    no longer triggers a rehash.
