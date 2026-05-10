@@ -18,9 +18,15 @@ export const hasPermission = (me: Me, flag: Permission): boolean =>
   (me.permissions & flag) === flag;
 
 /**
+ * Bit-level form: any `MANAGE_*` flag set on top of `CAN_AUTHORIZE`.
+ * Useful for table cells where we only have the raw integer.
+ */
+export const isAdminBits = (bits: number): boolean =>
+  (bits & ~Permissions.CAN_AUTHORIZE) !== 0;
+
+/**
  * Anyone whose permissions go beyond plain log-in: holds at least one
  * `MANAGE_*` bit. Used to decide whether to surface admin-only UI
  * (e.g. system settings, users list).
  */
-export const isAdmin = (me: Me): boolean =>
-  (me.permissions & ~Permissions.CAN_AUTHORIZE) !== 0;
+export const isAdmin = (me: Me): boolean => isAdminBits(me.permissions);

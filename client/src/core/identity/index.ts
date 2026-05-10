@@ -5,5 +5,6 @@ export {
   Permissions,
   hasPermission,
   isAdmin,
+  isAdminBits,
   type Permission,
 } from './permissions';
