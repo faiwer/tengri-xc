@@ -2,9 +2,9 @@
 //! the `MANAGE_USERS` bit.
 //!
 //! - `GET /admin/users?q=&cursor=&limit=` — keyset-paginated list,
-//!   newest first by `(created_at DESC, id DESC)`. `q` matches `name`
-//!   or `email` case-insensitively (`ILIKE`); empty / missing means
-//!   no filter. The cursor is opaque — internally an 8-byte
+//!   newest first by `(created_at DESC, id DESC)`. `q` matches `name`,
+//!   `login`, or `email` case-insensitively (`ILIKE`); empty / missing
+//!   means no filter. The cursor is opaque — internally an 8-byte
 //!   `(u32 created_at, i32 id)` pack rendered as base64url.
 //! - `GET /admin/users/:id` — full [`UserDto`] (same shape as
 //!   `/users/me`).
@@ -12,7 +12,7 @@
 //! Search uses `ILIKE` (no trigram index yet); the user table is
 //! small enough that a Seq Scan is fine. When it isn't, the migration
 //! is `CREATE EXTENSION pg_trgm` + a `gin_trgm_ops` index on
-//! `name || ' ' || coalesce(email, '')`.
+//! `name || ' ' || coalesce(login, '') || ' ' || coalesce(email, '')`.
 
 use axum::{
     Json, Router,
@@ -131,8 +131,8 @@ async fn list(
     }
     if let Some(pat) = pattern.as_deref() {
         query.and_where(
-            "name ILIKE $ ESCAPE '\\' OR email ILIKE $ ESCAPE '\\'",
-            (pat, pat),
+            "name ILIKE $ ESCAPE '\\' OR login ILIKE $ ESCAPE '\\' OR email ILIKE $ ESCAPE '\\'",
+            (pat, pat, pat),
         );
     }
 
