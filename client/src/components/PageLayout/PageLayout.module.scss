@@ -1,10 +1,10 @@
+// Centering column only. Background and borders moved to `.content`
+// so the header reads as part of the page (sky-blue app bg shows
+// through behind the title and account buttons).
 .page {
   max-width: 1000px;
   margin: 0 auto;
   min-height: 100vh;
-  background: #fff;
-  border-left: 1px solid #e3e3e7;
-  border-right: 1px solid #e3e3e7;
   display: flex;
   flex-direction: column;
 }
@@ -15,18 +15,21 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
-  border-bottom: 1px solid #e3e3e7;
 }
 
+// The actual "card": white surface with a full border, separated
+// from the page footer by `margin-bottom`. Flex column so pages
+// that want to fill the viewport height (e.g. TrackPage's two-pane
+// map+chart layout) can grow with `flex: 1` against a definite
+// parent.
 .content {
   padding: 1rem;
   flex: 1;
   min-width: 0;
-  // Flex column so pages that want to fill the viewport height
-  // (e.g. TrackPage's two-pane map+chart layout) can grow with
-  // `flex: 1` against a definite parent. Block-flow pages keep
-  // stacking unchanged because `align-items: stretch` is the
-  // flex default.
+  background: #fff;
+  border: 1px solid #e3e3e7;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
   display: flex;
   flex-direction: column;
   min-height: 0;
