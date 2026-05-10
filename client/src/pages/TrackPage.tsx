@@ -11,6 +11,7 @@ import { findIndexAt } from '../track/findIndexAt';
 import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
 import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
 import type { Track } from '../track';
+import styles from './TrackPage.module.scss';
 
 type LoadState =
   | { status: 'loading' }
@@ -84,16 +85,32 @@ export function TrackPage() {
 
   return (
     <PageLayout>
-      {state.status === 'loading' && <p>Loading…</p>}
-      {state.status === 'ok' && (
-        <TrackMetaPanel data={state.data} peaks={peaks} altitudes={altitudes} />
-      )}
-      {state.status === 'error' && <p>Error: {state.message}</p>}
-      <MapView>
-        {paths && <TrackPolyline paths={paths} />}
-        <FitBounds bounds={bounds} />
-      </MapView>
-      {track && window && <FlightChart track={track} window={window} />}
+      <div className={styles.layout}>
+        <aside className={styles.left}>
+          {state.status === 'loading' && (
+            <p className={styles.statusMessage}>Loading…</p>
+          )}
+          {state.status === 'ok' && (
+            <TrackMetaPanel
+              data={state.data}
+              peaks={peaks}
+              altitudes={altitudes}
+            />
+          )}
+          {state.status === 'error' && (
+            <p className={styles.statusMessage}>Error: {state.message}</p>
+          )}
+        </aside>
+        <div className={styles.right}>
+          <div className={styles.mapSlot}>
+            <MapView>
+              {paths && <TrackPolyline paths={paths} />}
+              <FitBounds bounds={bounds} />
+            </MapView>
+          </div>
+          {track && window && <FlightChart track={track} window={window} />}
+        </div>
+      </div>
     </PageLayout>
   );
 }

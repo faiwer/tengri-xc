@@ -1,11 +1,10 @@
+// Sidebar list. The surrounding page chrome (and the map's bordered
+// rectangle to the right) provide enough framing; an extra panel
+// background here would just compete with the map for the eye.
 .panel {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  padding: 0.75rem 1rem;
-  background: #f7f7f8;
-  border: 1px solid #e3e3e7;
-  border-radius: 8px;
+  flex-direction: column;
+  gap: 0.85rem;
   font-size: 0.9rem;
   line-height: 1.2;
 }

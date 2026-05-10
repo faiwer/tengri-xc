@@ -22,6 +22,14 @@
   padding: 1rem;
   flex: 1;
   min-width: 0;
+  // Flex column so pages that want to fill the viewport height
+  // (e.g. TrackPage's two-pane map+chart layout) can grow with
+  // `flex: 1` against a definite parent. Block-flow pages keep
+  // stacking unchanged because `align-items: stretch` is the
+  // flex default.
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .titleLink {
