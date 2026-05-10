@@ -56,6 +56,7 @@ impl Order {
 pub struct Sql<'a> {
     select_cols: Vec<&'a str>,
     from: Option<&'a str>,
+    joins: Vec<Join<'a>>,
     wheres: Vec<WherePart<'a>>,
     order_by: Vec<(&'a str, Order)>,
     limit: Option<i64>,
@@ -64,6 +65,31 @@ pub struct Sql<'a> {
 struct WherePart<'a> {
     fragment: &'a str,
     binds: Vec<Box<dyn BindOne<'a> + Send + 'a>>,
+}
+
+struct Join<'a> {
+    kind: JoinKind,
+    /// Right-hand side of the join, alias included (e.g. `"users u"`).
+    table: &'a str,
+    /// Raw `ON` predicate. No `$` binds — bound parameters in joins
+    /// are vanishingly rare in this codebase; lift them into a
+    /// `WHERE` if they're ever needed for an `INNER JOIN`.
+    on: &'a str,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum JoinKind {
+    Inner,
+    Left,
+}
+
+impl JoinKind {
+    fn keyword(self) -> &'static str {
+        match self {
+            JoinKind::Inner => " JOIN ",
+            JoinKind::Left => " LEFT JOIN ",
+        }
+    }
 }
 
 /// Object-safe shim around the `Encode + Type` trait pair so we can
@@ -127,6 +153,7 @@ impl<'a> Sql<'a> {
         Self {
             select_cols: cols.to_vec(),
             from: None,
+            joins: Vec::new(),
             wheres: Vec::new(),
             order_by: Vec::new(),
             limit: None,
@@ -135,6 +162,24 @@ impl<'a> Sql<'a> {
 
     pub fn from(mut self, table: &'a str) -> Self {
         self.from = Some(table);
+        self
+    }
+
+    pub fn join(mut self, table: &'a str, on: &'a str) -> Self {
+        self.joins.push(Join {
+            kind: JoinKind::Inner,
+            table,
+            on,
+        });
+        self
+    }
+
+    pub fn left_join(mut self, table: &'a str, on: &'a str) -> Self {
+        self.joins.push(Join {
+            kind: JoinKind::Left,
+            table,
+            on,
+        });
         self
     }
 
@@ -178,6 +223,13 @@ impl<'a> Sql<'a> {
         if let Some(table) = self.from {
             qb.push(" FROM ");
             qb.push(table);
+        }
+
+        for j in &self.joins {
+            qb.push(j.kind.keyword());
+            qb.push(j.table);
+            qb.push(" ON ");
+            qb.push(j.on);
         }
 
         for (i, w) in self.wheres.into_iter().enumerate() {
@@ -287,6 +339,44 @@ mod tests {
         assert_eq!(
             q.to_sql(),
             "SELECT id FROM users WHERE ((a, b) < ($1, $2)) AND (c = $3)",
+        );
+    }
+
+    #[test]
+    fn renders_inner_join() {
+        let q = Sql::select(&["f.id", "u.name"])
+            .from("flights f")
+            .join("users u", "u.id = f.user_id");
+        assert_eq!(
+            q.to_sql(),
+            "SELECT f.id, u.name FROM flights f JOIN users u ON u.id = f.user_id",
+        );
+    }
+
+    #[test]
+    fn renders_left_join() {
+        let q = Sql::select(&["u.id", "p.country"])
+            .from("users u")
+            .left_join("user_profiles p", "p.user_id = u.id");
+        assert_eq!(
+            q.to_sql(),
+            "SELECT u.id, p.country FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id",
+        );
+    }
+
+    #[test]
+    fn joins_render_in_declaration_order_before_where() {
+        let mut q = Sql::select(&["f.id"])
+            .from("flights f")
+            .join("users u", "u.id = f.user_id")
+            .left_join("user_profiles p", "p.user_id = u.id");
+        q.and_where("f.id = $", (7_i32,));
+        assert_eq!(
+            q.to_sql(),
+            "SELECT f.id FROM flights f \
+             JOIN users u ON u.id = f.user_id \
+             LEFT JOIN user_profiles p ON p.user_id = u.id \
+             WHERE (f.id = $1)",
         );
     }
 

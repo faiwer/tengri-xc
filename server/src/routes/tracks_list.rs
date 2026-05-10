@@ -23,7 +23,10 @@ use axum::{
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 
-use crate::{AppError, AppState};
+use crate::{
+    AppError, AppState,
+    db::{Order, Sql},
+};
 
 pub fn router() -> Router<AppState> {
     Router::new().route("/tracks", get(list_tracks))
@@ -71,6 +74,10 @@ struct Item {
 struct Pilot {
     id: i32,
     name: String,
+    /// ISO 3166-1 alpha-2 country code from the user's profile, or
+    /// `None` if no profile / no country recorded. The client renders
+    /// it as a flag emoji with a hover title.
+    country: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -99,56 +106,48 @@ async fn list_tracks(
     // more empty round-trip every time the total count is an exact
     // multiple of `limit` to discover the end of the list.
     let probe = limit as i64 + 1;
-    let mut rows: Vec<(String, i64, i32, i32, String)> = match q.cursor.as_deref() {
-        None => sqlx::query_as(
-            "SELECT f.id, \
-                        EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
-                        f.duration_s, \
-                        u.id, \
-                        u.name \
-                 FROM flights f \
-                 JOIN users u ON u.id = f.user_id \
-                 ORDER BY f.takeoff_at DESC, f.id DESC \
-                 LIMIT $1",
-        )
-        .bind(probe)
+    let cursor = q.cursor.as_deref().map(decode_cursor).transpose()?;
+
+    let mut query = Sql::select(&[
+        "f.id",
+        "EXTRACT(EPOCH FROM f.takeoff_at)::bigint",
+        "f.duration_s",
+        "u.id",
+        "u.name",
+        "p.country",
+    ])
+    .from("flights f")
+    .join("users u", "u.id = f.user_id")
+    // `LEFT JOIN user_profiles` because country is profile-side and
+    // optional; users without a profile row (or without a country)
+    // still appear with `pilot.country = null`.
+    .left_join("user_profiles p", "p.user_id = u.id")
+    .order_by("f.takeoff_at", Order::Desc)
+    .order_by("f.id", Order::Desc)
+    .limit(probe);
+
+    // Row-comparison `(takeoff_at, id) < (...)` is the standard
+    // keyset-pagination predicate: picks up where the last page left
+    // off without `OFFSET`'s O(n) skip cost, and stays correct across
+    // `takeoff_at` ties because `id` breaks them.
+    if let Some((cursor_t, cursor_id)) = cursor {
+        query.and_where(
+            "(f.takeoff_at, f.id) < (to_timestamp($), $)",
+            (cursor_t as i64, cursor_id),
+        );
+    }
+
+    let mut rows: Vec<(String, i64, i32, i32, String, Option<String>)> = query
         .fetch_all(state.pool())
         .await
-        .map_err(anyhow::Error::from)?,
-        Some(raw) => {
-            let (cursor_t, cursor_id) = decode_cursor(raw)?;
-            // Row-comparison `(takeoff_at, id) < (...)` is the standard
-            // keyset-pagination predicate: it picks up exactly where the
-            // last page left off, without `OFFSET`'s O(n) skip cost, and
-            // remains correct across `takeoff_at` ties because `id`
-            // breaks them.
-            sqlx::query_as(
-                "SELECT f.id, \
-                        EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
-                        f.duration_s, \
-                        u.id, \
-                        u.name \
-                 FROM flights f \
-                 JOIN users u ON u.id = f.user_id \
-                 WHERE (f.takeoff_at, f.id) < (to_timestamp($1), $2) \
-                 ORDER BY f.takeoff_at DESC, f.id DESC \
-                 LIMIT $3",
-            )
-            .bind(cursor_t as i64)
-            .bind(cursor_id)
-            .bind(probe)
-            .fetch_all(state.pool())
-            .await
-            .map_err(anyhow::Error::from)?
-        }
-    };
+        .map_err(anyhow::Error::from)?;
 
     let has_more = rows.len() > limit as usize;
     if has_more {
         rows.truncate(limit as usize);
     }
     let next_cursor = if has_more {
-        let (last_id, last_takeoff, _, _, _) = rows.last().expect("has_more implies non-empty");
+        let (last_id, last_takeoff, _, _, _, _) = rows.last().expect("has_more implies non-empty");
         Some(encode_cursor(*last_takeoff as u32, last_id))
     } else {
         None
@@ -157,10 +156,11 @@ async fn list_tracks(
     let items = rows
         .into_iter()
         .map(
-            |(flight_id, takeoff_at, duration, user_id, user_name)| Item {
+            |(flight_id, takeoff_at, duration, user_id, user_name, country)| Item {
                 pilot: Pilot {
                     id: user_id,
                     name: user_name,
+                    country,
                 },
                 track: TrackRef {
                     id: flight_id,
