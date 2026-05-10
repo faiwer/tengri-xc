@@ -2,7 +2,7 @@ export const routes = {
   home: () => '/',
   flights: () => '/flights',
   login: () => '/login',
-  track: (id: string) => `/track/${id}`,
+  flight: (id: string) => `/flight/${id}`,
   settings: {
     index: () => '/settings',
     profile: (id: number) => `/settings/profile/${id}`,

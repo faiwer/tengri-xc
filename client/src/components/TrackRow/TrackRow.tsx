@@ -7,7 +7,7 @@ import styles from './TrackRow.module.scss';
 
 /**
  * One cell of a {@link TrackRow}. The row wraps the {@link content} in a
- * `<Link>` to `/track/:id` so the entire visible cell becomes a hit
+ * `<Link>` to `/flight/:id` so the entire visible cell becomes a hit
  * target with native middle-click / Cmd-click semantics — pilots will
  * open multiple flights in tabs, and intercepting clicks via `onRow`
  * would silently break that.
@@ -40,7 +40,7 @@ interface TrackRowProps {
 }
 
 export function TrackRow({ item, cells }: TrackRowProps) {
-  const href = routes.track(item.track.id);
+  const href = routes.flight(item.track.id);
 
   return (
     <tr className={styles.row}>

@@ -34,7 +34,7 @@ export function App() {
               <Route path="/" element={<TracksPage />} />
               <Route path="/flights" element={<TracksPage />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/track/:id" element={<TrackPage />} />
+              <Route path="/flight/:id" element={<TrackPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 <Route path="profile/:id" element={<ProfileSettings />} />
                 <Route
