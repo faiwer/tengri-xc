@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router';
 import { getUser } from '../../api/admin/users';
 import type { User } from '../../api/admin/users.io';
 import type { UserSex, UserSource } from '../../api/users.io';
+import { Flag } from '../../components/Flag';
 import { useAsync, useAsyncEffect, useErrorToast } from '../../core/hooks';
 import { routes } from '../../core/routes';
 import { formatCountry } from '../../utils/formatCountry';
@@ -167,10 +168,8 @@ const renderCountry = (code: string | null): React.ReactNode => {
 
   return (
     <>
-      <span className={styles.flag} aria-hidden="true">
-        {formatted.flag}
-      </span>
-      {formatted.name}
+      <Flag code={code} decorative />
+      <span className={styles.countryName}>{formatted.name}</span>
     </>
   );
 };

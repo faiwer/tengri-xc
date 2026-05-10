@@ -37,6 +37,8 @@ export const TrackListItemIo = z.object({
   pilot: z.object({
     id: z.number().int(),
     name: z.string(),
+    /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
+    country: z.string().nullable(),
   }),
   track: z.object({
     id: z.string(),

@@ -1,0 +1,13 @@
+.flag {
+  // Force the system emoji font so Linux / older Windows browsers
+  // fall back to coloured glyphs (where available) instead of the
+  // bare regional-indicator letter pair.
+  font-family:
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  // Flag emoji baselines sit below the surrounding text baseline;
+  // align to the parent's x-height middle and lift one optical pixel
+  // so the glyph centres with the rest of the line.
+  display: inline-block;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}

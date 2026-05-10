@@ -46,6 +46,16 @@
   width: 100px;
 }
 
+.colCountry {
+  // Single emoji glyph + the row link's 0.85rem horizontal padding
+  // on each side. Below ~52px the link's `text-overflow: ellipsis`
+  // clips the flag and renders ".." next to it. Header is
+  // intentionally empty; the column reads as a "national badge"
+  // gutter to the left of the pilot name.
+  width: 56px;
+  text-align: center;
+}
+
 .colDuration {
   width: 100px;
 }
