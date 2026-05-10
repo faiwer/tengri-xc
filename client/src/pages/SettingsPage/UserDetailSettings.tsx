@@ -7,6 +7,7 @@ import type { User } from '../../api/admin/users.io';
 import type { UserSex, UserSource } from '../../api/users.io';
 import { useAsync, useAsyncEffect, useErrorToast } from '../../core/hooks';
 import { routes } from '../../core/routes';
+import { formatCountry } from '../../utils/formatCountry';
 import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
 import { PermissionBadges } from './PermissionBadges';
 import styles from './UserDetailSettings.module.scss';
@@ -94,7 +95,7 @@ export function UserDetailSettings() {
       ) : (
         <dl className={styles.list}>
           <Row label="CIVL ID">{user.profile.civlId ?? <Muted>—</Muted>}</Row>
-          <Row label="Country">{user.profile.country ?? <Muted>—</Muted>}</Row>
+          <Row label="Country">{renderCountry(user.profile.country)}</Row>
           <Row label="Sex">
             {user.profile.sex === null ? (
               <Muted>—</Muted>
@@ -151,3 +152,25 @@ const formatSex = (sex: UserSex): string => SEX_LABEL[sex] ?? sex;
 
 const formatTimestamp = (epochSeconds: number): string =>
   `${formatShortDate(epochSeconds)} ${formatShortTime(epochSeconds)}`;
+
+const renderCountry = (code: string | null): React.ReactNode => {
+  if (code === null) {
+    return <Muted>—</Muted>;
+  }
+
+  const formatted = formatCountry(code);
+  if (formatted === null) {
+    // Code is malformed or the runtime doesn't know it (rare ISO
+    // assignments). Show the raw code so we don't hide data.
+    return code;
+  }
+
+  return (
+    <>
+      <span className={styles.flag} aria-hidden="true">
+        {formatted.flag}
+      </span>
+      {formatted.name}
+    </>
+  );
+};

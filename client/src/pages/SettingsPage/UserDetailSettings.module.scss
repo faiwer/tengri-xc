@@ -65,3 +65,21 @@
   color: #6b7280;
   font-style: italic;
 }
+
+.flag {
+  // Force the system emoji font so Linux/old-Windows browsers fall
+  // back to coloured glyphs where available instead of the bare
+  // regional-indicator letter pair.
+  font-family:
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  // Flag emojis have a baseline below the text baseline; aligning
+  // to the parent's x-height middle visually centres them with the
+  // country name. Without this they sag relative to the label.
+  display: inline-block;
+  vertical-align: middle;
+  // Slight nudge so the optical centre of the glyph (which sits
+  // higher than the geometric centre due to the colour padding)
+  // lands on the text x-line.
+  transform: translateY(-1px);
+  margin-right: 0.4rem;
+}
