@@ -5,7 +5,7 @@ export const routes = {
   flight: (id: string) => `/flight/${id}`,
   settings: {
     index: () => '/settings',
-    profile: (id: number) => `/settings/profile/${id}`,
+    profile: () => '/settings/profile',
     authorization: () => '/settings/authorization',
     stats: () => '/settings/stats',
     myFlights: () => '/settings/my-flights',

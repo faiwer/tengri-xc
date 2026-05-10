@@ -29,7 +29,9 @@ export type MeProfile = z.infer<typeof MeProfileIo>;
 export const PreferencesIo = z.object({
   timeFormat: z.enum(['system', 'h12', 'h24']),
   dateFormat: z.enum(['system', 'dmy', 'mdy']),
+  /** Drives both altitude (m vs ft) and XC distance (km vs mi). */
   units: z.enum(['system', 'metric', 'imperial']),
+  /** Independent of `units` — instrument-driven hybrids exist. */
   varioUnit: z.enum(['system', 'mps', 'fpm']),
   speedUnit: z.enum(['system', 'kmh', 'mph']),
   weekStart: z.enum(['system', 'mon', 'sun']),

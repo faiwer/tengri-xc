@@ -16,9 +16,9 @@ interface NavGroup {
 }
 
 /**
- * Two-column shell shared by every `/settings/*` route. Sidebar is
- * built from the live `me` (the System group only renders for admins,
- * and the Account profile link points at the user's own id).
+ * Two-column shell shared by every `/settings/*` route. The System
+ * group is gated on admin permission; everything else is the same
+ * sidebar regardless of viewer.
  */
 export function SettingsLayout() {
   const { me } = useIdentity();
@@ -27,12 +27,7 @@ export function SettingsLayout() {
     {
       label: 'Account',
       items: [
-        // Profile link only works once we know the user id; while the
-        // identity bootstraps it falls back to the settings root.
-        {
-          label: 'Settings',
-          to: me ? routes.settings.profile(me.id) : routes.settings.index(),
-        },
+        { label: 'Settings', to: routes.settings.profile() },
         { label: 'Authorization', to: routes.settings.authorization() },
         { label: 'Stats', to: routes.settings.stats() },
         { label: 'My flights', to: routes.settings.myFlights() },

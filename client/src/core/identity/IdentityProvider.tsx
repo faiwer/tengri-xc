@@ -17,17 +17,22 @@ interface IdentityProviderProps {
  */
 export function IdentityProvider({ children }: IdentityProviderProps) {
   const [me, setMe] = useState<Me | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useAsyncEffect(async (signal) => {
     const next = await getMe({ signal });
     if (!signal.aborted) {
       setMe(next);
+      setIsLoading(false);
     }
   }, []);
 
   return (
     <IdentityContext.Provider
-      value={useMemo<IdentityContextValue>(() => ({ me, setMe }), [me])}
+      value={useMemo<IdentityContextValue>(
+        () => ({ me, isLoading, setMe }),
+        [me, isLoading],
+      )}
     >
       {children}
     </IdentityContext.Provider>

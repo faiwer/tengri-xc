@@ -41,7 +41,7 @@ export function PageLayout({ children }: PageLayoutProps) {
         </Link>
         {me && (
           <span className={styles.actions}>
-            <Link to={routes.settings.profile(me.id)}>
+            <Link to={routes.settings.profile()}>
               <Button
                 icon={isAdmin(me) ? <SettingOutlined /> : <UserOutlined />}
                 aria-label="Account settings"

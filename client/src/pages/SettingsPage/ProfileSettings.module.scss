@@ -1,0 +1,36 @@
+// Section spans the parent's full width so the header banner reaches
+// edge-to-edge. The form below opts back into a narrower column.
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+// Title + subtitle on the left, conditional Save on the right.
+// Border separates the header from the form so the form's narrower
+// column doesn't have to anchor the button visually.
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.5rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e3e3e7;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0 0;
+  color: #6b6b73;
+  font-size: 0.9rem;
+}

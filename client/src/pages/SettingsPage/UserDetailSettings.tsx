@@ -7,6 +7,10 @@ import type { User } from '../../api/admin/users.io';
 import type { UserSex, UserSource } from '../../api/users.io';
 import { Flag } from '../../components/Flag';
 import { useAsync, useAsyncEffect, useErrorToast } from '../../core/hooks';
+import {
+  usePreferences,
+  type ResolvedPreferences,
+} from '../../core/preferences';
 import { routes } from '../../core/routes';
 import { formatCountry } from '../../utils/formatCountry';
 import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
@@ -16,6 +20,7 @@ import styles from './UserDetailSettings.module.scss';
 export function UserDetailSettings() {
   const { id: rawId } = useParams<{ id: string }>();
   const id = parseUserId(rawId);
+  const prefs = usePreferences();
 
   const [user, setUser] = useState<User | null>(null);
   const [fetchUser, , error] = useAsync(getUser);
@@ -73,19 +78,19 @@ export function UserDetailSettings() {
         <Row label="Permissions">
           <PermissionBadges bits={user.permissions} />
         </Row>
-        <Row label="Created">{formatTimestamp(user.createdAt)}</Row>
+        <Row label="Created">{formatTimestamp(user.createdAt, prefs)}</Row>
         <Row label="Last login">
           {user.lastLoginAt === null ? (
             <Muted>never</Muted>
           ) : (
-            formatTimestamp(user.lastLoginAt)
+            formatTimestamp(user.lastLoginAt, prefs)
           )}
         </Row>
         <Row label="Email verified">
           {user.emailVerifiedAt === null ? (
             <Muted>no</Muted>
           ) : (
-            formatTimestamp(user.emailVerifiedAt)
+            formatTimestamp(user.emailVerifiedAt, prefs)
           )}
         </Row>
       </dl>
@@ -151,8 +156,11 @@ const formatSource = (source: UserSource): string =>
 
 const formatSex = (sex: UserSex): string => SEX_LABEL[sex] ?? sex;
 
-const formatTimestamp = (epochSeconds: number): string =>
-  `${formatShortDate(epochSeconds)} ${formatShortTime(epochSeconds)}`;
+const formatTimestamp = (
+  epochSeconds: number,
+  prefs: ResolvedPreferences,
+): string =>
+  `${formatShortDate(epochSeconds, prefs)} ${formatShortTime(epochSeconds, prefs)}`;
 
 const renderCountry = (code: string | null): React.ReactNode => {
   if (code === null) {

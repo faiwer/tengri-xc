@@ -6,6 +6,10 @@ import { PageLayout } from '../../components/PageLayout';
 import { TrackRow, type TrackRowCell } from '../../components/TrackRow';
 import { useErrorToast } from '../../core/hooks';
 import {
+  usePreferences,
+  type ResolvedPreferences,
+} from '../../core/preferences';
+import {
   formatDuration,
   formatShortDate,
   formatShortTime,
@@ -21,14 +25,15 @@ import { useTracksFeed } from './useTracksFeed';
 export function TracksPage() {
   const feed = useTracksFeed();
   const onSentinelRef = useScrollSentinel(feed.loadMore);
+  const prefs = usePreferences();
 
   const rows = useMemo(
     () =>
       (feed.items ?? []).map((item, index) => ({
         item,
-        cells: buildHomeRowCells(item, index + 1),
+        cells: buildHomeRowCells(item, index + 1, prefs),
       })),
-    [feed.items],
+    [feed.items, prefs],
   );
 
   const isEmpty = feed.items?.length === 0 && !feed.isLoading;
@@ -83,6 +88,7 @@ export function TracksPage() {
 function buildHomeRowCells(
   item: TrackListItem,
   rowNumber: number,
+  prefs: ResolvedPreferences,
 ): TrackRowCell[] {
   return [
     {
@@ -93,13 +99,13 @@ function buildHomeRowCells(
     },
     {
       key: 'date',
-      content: formatShortDate(item.track.takeoffAt),
+      content: formatShortDate(item.track.takeoffAt, prefs),
       muted: true,
       className: styles.colDate,
     },
     {
       key: 'time',
-      content: formatShortTime(item.track.takeoffAt),
+      content: formatShortTime(item.track.takeoffAt, prefs),
       className: styles.colTime,
     },
     {

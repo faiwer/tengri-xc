@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 
 import type { UserListItem } from '../../api/admin/users.io';
 import { useErrorToast } from '../../core/hooks';
+import { usePreferences } from '../../core/preferences';
 import { routes } from '../../core/routes';
 import { formatShortDate } from '../../utils/formatDateTime';
 import { PermissionBadges } from './PermissionBadges';
@@ -13,6 +14,7 @@ import { useUsersFeed } from './useUsersFeed';
 
 export function UsersSettings() {
   const feed = useUsersFeed();
+  const prefs = usePreferences();
   useErrorToast(feed.error, { title: "Couldn't load users" });
 
   const columns = useMemo<ColumnsType<UserListItem>>(
@@ -48,7 +50,7 @@ export function UsersSettings() {
         dataIndex: 'createdAt',
         key: 'createdAt',
         width: 110,
-        render: (epoch: number) => formatShortDate(epoch),
+        render: (epoch: number) => formatShortDate(epoch, prefs),
       },
       {
         title: 'Last login',
@@ -56,10 +58,10 @@ export function UsersSettings() {
         key: 'lastLoginAt',
         width: 110,
         render: (epoch: number | null) =>
-          epoch === null ? <Muted>never</Muted> : formatShortDate(epoch),
+          epoch === null ? <Muted>never</Muted> : formatShortDate(epoch, prefs),
       },
     ],
-    [],
+    [prefs],
   );
 
   // Inline error only for the empty/initial state — otherwise the
