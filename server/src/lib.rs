@@ -5,6 +5,7 @@ pub mod error;
 pub mod flight;
 pub mod geo;
 pub mod routes;
+pub mod site;
 pub mod state;
 pub mod telemetry;
 pub mod user;

@@ -7,8 +7,9 @@ use axum::Router;
 
 use crate::AppState;
 
+pub mod site;
 pub mod users;
 
 pub fn router() -> Router<AppState> {
-    Router::new().merge(users::router())
+    Router::new().merge(users::router()).merge(site::router())
 }

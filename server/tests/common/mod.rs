@@ -128,6 +128,11 @@ async fn reset_schema(pool: &PgPool) {
 /// Wipe all rows but keep the schema. `RESTART IDENTITY` rewinds the user-id
 /// sequence so tests can re-use deterministic ids like `1`. `CASCADE` deals
 /// with the FK chain (flights → tracks/sources).
+///
+/// `site_settings` is a singleton-row table — TRUNCATE would lose the row
+/// migrations inserted, so we DELETE + INSERT to rewind every column to its
+/// schema default between tests. Tests that mutate site settings can rely on
+/// the next one starting from defaults.
 async fn truncate_data(pool: &PgPool) {
     sqlx::query(
         "TRUNCATE flight_tracks, flight_sources, flights, user_profiles, users \
@@ -136,6 +141,15 @@ async fn truncate_data(pool: &PgPool) {
     .execute(pool)
     .await
     .expect("truncate fixture tables");
+
+    sqlx::query("DELETE FROM site_settings")
+        .execute(pool)
+        .await
+        .expect("clear site_settings");
+    sqlx::query("INSERT INTO site_settings (id) VALUES (TRUE)")
+        .execute(pool)
+        .await
+        .expect("reseed site_settings defaults");
 }
 
 /// Convenience: build the app router on top of a pooled `AppState`.
