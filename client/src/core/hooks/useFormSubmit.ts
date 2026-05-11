@@ -56,7 +56,7 @@ export function useFormSubmit<TValues, TResult>(
       onSuccess?.(result);
       if (successTitle) {
         notification.success({
-          message: successTitle,
+          title: successTitle,
           placement: 'bottomRight',
         });
       }
@@ -75,7 +75,7 @@ export function useFormSubmit<TValues, TResult>(
       }
 
       notification.error({
-        message: errorTitle ?? "Couldn't save",
+        title: errorTitle ?? "Couldn't save",
         description: err instanceof Error ? err.message : String(err),
         placement: 'bottomRight',
       });

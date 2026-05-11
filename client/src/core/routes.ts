@@ -3,6 +3,8 @@ export const routes = {
   flights: () => '/flights',
   login: () => '/login',
   flight: (id: string) => `/flight/${id}`,
+  terms: () => '/terms',
+  privacy: () => '/privacy',
   settings: {
     index: () => '/settings',
     profile: () => '/settings/profile',

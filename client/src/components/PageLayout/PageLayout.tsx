@@ -1,16 +1,18 @@
 import {
+  GithubOutlined,
   LogoutOutlined,
   SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { Button } from 'antd';
 import clsx from 'clsx';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { logout } from '../../api/users';
 import { useAsync, useErrorToast } from '../../core/hooks';
 import { isAdmin, useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
+import { useSite } from '../../core/site';
 import styles from './PageLayout.module.scss';
 
 interface PageLayoutProps {
@@ -31,7 +33,14 @@ interface PageLayoutProps {
  */
 export function PageLayout({ children, fit = false }: PageLayoutProps) {
   const { me, setMe } = useIdentity();
+  const { site } = useSite();
   const navigate = useNavigate();
+
+  // Reflect the configured site name into the browser tab. Per-page titles
+  // aren't a concern yet — every route shows the same name.
+  useEffect(() => {
+    document.title = site.siteName;
+  }, [site.siteName]);
 
   const [signOut, isSigningOut, signOutError] = useAsync(async () => {
     await logout();
@@ -45,7 +54,7 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
     <main className={styles.page}>
       <header className={styles.header}>
         <Link to={routes.home()} className={styles.titleLink}>
-          <h1 className={styles.title}>Tengri XC</h1>
+          <h1 className={styles.title}>{site.siteName}</h1>
         </Link>
         {me && (
           <span className={styles.actions}>
@@ -67,6 +76,18 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
       <div className={clsx(styles.content, fit && styles.contentFit)}>
         {children}
       </div>
+      <footer className={styles.footer}>
+        {site.hasTos && <Link to={routes.terms()}>Terms</Link>}
+        {site.hasPrivacy && <Link to={routes.privacy()}>Privacy</Link>}
+        <a
+          href="https://github.com/faiwer/tengri-xc"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.footerExternal}
+        >
+          <GithubOutlined /> GitHub
+        </a>
+      </footer>
     </main>
   );
 }

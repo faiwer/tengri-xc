@@ -40,7 +40,7 @@ export function useErrorToast(
     }
 
     notification.error({
-      message: title,
+      title,
       description: description ?? message,
       placement: 'bottomRight',
     });
