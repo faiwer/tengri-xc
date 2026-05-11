@@ -14,7 +14,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1rem 0;
+  padding: 1rem 0 0 0;
 }
 
 // The actual "card": white surface with a full border, separated
@@ -72,6 +72,10 @@
 .actions {
   display: inline-flex;
   align-items: center;
+  // Header itself is `flex-end` so the logo's bottom edge meets the content
+  // card; the action buttons opt back to centre so they line up with the
+  // title text instead of dropping to the same baseline as the logo.
+  align-self: center;
   gap: 0.5rem;
 }
 
