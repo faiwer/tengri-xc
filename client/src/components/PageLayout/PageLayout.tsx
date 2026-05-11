@@ -54,6 +54,7 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
     <main className={styles.page}>
       <header className={styles.header}>
         <Link to={routes.home()} className={styles.titleLink}>
+          <span className={styles.logo} aria-hidden="true" />
           <h1 className={styles.title}>{site.siteName}</h1>
         </Link>
         {me && (

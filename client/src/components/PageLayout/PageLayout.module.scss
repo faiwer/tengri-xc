@@ -11,10 +11,10 @@
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem;
+  padding: 1rem 1rem 0;
 }
 
 // The actual "card": white surface with a full border, separated
@@ -44,14 +44,29 @@
 }
 
 .titleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
   color: inherit;
   text-decoration: none;
+}
+
+// Mask-based recolouring: the SVG is used as an alpha mask, the visible pixels
+// take `background-color`. Keeps the asset as a single static file in `public/`
+// while letting CSS own the colour.
+.logo {
+  width: 3.5rem;
+  height: 3.5rem;
+  background-color: #0f172a;
+  mask: url("/images/logoSmall.svg") no-repeat center / contain;
+  -webkit-mask: url("/images/logoSmall.svg") no-repeat center / contain;
 }
 
 .title {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0;
+  line-height: 1;
 }
 
 .actions {
