@@ -1,14 +1,34 @@
 # Trigger-file dev loop for the tengri-server.
 #
-# Run `bacon` (no args) in this directory. The server starts, and is only
-# rebuilt + restarted when the `.restart` file is touched — *not* on every
-# .rs save. To rebuild, run `touch server/.restart` after a batch of edits.
+# Run `bacon` (no args) in this directory. The server is only rebuilt +
+# restarted when the `.restart` file's *content* changes — not on every .rs
+# save. To rebuild, run `date +%s > server/.restart` after a batch of edits.
+# (Plain `touch` won't do: FSEvents on macOS coalesces pure mtime updates of
+# empty files and the event never reaches bacon.)
 #
 # This avoids the usual save-watcher pattern, which churns through compile
-# errors mid-refactor when the tree is briefly non-compiling between
-# file edits.
+# errors mid-refactor when the tree is briefly non-compiling between file edits.
 
 default_job = "serve"
+
+# Global watch settings — apply to every job, including bacon's built-in
+# `check`/`clippy`/`test`/`run` jobs. Even if a stray keypress switches the
+# active job, no job auto-watches `src/`. The only file that ever triggers a job
+# is `.restart`. If you want `cargo check` ambient, run it yourself in another
+# terminal.
+default_watch = false
+watch = [".restart"]
+# `.restart` is gitignored; bacon would otherwise skip changes to ignored
+# files.
+apply_gitignore = false
+
+# Neuter the default keybindings that silently switch jobs and stop the
+# server. Without this, pressing `c` or `ctrl-j` swaps bacon to a
+# different job (killing the running tengri-server) and there's no
+# obvious way back.
+[keybindings]
+c = "no-op" # default: job:clippy-all
+ctrl-j = "no-op" # default: open-jobs-menu
 
 [jobs.serve]
 command = ["cargo", "run", "--bin", "tengri-server"]
@@ -16,15 +36,6 @@ need_stdout = true
 background = false
 allow_warnings = true
 show_command_error_code = true
-
-# Only `.restart` triggers a rebuild. `default_watch = false` disables the
-# usual src/tests/examples/build.rs/benches auto-watch.
-default_watch = false
-watch = [".restart"]
-
-# `.restart` is gitignored; bacon would otherwise skip changes to ignored
-# files.
-apply_gitignore = false
 
 on_change_strategy = "kill_then_restart"
 
