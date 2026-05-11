@@ -11,7 +11,12 @@ import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { PageLayout } from '../../components/PageLayout';
-import { isAdmin, useIdentity } from '../../core/identity';
+import {
+  type Permission,
+  Permissions,
+  hasPermission,
+  useIdentity,
+} from '../../core/identity';
 import { routes } from '../../core/routes';
 import styles from './SettingsLayout.module.scss';
 
@@ -19,6 +24,7 @@ interface NavItem {
   label: string;
   to: string;
   icon: ReactNode;
+  permission?: Permission;
 }
 
 interface NavGroup {
@@ -27,9 +33,9 @@ interface NavGroup {
 }
 
 /**
- * Two-column shell shared by every `/settings/*` route. The System
- * group is gated on admin permission; everything else is the same
- * sidebar regardless of viewer.
+ * Two-column shell shared by every `/settings/*` route. Each item can declare a
+ * `permission`; items the viewer doesn't hold are dropped, and a group that
+ * loses all of its items disappears with them.
  */
 export function SettingsLayout() {
   const { me } = useIdentity();
@@ -65,31 +71,41 @@ export function SettingsLayout() {
         },
       ],
     },
-  ];
-
-  if (me && isAdmin(me)) {
-    groups.push({
+    {
       label: 'System',
       items: [
         {
           label: 'Settings',
           to: routes.settings.system(),
           icon: <SettingOutlined />,
+          permission: Permissions.MANAGE_SETTINGS,
         },
         {
           label: 'Users',
           to: routes.settings.users(),
           icon: <TeamOutlined />,
+          permission: Permissions.MANAGE_USERS,
         },
       ],
-    });
-  }
+    },
+  ];
+
+  const visibleGroups = groups
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (item) =>
+          !item.permission ||
+          (me !== null && hasPermission(me, item.permission)),
+      ),
+    }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <PageLayout fit>
       <div className={styles.layout}>
         <nav className={styles.nav}>
-          {groups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label} className={styles.group}>
               <span className={styles.groupLabel}>{group.label}</span>
               {group.items.map((item) => (
