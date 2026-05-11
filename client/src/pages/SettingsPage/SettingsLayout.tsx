@@ -24,7 +24,14 @@ interface NavItem {
   label: string;
   to: string;
   icon: ReactNode;
+  /** Hide this entry unless `me` holds the bit. Omit for everyone. */
   permission?: Permission;
+  /**
+   * Stay active on child routes too (e.g. `/users/:id` lights up the
+   * `Users` parent). Default off — most items have no sub-routes and
+   * matching by prefix on those risks false positives.
+   */
+  matchPrefix?: boolean;
 }
 
 interface NavGroup {
@@ -85,6 +92,7 @@ export function SettingsLayout() {
           to: routes.settings.users(),
           icon: <TeamOutlined />,
           permission: Permissions.MANAGE_USERS,
+          matchPrefix: true,
         },
       ],
     },
@@ -112,7 +120,7 @@ export function SettingsLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end
+                  end={!item.matchPrefix}
                   className={({ isActive }) =>
                     clsx(styles.item, isActive && styles.itemActive)
                   }

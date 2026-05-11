@@ -15,6 +15,7 @@ import { routes } from '../../core/routes';
 import { formatCountry } from '../../utils/formatCountry';
 import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
 import { PermissionBadges } from './PermissionBadges';
+import { SettingsSection } from './SettingsSection';
 import styles from './UserDetailSettings.module.scss';
 
 export function UserDetailSettings() {
@@ -60,14 +61,14 @@ export function UserDetailSettings() {
   }
 
   return (
-    <section className={styles.section}>
-      <header className={styles.header}>
-        <h2 className={styles.title}>{user.name}</h2>
+    <SettingsSection
+      title={user.name}
+      action={
         <Link to={routes.settings.users()} className={styles.back}>
           ← All users
         </Link>
-      </header>
-
+      }
+    >
       <h3 className={styles.subtitle}>Account</h3>
       <dl className={styles.list}>
         <Row label="ID">{user.id}</Row>
@@ -111,7 +112,7 @@ export function UserDetailSettings() {
           </Row>
         </dl>
       )}
-    </section>
+    </SettingsSection>
   );
 }
 
