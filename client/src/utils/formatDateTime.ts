@@ -1,59 +1,155 @@
 import type { ResolvedPreferences } from '../core/preferences';
 
-// Pre-built formatters keyed by the relevant pref. `Intl.DateTimeFormat`
-// construction is non-trivial; cache one per format so repeated calls
-// don't allocate.
+// Two parallel formatter caches: one in viewer-TZ (no offset supplied,
+// `Intl.DateTimeFormat` uses the browser's resolved zone) and one in `UTC` for
+// the offset-supplied path. With an offset, we shift the instant by
+// `offsetSeconds` *before* handing it to a `timeZone: 'UTC'` formatter — that's
+// how we render flight-local wall-clock without having to know the IANA name on
+// the client.
+//
+// `Intl.DateTimeFormat` construction is non-trivial; cache one per (preference
+// value, has-offset?) so repeated render calls don't allocate.
 
-const DATE_FMT_DMY = new Intl.DateTimeFormat(undefined, {
+const DATE_FMT_DMY_VIEWER = new Intl.DateTimeFormat(undefined, {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
+});
+
+const DATE_FMT_DMY_UTC = new Intl.DateTimeFormat(undefined, {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'UTC',
 });
 
 // `en-US` is the canonical month-day-year locale: forces M/D/Y order
 // and `/` separators regardless of the page's locale, matching what
 // US pilots expect.
-const DATE_FMT_MDY = new Intl.DateTimeFormat('en-US', {
+const DATE_FMT_MDY_VIEWER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
 });
 
-const TIME_FMT_H24 = new Intl.DateTimeFormat(undefined, {
+const DATE_FMT_MDY_UTC = new Intl.DateTimeFormat('en-US', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const TIME_FMT_H24_VIEWER = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
 });
 
-const TIME_FMT_H12 = new Intl.DateTimeFormat(undefined, {
+const TIME_FMT_H24_UTC = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+});
+
+const TIME_FMT_H12_VIEWER = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   hour12: true,
 });
 
+const TIME_FMT_H12_UTC = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: 'UTC',
+});
+
+const VERBOSE_DATE_FMT_VIEWER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
+const VERBOSE_DATE_FMT_UTC = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
 /**
- * Short numeric date, ordered per the user's preference. `dd.mm.yyyy`
- * for dmy (German/Russian convention), `mm/dd/yyyy` for mdy (US).
+ * Build a `Date` for the given UTC epoch and optional offset. With no offset,
+ * returns the raw epoch instant (formatters then render it in the viewer's
+ * zone). With an offset, shifts the instant forward by the offset so that a
+ * `timeZone: 'UTC'` formatter prints the flight-local wall clock. Two
+ * formatters per slot below — one for each path.
+ */
+const at = (epochSeconds: number, offsetSeconds: number | undefined): Date =>
+  new Date((epochSeconds + (offsetSeconds ?? 0)) * 1000);
+
+/**
+ * Short numeric date, ordered per the user's preference. `dd.mm.yyyy` for dmy
+ * (German/Russian convention), `mm/dd/yyyy` for mdy (US).
+ *
+ * Pass `offsetSeconds` to render in flight-local time (the date a pilot
+ * remembers); omit to fall back to the viewer's TZ (useful for non-flight call
+ * sites like account-creation timestamps).
  */
 export const formatShortDate = (
   epochSeconds: number,
   prefs: Pick<ResolvedPreferences, 'dateFormat'>,
+  offsetSeconds?: number,
 ): string => {
-  const fmt = prefs.dateFormat === 'mdy' ? DATE_FMT_MDY : DATE_FMT_DMY;
-  return fmt.format(new Date(epochSeconds * 1000));
+  const fmt =
+    prefs.dateFormat === 'mdy'
+      ? offsetSeconds === undefined
+        ? DATE_FMT_MDY_VIEWER
+        : DATE_FMT_MDY_UTC
+      : offsetSeconds === undefined
+        ? DATE_FMT_DMY_VIEWER
+        : DATE_FMT_DMY_UTC;
+  return fmt.format(at(epochSeconds, offsetSeconds));
 };
 
 /**
- * `HH:mm` (24-hour) or `hh:mm AM/PM` (12-hour) per the user's
- * preference. Locale handles the AM/PM word and any locale-specific
- * separators.
+ * `HH:mm` (24-hour) or `hh:mm AM/PM` (12-hour) per the user's preference.
+ * Locale handles the AM/PM word and any locale-specific separators.
+ *
+ * `offsetSeconds` semantics match {@link formatShortDate}.
  */
 export const formatShortTime = (
   epochSeconds: number,
   prefs: Pick<ResolvedPreferences, 'timeFormat'>,
+  offsetSeconds?: number,
 ): string => {
-  const fmt = prefs.timeFormat === 'h24' ? TIME_FMT_H24 : TIME_FMT_H12;
-  return fmt.format(new Date(epochSeconds * 1000));
+  const fmt =
+    prefs.timeFormat === 'h24'
+      ? offsetSeconds === undefined
+        ? TIME_FMT_H24_VIEWER
+        : TIME_FMT_H24_UTC
+      : offsetSeconds === undefined
+        ? TIME_FMT_H12_VIEWER
+        : TIME_FMT_H12_UTC;
+  return fmt.format(at(epochSeconds, offsetSeconds));
+};
+
+/**
+ * Verbose locale-driven date ("May 3, 2026" / "3 May 2026"). Stays
+ * locale-driven (no `dateFormat` honour) because that preference is about
+ * *short numeric* dates; the verbose form picks its month-name language from
+ * the locale and forcing en-US/en-GB to control ordering would also force
+ * English month names on, say, German users.
+ */
+export const formatVerboseDate = (
+  epochSeconds: number,
+  offsetSeconds?: number,
+): string => {
+  const fmt =
+    offsetSeconds === undefined
+      ? VERBOSE_DATE_FMT_VIEWER
+      : VERBOSE_DATE_FMT_UTC;
+  return fmt.format(at(epochSeconds, offsetSeconds));
 };
 
 /** `HH:mm` flight duration. Unit-agnostic; not affected by preferences. */

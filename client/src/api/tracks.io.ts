@@ -17,6 +17,12 @@ import {
 // the boundary, so schemas here describe the post-conversion shape and
 // consumers only ever see camelCase.
 
+/** Decimal degrees on WGS-84. Sent by the server for both takeoff and landing. */
+const PointIo = z.object({
+  lat: z.number(),
+  lon: z.number(),
+});
+
 export const TrackMetadataIo = z.object({
   id: z.string(),
   pilot: z.object({
@@ -28,6 +34,16 @@ export const TrackMetadataIo = z.object({
   takeoffAt: z.number().int(),
   /** Unix epoch seconds (UTC). */
   landingAt: z.number().int(),
+  /**
+   * UTC offsets in whole seconds, computed at ingest from the takeoff/landing
+   * fix coordinates and the `tzdb` rules valid on the flight's date. Positive =
+   * ahead of UTC. Use these to display flight-local wall-clock time without
+   * dragging the viewer's TZ in.
+   */
+  takeoffOffset: z.number().int(),
+  landingOffset: z.number().int(),
+  takeoff: PointIo,
+  landing: PointIo,
   /** Wire-track size as a fraction of the gzipped source (0..1ish). */
   compressionRatio: z.number(),
 });
@@ -46,8 +62,13 @@ export const TrackListItemIo = z.object({
     id: z.string(),
     /** Unix epoch seconds (UTC). */
     takeoffAt: z.number().int(),
-    /** Whole seconds, from `flights.duration_s`. */
+    /** Whole seconds, from `flights.duration`. */
     duration: z.number().int(),
+    /** UTC offsets — see {@link TrackMetadataIo}. */
+    takeoffOffset: z.number().int(),
+    landingOffset: z.number().int(),
+    takeoff: PointIo,
+    landing: PointIo,
   }),
 });
 

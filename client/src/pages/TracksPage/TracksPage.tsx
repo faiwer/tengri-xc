@@ -99,13 +99,21 @@ function buildHomeRowCells(
     },
     {
       key: 'date',
-      content: formatShortDate(item.track.takeoffAt, prefs),
+      content: formatShortDate(
+        item.track.takeoffAt,
+        prefs,
+        item.track.takeoffOffset,
+      ),
       muted: true,
       className: styles.colDate,
     },
     {
       key: 'time',
-      content: formatShortTime(item.track.takeoffAt, prefs),
+      content: formatShortTime(
+        item.track.takeoffAt,
+        prefs,
+        item.track.takeoffOffset,
+      ),
       className: styles.colTime,
     },
     {

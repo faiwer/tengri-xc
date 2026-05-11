@@ -3,7 +3,11 @@ import type { TrackMetadata } from '../../api/tracks.io';
 import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
-import { formatDuration, formatShortTime } from '../../utils/formatDateTime';
+import {
+  formatDuration,
+  formatShortTime,
+  formatVerboseDate,
+} from '../../utils/formatDateTime';
 import { formatAltitude, formatVario } from '../../utils/formatUnits';
 import { Flag } from '../Flag';
 import styles from './TrackMetaPanel.module.scss';
@@ -41,9 +45,15 @@ export function TrackMetaPanel({
         )}
         {data.pilot.name}
       </Cell>
-      <Cell label="Date">{formatVerboseDate(data.takeoffAt)}</Cell>
-      <Cell label="Takeoff">{formatShortTime(data.takeoffAt, prefs)}</Cell>
-      <Cell label="Landing">{formatShortTime(data.landingAt, prefs)}</Cell>
+      <Cell label="Date">
+        {formatVerboseDate(data.takeoffAt, data.takeoffOffset)}
+      </Cell>
+      <Cell label="Takeoff">
+        {formatShortTime(data.takeoffAt, prefs, data.takeoffOffset)}
+      </Cell>
+      <Cell label="Landing">
+        {formatShortTime(data.landingAt, prefs, data.landingOffset)}
+      </Cell>
       <Cell label="Duration">
         {formatDuration(data.landingAt - data.takeoffAt)}
       </Cell>
@@ -83,19 +93,3 @@ function Cell({ label, children, mono, title }: CellProps) {
     </div>
   );
 }
-
-// Verbose date for the meta cell ("May 3, 2026" / "3 May 2026"). Stays
-// locale-driven rather than honouring the dmy/mdy preference because
-// the preference is intentionally about *short numeric* dates; the
-// verbose form picks its month-name language from the locale, and
-// forcing en-US/en-GB to control ordering would also force English
-// month names on, say, German users. Worth revisiting once a locale
-// preference exists.
-const VERBOSE_DATE_FMT = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-});
-
-const formatVerboseDate = (epochSeconds: number): string =>
-  VERBOSE_DATE_FMT.format(new Date(epochSeconds * 1000));
