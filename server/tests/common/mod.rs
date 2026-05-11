@@ -177,12 +177,12 @@ pub async fn seed_user(pool: &PgPool, id: i32, name: &str) -> i32 {
 }
 
 /// Insert a flight row. Caller supplies a (NanoID-shaped) id and the owning
-/// user id. `takeoff_at` / `landed_at` default to `now()` because most tests
+/// user id. `takeoff_at` / `landing_at` default to `now()` because most tests
 /// don't care about flight-time ordering; reach for [`seed_flight_at`] when
 /// a test asserts on the timestamps. Returns the flight id for chaining.
 pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String {
     sqlx::query(
-        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
          VALUES ($1, $2, now(), now())",
     )
     .bind(flight_id)
@@ -193,23 +193,23 @@ pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String
     flight_id.to_owned()
 }
 
-/// Like [`seed_flight`] but with explicit takeoff/landed Unix-epoch seconds.
+/// Like [`seed_flight`] but with explicit takeoff/landing Unix-epoch seconds.
 /// Use when the test asserts on the timestamp wire format.
 pub async fn seed_flight_at(
     pool: &PgPool,
     flight_id: &str,
     user_id: i32,
     takeoff_at: i64,
-    landed_at: i64,
+    landing_at: i64,
 ) -> String {
     sqlx::query(
-        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
          VALUES ($1, $2, to_timestamp($3), to_timestamp($4))",
     )
     .bind(flight_id)
     .bind(user_id)
     .bind(takeoff_at)
-    .bind(landed_at)
+    .bind(landing_at)
     .execute(pool)
     .await
     .expect("seed flight");

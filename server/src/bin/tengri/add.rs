@@ -29,7 +29,7 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let flight_id = nanoid_8();
     let mut tx = pool.begin().await.context("starting transaction")?;
 
-    insert_flight(&mut tx, &flight_id, user_id, p.takeoff_at, p.landed_at)
+    insert_flight(&mut tx, &flight_id, user_id, p.takeoff_at, p.landing_at)
         .await
         .context("inserting flights row")?;
     insert_source(&mut tx, &flight_id, p.format.pg_enum_value(), &p.source_gz)
@@ -48,11 +48,11 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
 
     tx.commit().await.context("committing transaction")?;
 
-    let duration_min = (p.landed_at - p.takeoff_at) as f64 / 60.0;
+    let duration_min = (p.landing_at - p.takeoff_at) as f64 / 60.0;
     let compression_pct = p.compression_ratio * 100.0;
     println!(
         "added flight {flight_id} (user {user_id}, {n_points} points, \
-         takeoff..landed = [{}..{}] / {duration_min:.1} min, \
+         takeoff..landing = [{}..{}] / {duration_min:.1} min, \
          source {} bytes gz, track {} bytes ({compression_pct:.1}% of gz source), etag {})",
         p.window.takeoff_idx,
         p.window.landing_idx,

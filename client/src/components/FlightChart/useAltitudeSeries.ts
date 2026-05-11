@@ -41,7 +41,7 @@ export const useAltitudeSeries = (
 ): AltitudeSeries => {
   return useMemo(() => {
     const fromIdx = window.takeoffIdx;
-    const toIdx = window.landedIdx + 1;
+    const toIdx = window.landingIdx + 1;
     const length = toIdx - fromIdx;
     const xs = track.t.subarray(fromIdx, toIdx);
     // Combined "decode + convert" scale: track stores tenths of a

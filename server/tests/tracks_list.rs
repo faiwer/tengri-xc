@@ -62,7 +62,7 @@ async fn list_returns_flights_newest_first_with_full_payload_shape() {
     assert_eq!(items[0]["pilot"]["id"], TEST_USER_ID);
     assert_eq!(items[0]["pilot"]["name"], TEST_USER_NAME);
     assert_eq!(items[0]["track"]["takeoff_at"], TAKEOFF_NEWEST);
-    assert_eq!(items[0]["track"]["duration"], 600); // landed = takeoff + 600
+    assert_eq!(items[0]["track"]["duration"], 600); // landing = takeoff + 600
 
     // Final page → no next cursor.
     assert!(json["next_cursor"].is_null());

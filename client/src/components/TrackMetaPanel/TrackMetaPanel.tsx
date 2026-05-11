@@ -43,9 +43,9 @@ export function TrackMetaPanel({
       </Cell>
       <Cell label="Date">{formatVerboseDate(data.takeoffAt)}</Cell>
       <Cell label="Takeoff">{formatShortTime(data.takeoffAt, prefs)}</Cell>
-      <Cell label="Landing">{formatShortTime(data.landedAt, prefs)}</Cell>
+      <Cell label="Landing">{formatShortTime(data.landingAt, prefs)}</Cell>
       <Cell label="Duration">
-        {formatDuration(data.landedAt - data.takeoffAt)}
+        {formatDuration(data.landingAt - data.takeoffAt)}
       </Cell>
       <Cell label="Best climb">
         {peaks ? formatVario(peaks.peakClimb, prefs) : '—'}

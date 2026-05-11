@@ -120,7 +120,7 @@ pub struct Prepared {
     pub track: Track,
     pub window: FlightWindow,
     pub takeoff_at: i64,
-    pub landed_at: i64,
+    pub landing_at: i64,
     /// `gzip(raw_upload_bytes)`. Goes into `flight_sources.bytes`.
     pub source_gz: Vec<u8>,
     /// `gzip(bincode(TengriFile))`. Goes into `flight_tracks.bytes` —
@@ -178,7 +178,7 @@ pub fn prepare_bytes_for_storage(
 
     let window = find_flight_window(&track).ok_or(PrepareError::NoWindow)?;
     let takeoff_at = track.points[window.takeoff_idx].time as i64;
-    let landed_at = track.points[window.landing_idx].time as i64;
+    let landing_at = track.points[window.landing_idx].time as i64;
 
     let compact = encode(&track)
         .context("encoding compact track")
@@ -200,7 +200,7 @@ pub fn prepare_bytes_for_storage(
         track,
         window,
         takeoff_at,
-        landed_at,
+        landing_at,
         source_gz,
         track_bytes,
         etag,

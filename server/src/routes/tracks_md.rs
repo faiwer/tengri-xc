@@ -21,7 +21,7 @@ struct TrackMd {
     /// `bigint` epoch so the wire format stays numeric and the client can do
     /// `new Date(seconds * 1000)` without parsing strings.
     takeoff_at: i64,
-    landed_at: i64,
+    landing_at: i64,
     /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
     compression_ratio: f32,
 }
@@ -45,7 +45,7 @@ async fn get_track_md(
     let row: Option<(String, String, Option<String>, i64, i64, f32)> = sqlx::query_as(
         "SELECT f.id, u.name, p.country, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
-                EXTRACT(EPOCH FROM f.landed_at)::bigint, \
+                EXTRACT(EPOCH FROM f.landing_at)::bigint, \
                 t.compression_ratio \
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
@@ -58,7 +58,7 @@ async fn get_track_md(
     .await
     .map_err(anyhow::Error::from)?;
 
-    let Some((flight_id, pilot_name, pilot_country, takeoff_at, landed_at, compression_ratio)) =
+    let Some((flight_id, pilot_name, pilot_country, takeoff_at, landing_at, compression_ratio)) =
         row
     else {
         return Err(AppError::NotFound);
@@ -71,7 +71,7 @@ async fn get_track_md(
             country: pilot_country,
         },
         takeoff_at,
-        landed_at,
+        landing_at,
         compression_ratio,
     }))
 }

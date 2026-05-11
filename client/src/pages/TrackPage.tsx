@@ -59,13 +59,17 @@ export function TrackPage() {
     if (!track || state.status !== 'ok') return undefined;
     return {
       takeoffIdx: findIndexAt(track, state.data.takeoffAt),
-      landedIdx: findIndexAt(track, state.data.landedAt),
+      landingIdx: findIndexAt(track, state.data.landingAt),
     };
   }, [track, state]);
 
   const insights = useMemo(() => {
     if (!track || !window) return undefined;
-    return computeVarioInsights(track, window.takeoffIdx, window.landedIdx + 1);
+    return computeVarioInsights(
+      track,
+      window.takeoffIdx,
+      window.landingIdx + 1,
+    );
   }, [track, window]);
 
   const peaks: VarioPeaks | undefined = insights
@@ -74,7 +78,7 @@ export function TrackPage() {
 
   const altitudes = useMemo(() => {
     if (!track || !window) return undefined;
-    return altitudeRange(track, window.takeoffIdx, window.landedIdx + 1);
+    return altitudeRange(track, window.takeoffIdx, window.landingIdx + 1);
   }, [track, window]);
 
   const paths = useMemo(

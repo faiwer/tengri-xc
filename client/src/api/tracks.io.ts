@@ -27,7 +27,7 @@ export const TrackMetadataIo = z.object({
   /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
   takeoffAt: z.number().int(),
   /** Unix epoch seconds (UTC). */
-  landedAt: z.number().int(),
+  landingAt: z.number().int(),
   /** Wire-track size as a fraction of the gzipped source (0..1ish). */
   compressionRatio: z.number(),
 });

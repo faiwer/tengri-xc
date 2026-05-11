@@ -25,7 +25,7 @@ interface AltitudeChartProps {
  * gap between the two lines visualises that bias directly. When the
  * track has no barometer, only the GPS series shows.
  *
- * The flight is sliced to `[takeoffIdx, landedIdx + 1)` so launch
+ * The flight is sliced to `[takeoffIdx, landingIdx + 1)` so launch
  * jitter and post-landing handling don't pollute the y-axis range.
  *
  * uPlot's imperative lifecycle (Canvas, no JSX, mount/destroy) lives in

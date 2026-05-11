@@ -85,7 +85,7 @@ export const useSpeedSeries = (
 ): SpeedSeries => {
   return useMemo((): SpeedSeries => {
     const fromIdx = window.takeoffIdx;
-    const toIdx = window.landedIdx + 1;
+    const toIdx = window.landingIdx + 1;
 
     const padFrom = Math.max(0, fromIdx - FLIGHT_SLICE_PAD_FIXES);
     const padTo = Math.min(rawTrack.t.length, toIdx + FLIGHT_SLICE_PAD_FIXES);

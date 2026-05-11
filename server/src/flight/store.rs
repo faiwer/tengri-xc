@@ -43,16 +43,16 @@ pub async fn insert_flight(
     flight_id: &str,
     user_id: i32,
     takeoff_at: i64,
-    landed_at: i64,
+    landing_at: i64,
 ) -> Result<(), InsertFlightError> {
     sqlx::query(
-        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
          VALUES ($1, $2, to_timestamp($3), to_timestamp($4))",
     )
     .bind(flight_id)
     .bind(user_id)
     .bind(takeoff_at)
-    .bind(landed_at)
+    .bind(landing_at)
     .execute(&mut **tx)
     .await
     .map_err(|e| map_flight_error(e, user_id))?;
@@ -73,10 +73,10 @@ pub async fn insert_flight_idempotent(
     flight_id: &str,
     user_id: i32,
     takeoff_at: i64,
-    landed_at: i64,
+    landing_at: i64,
 ) -> Result<bool, InsertFlightError> {
     let inserted: Option<String> = sqlx::query_scalar(
-        "INSERT INTO flights (id, user_id, takeoff_at, landed_at) \
+        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
          VALUES ($1, $2, to_timestamp($3), to_timestamp($4)) \
          ON CONFLICT (id) DO NOTHING \
          RETURNING id",
@@ -84,7 +84,7 @@ pub async fn insert_flight_idempotent(
     .bind(flight_id)
     .bind(user_id)
     .bind(takeoff_at)
-    .bind(landed_at)
+    .bind(landing_at)
     .fetch_optional(&mut **tx)
     .await
     .map_err(|e| map_flight_error(e, user_id))?;

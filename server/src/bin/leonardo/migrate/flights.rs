@@ -5,7 +5,7 @@
 //!    where `yr = YEAR(DATE)` if non-zero, else literal `"0000"`. The
 //!    root comes from the required `LEONARDO_TRACKS_ROOT` env var.
 //! 2. Detect format, parse to a `Track`, encode the compact wire form,
-//!    derive `(takeoff_at, landed_at)` via [`find_flight_window`].
+//!    derive `(takeoff_at, landing_at)` via [`find_flight_window`].
 //! 3. Insert all three rows in a transaction. The `flight_id` is
 //!    deterministic — `LEO-<leonardo ID>` — so re-runs are idempotent
 //!    via `ON CONFLICT (id) DO NOTHING` on `flights`.
@@ -286,7 +286,7 @@ async fn insert_rows(
     let mut tx = pg.begin().await?;
 
     let inserted =
-        insert_flight_idempotent(&mut tx, flight_id, user_id, p.takeoff_at, p.landed_at).await?;
+        insert_flight_idempotent(&mut tx, flight_id, user_id, p.takeoff_at, p.landing_at).await?;
     if !inserted {
         tx.rollback().await.ok();
         return Ok(Inserted::AlreadyPresent);

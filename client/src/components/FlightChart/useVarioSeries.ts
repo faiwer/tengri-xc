@@ -32,7 +32,7 @@ export interface VarioSeries {
  * flight window and mean-bucketed to at most {@link VARIO_CHART_TARGET_POINTS}.
  *
  * `computeVario` runs over the full track because its centred ±5 s window
- * needs neighbours that may live just outside `[takeoffIdx, landedIdx + 1)`;
+ * needs neighbours that may live just outside `[takeoffIdx, landingIdx + 1)`;
  * we then slice the result, convert to the user's unit, and bucket. The
  * unit conversion happens *before* bucketing so the bucketed averages
  * land in the displayed unit and the y-axis tick formatter only needs
@@ -45,7 +45,7 @@ export const useVarioSeries = (
 ): VarioSeries => {
   return useMemo((): VarioSeries => {
     const fromIdx = window.takeoffIdx;
-    const toIdx = window.landedIdx + 1;
+    const toIdx = window.landingIdx + 1;
     const xs = track.t.slice(fromIdx, toIdx);
     const vario = computeVario(track).slice(fromIdx, toIdx);
     if (prefs.varioUnit === 'fpm') {

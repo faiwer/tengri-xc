@@ -17,7 +17,7 @@ export interface TrackWindow {
   /** First flying fix (inclusive). */
   takeoffIdx: number;
   /** First non-flying fix after the last flying fix (exclusive end of flight). */
-  landedIdx: number;
+  landingIdx: number;
 }
 
 const COLOR_PRE_POST = '#9ca3af';
@@ -50,8 +50,8 @@ const VARIO_COLOR_RAMP = [
  * three runs:
  *
  *   1. `[0..takeoffIdx]` — pre-flight (gray), if non-empty.
- *   2. `[takeoffIdx..landedIdx]` — flight, optionally subdivided by `segments`.
- *   3. `[landedIdx..n]` — post-flight (gray), if non-empty.
+ *   2. `[takeoffIdx..landingIdx]` — flight, optionally subdivided by `segments`.
+ *   3. `[landingIdx..n]` — post-flight (gray), if non-empty.
  *
  * When `segments` is provided, the flight portion is split further into one
  * run per vario segment, coloured by 1 m/s bucket on a yellow→red (climb) /
@@ -75,7 +75,7 @@ export function trackToPaths(
   }
 
   const takeoff = clamp(window.takeoffIdx, 0, fixCount);
-  const landed = clamp(window.landedIdx, takeoff, fixCount);
+  const landing = clamp(window.landingIdx, takeoff, fixCount);
   const paths: TrackPath[] = [];
 
   if (takeoff > 0) {
@@ -85,18 +85,18 @@ export function trackToPaths(
     });
   }
 
-  if (landed > takeoff) {
+  if (landing > takeoff) {
     if (segments && segments.length > 0) {
       pushVarioRuns(paths, track, segments, fixCount);
     } else {
-      paths.push({ points: projectRange(track, takeoff, landed + 1) });
+      paths.push({ points: projectRange(track, takeoff, landing + 1) });
     }
   }
 
-  if (landed < fixCount - 1) {
+  if (landing < fixCount - 1) {
     paths.push({
       color: COLOR_PRE_POST,
-      points: projectRange(track, landed, fixCount),
+      points: projectRange(track, landing, fixCount),
     });
   }
 
