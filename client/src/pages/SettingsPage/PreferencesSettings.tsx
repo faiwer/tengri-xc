@@ -79,7 +79,7 @@ function PreferencesForm({ initial, onSaved }: PreferencesFormProps) {
       >
         <Form.Item
           name="units"
-          label="Altitude & distance"
+          label={<span>Altitude & distance</span>}
           tooltip="One choice for both — m + km vs ft + mi."
         >
           <Segmented

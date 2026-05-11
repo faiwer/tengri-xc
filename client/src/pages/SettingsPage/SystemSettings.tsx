@@ -132,7 +132,7 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
       >
         <Form.Item
           name="siteName"
-          label="Site name"
+          label={<span>Site name</span>}
           tooltip="Replaces 'Tengri XC' in the header and outgoing emails."
           rules={[{ required: true, message: 'Required' }]}
         >
@@ -140,7 +140,7 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
         </Form.Item>
         <Form.Item
           name="canRegister"
-          label="Allow public registration"
+          label={<span>Allow public registration</span>}
           tooltip="Off: only admins can create users. (Forward-looking — the public signup endpoint isn't built yet.)"
           valuePropName="checked"
         >
@@ -148,14 +148,14 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
         </Form.Item>
         <Form.Item
           name="tosMd"
-          label="Terms of Service (Markdown)"
+          label={<span>Terms of Service (Markdown)</span>}
           tooltip="Rendered at /terms. Empty hides the footer link."
         >
           <Input.TextArea autoSize={{ minRows: 6, maxRows: 24 }} />
         </Form.Item>
         <Form.Item
           name="privacyMd"
-          label="Privacy Policy (Markdown)"
+          label={<span>Privacy Policy (Markdown)</span>}
           tooltip="Rendered at /privacy. Empty hides the footer link."
         >
           <Input.TextArea autoSize={{ minRows: 6, maxRows: 24 }} />
