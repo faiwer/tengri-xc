@@ -21,12 +21,7 @@ export function UsersSettings() {
 
   const columns = useMemo<ColumnsType<UserListItem>>(
     () => [
-      {
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-        width: 48,
-      },
+      { title: 'ID', dataIndex: 'id', key: 'id', width: '48px' },
       {
         title: 'Name',
         dataIndex: 'name',
@@ -37,7 +32,7 @@ export function UsersSettings() {
         title: 'Admin',
         dataIndex: 'permissions',
         key: 'admin',
-        width: 72,
+        width: '72px',
         align: 'center',
         render: (bits: number) => (isAdminBits(bits) ? '✔️' : null),
       },
@@ -45,14 +40,14 @@ export function UsersSettings() {
         title: 'Joined',
         dataIndex: 'createdAt',
         key: 'createdAt',
-        width: 96,
+        width: '96px',
         render: (epoch: number) => formatShortDate(epoch, prefs),
       },
       {
         title: 'Last login',
         dataIndex: 'lastLoginAt',
         key: 'lastLoginAt',
-        width: 100,
+        width: '100px',
         render: (epoch: number | null) =>
           epoch === null ? <Muted>never</Muted> : formatShortDate(epoch, prefs),
       },
@@ -96,6 +91,7 @@ export function UsersSettings() {
           <Table
             rowKey="id"
             size="middle"
+            tableLayout="fixed"
             columns={columns}
             dataSource={feed.items}
             pagination={false}
