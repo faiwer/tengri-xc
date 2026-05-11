@@ -13,14 +13,29 @@
 // right corners stay square so the panel reads as a clean vertical strip rather
 // than a card.
 .nav {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   margin: -1rem 0 -1rem -1rem;
-  padding: 1rem 0.75rem 2rem;
+  padding: 1rem 0.75rem 10rem;
   background: #0f172a;
   border-radius: 7px 0 0 7px;
   color: #cbd5e1;
+
+  &::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    bottom: -23px;
+    inset-inline: 0;
+    margin-inline: auto;
+    width: 11rem;
+    aspect-ratio: 1;
+    background-color: rgba(255, 255, 255, 0.15);
+    mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
+    -webkit-mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
+  }
 }
 
 .group {
