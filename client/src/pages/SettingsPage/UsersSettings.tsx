@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { UserListItem } from '../../api/admin/users.io';
+import { Flag } from '../../components/Flag';
 import { useErrorToast } from '../../core/hooks';
 import { isAdminBits } from '../../core/identity';
 import { usePreferences } from '../../core/preferences';
@@ -27,6 +28,17 @@ export function UsersSettings() {
         dataIndex: 'name',
         key: 'name',
         ellipsis: true,
+        render: (name: string, record) => (
+          <>
+            {record.country && (
+              <>
+                <Flag code={record.country} />
+                &nbsp;&nbsp;
+              </>
+            )}
+            {name}
+          </>
+        ),
       },
       {
         title: 'Admin',

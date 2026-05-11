@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import { UserIo as SharedUserIo } from '../users.io';
 
-/** One row of `GET /admin/users`. Trimmed projection — no profile join. */
+/** One row of `GET /admin/users`. Profile-side `country` is included
+ * for the flag in the Name cell; the rest of the profile stays off. */
 export const UserListItemIo = z.object({
   id: z.number().int(),
   name: z.string(),
@@ -10,6 +11,8 @@ export const UserListItemIo = z.object({
   email: z.string().nullable(),
   /** Raw `Permissions` bits; see `core/identity/permissions.ts`. */
   permissions: z.number().int(),
+  /** ISO 3166-1 alpha-2, or `null` when unset. */
+  country: z.string().nullable(),
   /** Unix epoch seconds (UTC). */
   createdAt: z.number().int(),
   /** Unix epoch seconds (UTC). */
