@@ -1,0 +1,33 @@
+# Trigger-file dev loop for the tengri-server.
+#
+# Run `bacon` (no args) in this directory. The server starts, and is only
+# rebuilt + restarted when the `.restart` file is touched — *not* on every
+# .rs save. To rebuild, run `touch server/.restart` after a batch of edits.
+#
+# This avoids the usual save-watcher pattern, which churns through compile
+# errors mid-refactor when the tree is briefly non-compiling between
+# file edits.
+
+default_job = "serve"
+
+[jobs.serve]
+command = ["cargo", "run", "--bin", "tengri-server"]
+need_stdout = true
+background = false
+allow_warnings = true
+show_command_error_code = true
+
+# Only `.restart` triggers a rebuild. `default_watch = false` disables the
+# usual src/tests/examples/build.rs/benches auto-watch.
+default_watch = false
+watch = [".restart"]
+
+# `.restart` is gitignored; bacon would otherwise skip changes to ignored
+# files.
+apply_gitignore = false
+
+on_change_strategy = "kill_then_restart"
+
+# SIGINT (not the default SIGKILL) so `shutdown_signal` in `main.rs` runs:
+# axum drains in-flight requests and the TCP listener is released cleanly.
+kill = ["kill", "-s", "INT"]

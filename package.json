@@ -6,7 +6,9 @@
   "scripts": {
     "prepare": "husky",
     "db": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- db",
-    "prune": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- prune"
+    "prune": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- prune",
+    "server": "cd server && bacon",
+    "server:restart": "date +%s > server/.restart"
   },
   "lint-staged": {
     "server/**/*.rs": [
