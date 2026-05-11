@@ -38,8 +38,15 @@ const NO_TAS_UNPACKED: UnpackedTas = { kind: 'none' };
 type WireTas = TengriFile['track']['tas'];
 
 const buildFile = (hash: number, tas: WireTas): TengriFile => ({
-  version: 4,
-  metadata: {},
+  version: 5,
+  metadata: {
+    takeoff_offset: 0,
+    landing_offset: 0,
+    takeoff_lat: 0,
+    takeoff_lon: 0,
+    landing_lat: 0,
+    landing_lon: 0,
+  },
   track: {
     start_time: START_TIME,
     interval: INTERVAL,

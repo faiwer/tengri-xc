@@ -167,7 +167,17 @@ const CompactTrackIo = Struct({
   hash: u32,
 });
 
-const MetadataIo = Struct({});
+// Mirrors `server/src/flight/metadata.rs` — bump the field set in lockstep
+// with `tengri::VERSION`. All six are i32; the four `_lat`/`_lon` are E5
+// micro-degrees (deg × 10⁵), matching `TrackPoint`'s coordinate units.
+const MetadataIo = Struct({
+  takeoff_offset: i32,
+  landing_offset: i32,
+  takeoff_lat: i32,
+  takeoff_lon: i32,
+  landing_lat: i32,
+  landing_lon: i32,
+});
 
 export const TengriFileIo = Struct({
   version: u16,
