@@ -17,6 +17,8 @@ export interface TracksFeed {
   completed: boolean;
   error: string | null;
   loadMore: () => void;
+  /** Re-run the most recent fetch in place. */
+  retry: () => void;
 }
 
 /**
@@ -25,6 +27,10 @@ export interface TracksFeed {
  */
 export function useTracksFeed(): TracksFeed {
   const [state, setState] = useState<FeedState>(INITIAL_STATE);
+  // Bumped by `retry()` to re-fire the fetch effect without changing the
+  // cursor — a real new attempt rather than just clearing the error
+  // banner.
+  const [retryToken, setRetryToken] = useState(0);
 
   const loadMore = useEventHandler(() => {
     if (state.isLoading) {
@@ -37,6 +43,8 @@ export function useTracksFeed(): TracksFeed {
 
     setState((s) => ({ ...s, cursor: s.nextCursor }));
   });
+
+  const retry = useEventHandler(() => setRetryToken((t) => t + 1));
 
   useAsyncEffect(
     async (signal) => {
@@ -63,7 +71,7 @@ export function useTracksFeed(): TracksFeed {
         }
       }
     },
-    [state.cursor],
+    [state.cursor, retryToken],
   );
 
   return {
@@ -71,6 +79,7 @@ export function useTracksFeed(): TracksFeed {
     isLoading: state.isLoading,
     error: state.error,
     loadMore,
+    retry,
     completed: state.items !== null && state.nextCursor === null,
   };
 }

@@ -25,6 +25,8 @@ export interface UsersFeed {
   query: string;
   setQuery: (q: string) => void;
   loadMore: () => void;
+  /** Re-run the most recent fetch in place. */
+  retry: () => void;
 }
 
 /** Wait this long after the last keystroke before refetching. */
@@ -41,6 +43,9 @@ export function useUsersFeed(): UsersFeed {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const [state, setState] = useState<FeedState>(INITIAL_STATE);
+  // Bumped by `retry()` to re-fire the fetch effect with the same
+  // cursor + query.
+  const [retryToken, setRetryToken] = useState(0);
 
   // Reset pagination whenever the search settles. Fires in the same
   // commit as the fetch effect below; the first fetch (with stale
@@ -57,6 +62,8 @@ export function useUsersFeed(): UsersFeed {
     }
     setState((s) => ({ ...s, cursor: s.nextCursor, isLoading: true }));
   });
+
+  const retry = useEventHandler(() => setRetryToken((t) => t + 1));
 
   useAsyncEffect(
     async (signal) => {
@@ -90,7 +97,7 @@ export function useUsersFeed(): UsersFeed {
         }
       }
     },
-    [debouncedQuery, state.cursor],
+    [debouncedQuery, state.cursor, retryToken],
   );
 
   return {
@@ -101,6 +108,7 @@ export function useUsersFeed(): UsersFeed {
     query,
     setQuery,
     loadMore,
+    retry,
   };
 }
 

@@ -1,7 +1,8 @@
-import { Alert, Button, Skeleton } from 'antd';
+import { Skeleton } from 'antd';
 import { useMemo } from 'react';
 import type { TrackListItem } from '../../api/tracks.io';
 import { Flag } from '../../components/Flag';
+import { LoadError } from '../../components/LoadError';
 import { PageLayout } from '../../components/PageLayout';
 import { TrackRow, type TrackRowCell } from '../../components/TrackRow';
 import { useErrorToast } from '../../core/hooks';
@@ -65,16 +66,10 @@ export function TracksPage() {
       {isEmpty && <p className={styles.empty}>No flights yet.</p>}
 
       {hasInlineError && (
-        <Alert
-          type="error"
-          showIcon
+        <LoadError
           title="Couldn't load flights"
-          description={feed.error}
-          action={
-            <Button size="small" onClick={() => window.location.reload()}>
-              Reload
-            </Button>
-          }
+          error={feed.error}
+          onRetry={feed.retry}
         />
       )}
 

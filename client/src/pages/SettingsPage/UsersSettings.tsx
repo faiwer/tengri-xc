@@ -1,10 +1,11 @@
-import { Alert, Button, Input, Skeleton, Table } from 'antd';
+import { Button, Input, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { UserListItem } from '../../api/admin/users.io';
 import { Flag } from '../../components/Flag';
+import { LoadError } from '../../components/LoadError';
 import { useErrorToast } from '../../core/hooks';
 import { isAdminBits } from '../../core/identity';
 import { usePreferences } from '../../core/preferences';
@@ -85,16 +86,10 @@ export function UsersSettings() {
       }
     >
       {hasInlineError ? (
-        <Alert
-          type="error"
-          showIcon
+        <LoadError
           title="Couldn't load users"
-          description={feed.error}
-          action={
-            <Button size="small" onClick={() => window.location.reload()}>
-              Reload
-            </Button>
-          }
+          error={feed.error}
+          onRetry={feed.retry}
         />
       ) : feed.items === null ? (
         <Skeleton active paragraph={{ rows: 6 }} />

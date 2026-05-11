@@ -2,9 +2,10 @@ import { Skeleton } from 'antd';
 import { useState } from 'react';
 import { getSiteDocument } from '../../api/site';
 import type { DocKind } from '../../api/site.io';
+import { LoadError } from '../../components/LoadError';
 import { Markdown } from '../../components/Markdown';
 import { PageLayout } from '../../components/PageLayout';
-import { useAsyncEffect } from '../../core/hooks';
+import { useAsyncEffect, useEventHandler } from '../../core/hooks';
 import styles from './DocumentPage.module.scss';
 
 interface DocumentPageProps {
@@ -23,20 +24,32 @@ interface DocumentPageProps {
  */
 export function DocumentPage({ kind, title }: DocumentPageProps) {
   const [md, setMd] = useState<string | null | undefined>(undefined);
+  const [error, setError] = useState<unknown>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   useAsyncEffect(
     async (signal) => {
-      const next = await getSiteDocument(kind, { signal });
-      if (!signal.aborted) setMd(next);
+      setError(null);
+      try {
+        const next = await getSiteDocument(kind, { signal });
+        if (!signal.aborted) setMd(next);
+      } catch (err) {
+        if (!signal.aborted) setError(err);
+      }
     },
-    [kind],
+    [kind, retryToken],
   );
+
+  const retry = useEventHandler(() => {
+    setMd(undefined);
+    setRetryToken((t) => t + 1);
+  });
 
   return (
     <PageLayout fit>
       <article>
         <h1 className={styles.title}>{title}</h1>
-        <DocumentBody md={md} />
+        <DocumentBody md={md} error={error} onRetry={retry} title={title} />
       </article>
     </PageLayout>
   );
@@ -45,9 +58,22 @@ export function DocumentPage({ kind, title }: DocumentPageProps) {
 interface DocumentBodyProps {
   /** `undefined` = still loading, `null` = 404, string = published. */
   md: string | null | undefined;
+  error: unknown;
+  onRetry: () => void;
+  title: string;
 }
 
-function DocumentBody({ md }: DocumentBodyProps) {
+function DocumentBody({ md, error, onRetry, title }: DocumentBodyProps) {
+  if (error && md === undefined) {
+    return (
+      <LoadError
+        title={`Couldn't load ${title.toLowerCase()}`}
+        error={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (md === undefined) {
     return <Skeleton active paragraph={{ rows: 12 }} />;
   }

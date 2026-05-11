@@ -1,4 +1,4 @@
-import { Alert, Button, Skeleton } from 'antd';
+import { Button, Skeleton } from 'antd';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -6,7 +6,13 @@ import { getUser } from '../../api/admin/users';
 import type { User } from '../../api/admin/users.io';
 import type { UserSex, UserSource } from '../../api/users.io';
 import { Flag } from '../../components/Flag';
-import { useAsync, useAsyncEffect, useErrorToast } from '../../core/hooks';
+import { LoadError } from '../../components/LoadError';
+import {
+  useAsync,
+  useAsyncEffect,
+  useErrorToast,
+  useEventHandler,
+} from '../../core/hooks';
 import {
   usePreferences,
   type ResolvedPreferences,
@@ -25,6 +31,7 @@ export function UserDetailSettings() {
 
   const [user, setUser] = useState<User | null>(null);
   const [fetchUser, , error] = useAsync(getUser);
+  const [retryToken, setRetryToken] = useState(0);
 
   useAsyncEffect(
     async (signal) => {
@@ -34,20 +41,20 @@ export function UserDetailSettings() {
         setUser(next);
       }
     },
-    [id],
+    [id, retryToken],
   );
 
   useErrorToast(error, { title: "Couldn't load user" });
 
+  const retry = useEventHandler(() => setRetryToken((t) => t + 1));
+
   if (user === null && error !== null) {
-    const message = error instanceof Error ? error.message : String(error);
     return (
-      <Alert
-        type="error"
-        showIcon
+      <LoadError
         title="Couldn't load user"
-        description={message}
-        action={
+        error={error}
+        onRetry={retry}
+        extraActions={
           <Link to={routes.settings.users()}>
             <Button size="small">Back to users</Button>
           </Link>

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Navigate } from 'react-router';
 import { updateMe } from '../../api/users';
 import type { UpdatePreferencesRequest } from '../../api/users.io';
+import { LoadError } from '../../components/LoadError';
 import { useFormSubmit } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
 import { resolvePreferences } from '../../core/preferences';
@@ -15,10 +16,18 @@ import { SettingsSection } from './SettingsSection';
  * display preferences as an AntD `Form` of {@link Segmented} controls.
  */
 export function PreferencesSettings() {
-  const { me, isLoading, setMe } = useIdentity();
+  const { me, isLoading, error, retry, setMe } = useIdentity();
 
   if (isLoading) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
+  } else if (error) {
+    return (
+      <LoadError
+        title="Couldn't load your account"
+        error={error}
+        onRetry={retry}
+      />
+    );
   } else if (!me) {
     return <Navigate replace to={routes.login()} />;
   }

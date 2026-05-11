@@ -5,14 +5,19 @@ import type { Me } from '../../api/users.io';
  * Currently-logged-in user (`null` = anonymous), and a setter the login/logout
  * flows use to update it.
  *
- * `isLoading` is true until the boot `/users/me` probe resolves, so consumers
- * that need to distinguish "haven't asked yet" from "anonymous" (e.g.
- * owner-gated pages) can short-circuit on the loading state instead of
- * mis-reading it as anon.
+ * The boot `/users/me` probe drives a tri-state: `isLoading` until the request
+ * resolves, then either `me` (success — `null` for anon) or `error` (network /
+ * HTTP failure). Consumers gated on identity should short-circuit on
+ * `isLoading` first, then offer a retry path on `error`, before falling
+ * through to "anonymous".
  */
 export interface IdentityContextValue {
   me: Me | null;
   isLoading: boolean;
+  /** Last boot-probe failure, or `null` if the probe succeeded. */
+  error: unknown;
+  /** Re-run the boot probe. No-op while one is already in flight. */
+  retry: () => void;
   setMe: (me: Me | null) => void;
 }
 

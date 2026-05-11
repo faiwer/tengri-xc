@@ -3,7 +3,12 @@ import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router';
 import { getAdminSite, updateAdminSite } from '../../api/admin/site';
 import type { AdminSite } from '../../api/admin/site.io';
-import { useAsyncEffect, useFormSubmit } from '../../core/hooks';
+import { LoadError } from '../../components/LoadError';
+import {
+  useAsyncEffect,
+  useEventHandler,
+  useFormSubmit,
+} from '../../core/hooks';
 import { hasPermission, Permissions, useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
 import { useSite } from '../../core/site';
@@ -21,10 +26,20 @@ import { SettingsSection } from './SettingsSection';
  *    `useSite()` context intentionally doesn't carry the long-form markdown.
  */
 export function SystemSettings() {
-  const { me, isLoading } = useIdentity();
+  const { me, isLoading, error, retry } = useIdentity();
 
   if (isLoading) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
+  }
+
+  if (error) {
+    return (
+      <LoadError
+        title="Couldn't load your account"
+        error={error}
+        onRetry={retry}
+      />
+    );
   }
 
   if (!me) {
@@ -40,11 +55,36 @@ export function SystemSettings() {
 
 function SystemSettingsLoader() {
   const [initial, setInitial] = useState<AdminSite | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
-  useAsyncEffect(async (signal) => {
-    const next = await getAdminSite({ signal });
-    if (!signal.aborted) setInitial(next);
-  }, []);
+  useAsyncEffect(
+    async (signal) => {
+      setError(null);
+      try {
+        const next = await getAdminSite({ signal });
+        if (!signal.aborted) setInitial(next);
+      } catch (err) {
+        if (!signal.aborted) setError(err);
+      }
+    },
+    [retryToken],
+  );
+
+  const retry = useEventHandler(() => {
+    setInitial(null);
+    setRetryToken((t) => t + 1);
+  });
+
+  if (error && initial === null) {
+    return (
+      <LoadError
+        title="Couldn't load system settings"
+        error={error}
+        onRetry={retry}
+      />
+    );
+  }
 
   if (!initial) {
     return <Skeleton active paragraph={{ rows: 10 }} />;
