@@ -22,7 +22,7 @@ use anyhow::{Context, anyhow};
 use sqlx::{MySqlPool, PgPool, Row};
 use tengri_server::flight::{
     ingest::{PrepareError, Prepared, prepare_path_for_storage},
-    store::{InsertFlightError, insert_flight_idempotent, insert_source, insert_track},
+    store::{FlightRow, InsertFlightError, insert_flight_idempotent, insert_source, insert_track},
     tengri::VERSION,
 };
 
@@ -285,8 +285,22 @@ async fn insert_rows(
 ) -> Result<Inserted, ProcessError> {
     let mut tx = pg.begin().await?;
 
-    let inserted =
-        insert_flight_idempotent(&mut tx, flight_id, user_id, p.takeoff_at, p.landing_at).await?;
+    let inserted = insert_flight_idempotent(
+        &mut tx,
+        &FlightRow {
+            flight_id,
+            user_id,
+            takeoff_at: p.takeoff_at,
+            landing_at: p.landing_at,
+            takeoff_offset: p.takeoff_offset,
+            landing_offset: p.landing_offset,
+            takeoff_lat: p.takeoff_lat,
+            takeoff_lon: p.takeoff_lon,
+            landing_lat: p.landing_lat,
+            landing_lon: p.landing_lon,
+        },
+    )
+    .await?;
     if !inserted {
         tx.rollback().await.ok();
         return Ok(Inserted::AlreadyPresent);

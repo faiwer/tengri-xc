@@ -8,12 +8,11 @@
 //!   source goes into `flight_sources`; the encoded `.tengri` HTTP wire form
 //!   goes into `flight_tracks` (kind = `full`).
 //! - `delete` — remove a flight by id (cascades to its track + source rows).
-//! - `migrate` — apply outstanding SQL migrations to the configured DB.
+//! - `migrate` — apply outstanding SQL migrations to the configured DB,
+//!   then run any Rust-side data backfills that depend on those schema
+//!   changes (e.g. re-encoding `.tengri` blobs after a version bump).
 //! - `prune` — wipe every data row from the configured DB (keeping the
 //!   schema intact). Useful for resetting between Leonardo imports.
-//! - `upgrade-tracks` — re-encode every `flight_tracks` row whose `version`
-//!   lags behind the current build, sourcing the original bytes from
-//!   `flight_sources`.
 //! - `db` — open psql against the configured database (or run a one-shot
 //!   query via `tengri db -- -c 'SELECT …'`).
 //!
@@ -28,7 +27,6 @@ mod inspect;
 mod migrate;
 mod prune;
 mod shared;
-mod upgrade;
 
 use std::{path::PathBuf, process};
 
@@ -82,10 +80,12 @@ enum Cmd {
         flight_id: String,
     },
 
-    /// Apply outstanding SQL migrations from `server/migrations/`. The
-    /// HTTP server also does this on startup; this subcommand is for
-    /// when you want to migrate without booting the server (e.g. after
-    /// a manual schema reset).
+    /// Apply outstanding SQL migrations from `server/migrations/`, then
+    /// run any Rust-side data backfills that depend on those schema
+    /// changes (e.g. re-encoding `.tengri` blobs after a `VERSION`
+    /// bump). The HTTP server runs the same code path on startup; this
+    /// subcommand is for migrating without booting the server (e.g.
+    /// after a manual schema reset).
     Migrate,
 
     /// Wipe every data row from the database while keeping the schema
@@ -96,16 +96,6 @@ enum Cmd {
         /// Skip the interactive confirmation. Use in scripts/CI.
         #[arg(long)]
         yes: bool,
-    },
-
-    /// Re-encode every `flight_tracks` row whose `version` lags behind the
-    /// current build. The fresh bytes are derived from the matching
-    /// `flight_sources` row (we can't re-decode the stale blob — the wire
-    /// format changed, that's the whole reason for the upgrade).
-    UpgradeTracks {
-        /// Print what would change without writing to the database.
-        #[arg(long)]
-        dry_run: bool,
     },
 
     /// Open psql against the configured database. Anything after `--` is
@@ -135,7 +125,6 @@ fn run() -> anyhow::Result<()> {
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::Prune { yes } => run_async(prune::run(yes)),
-        Cmd::UpgradeTracks { dry_run } => run_async(upgrade::run(dry_run)),
         Cmd::Db { args } => db::run(args),
     }
 }

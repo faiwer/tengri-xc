@@ -22,6 +22,13 @@ struct TrackMd {
     /// `new Date(seconds * 1000)` without parsing strings.
     takeoff_at: i64,
     landing_at: i64,
+    /// UTC offsets in whole seconds at the takeoff/landing fixes, computed at
+    /// ingest from the fix coordinates and the historical `tzdb` rules valid on
+    /// the flight's date.
+    takeoff_offset: i32,
+    landing_offset: i32,
+    takeoff: Point,
+    landing: Point,
     /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
     compression_ratio: f32,
 }
@@ -35,6 +42,15 @@ struct Pilot {
     country: Option<String>,
 }
 
+/// Decimal degrees on WGS-84. The DB carries the column as `geography(Point,
+/// 4326)`; we cast to `geometry` only to use `ST_X` / `ST_Y`, which
+/// spatial-types-wise is a no-op for points.
+#[derive(Serialize)]
+struct Point {
+    lat: f64,
+    lon: f64,
+}
+
 async fn get_track_md(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -42,10 +58,16 @@ async fn get_track_md(
     // `LEFT JOIN user_profiles` because country is profile-side and
     // optional; users without a profile row still resolve with a
     // `null` country rather than dropping the flight to a 404.
-    let row: Option<(String, String, Option<String>, i64, i64, f32)> = sqlx::query_as(
+    let row: Option<TrackMdRow> = sqlx::query_as(
         "SELECT f.id, u.name, p.country, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
                 EXTRACT(EPOCH FROM f.landing_at)::bigint, \
+                f.takeoff_offset, \
+                f.landing_offset, \
+                ST_Y(f.takeoff_point::geometry), \
+                ST_X(f.takeoff_point::geometry), \
+                ST_Y(f.landing_point::geometry), \
+                ST_X(f.landing_point::geometry), \
                 t.compression_ratio \
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
@@ -58,8 +80,20 @@ async fn get_track_md(
     .await
     .map_err(anyhow::Error::from)?;
 
-    let Some((flight_id, pilot_name, pilot_country, takeoff_at, landing_at, compression_ratio)) =
-        row
+    let Some((
+        flight_id,
+        pilot_name,
+        pilot_country,
+        takeoff_at,
+        landing_at,
+        takeoff_offset,
+        landing_offset,
+        takeoff_lat,
+        takeoff_lon,
+        landing_lat,
+        landing_lon,
+        compression_ratio,
+    )) = row
     else {
         return Err(AppError::NotFound);
     };
@@ -72,6 +106,35 @@ async fn get_track_md(
         },
         takeoff_at,
         landing_at,
+        takeoff_offset,
+        landing_offset,
+        takeoff: Point {
+            lat: takeoff_lat,
+            lon: takeoff_lon,
+        },
+        landing: Point {
+            lat: landing_lat,
+            lon: landing_lon,
+        },
         compression_ratio,
     }))
 }
+
+/// Concrete row tuple: `(flight_id, pilot_name, pilot_country, takeoff_at,
+/// landing_at, takeoff_offset, landing_offset, takeoff_lat, takeoff_lon,
+/// landing_lat, landing_lon, compression_ratio)`. Aliased because the literal
+/// tuple is too long to inline at the call site without harming readability.
+type TrackMdRow = (
+    String,
+    String,
+    Option<String>,
+    i64,
+    i64,
+    i32,
+    i32,
+    f64,
+    f64,
+    f64,
+    f64,
+    f32,
+);

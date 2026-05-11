@@ -3,7 +3,7 @@
 //! Single transaction:
 //! 1. `flights` — id (NanoID) and user link.
 //! 2. `flight_sources` — gzipped raw upload bytes (read-side gunzips them
-//!    in `upgrade-tracks` and any future re-encoder).
+//!    by `flight::backfill` and any future re-encoder).
 //! 3. `flight_tracks` — kind = `full`, `bytes` is the HTTP wire form
 //!    `gzip(bincode(TengriFile))` so the route handler can stream the
 //!    column straight to the client without re-compressing.
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use tengri_server::flight::{
     ingest::prepare_path_for_storage,
-    store::{insert_flight, insert_source, insert_track},
+    store::{FlightRow, insert_flight, insert_source, insert_track},
     tengri::VERSION,
 };
 
@@ -29,9 +29,23 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
     let flight_id = nanoid_8();
     let mut tx = pool.begin().await.context("starting transaction")?;
 
-    insert_flight(&mut tx, &flight_id, user_id, p.takeoff_at, p.landing_at)
-        .await
-        .context("inserting flights row")?;
+    insert_flight(
+        &mut tx,
+        &FlightRow {
+            flight_id: &flight_id,
+            user_id,
+            takeoff_at: p.takeoff_at,
+            landing_at: p.landing_at,
+            takeoff_offset: p.takeoff_offset,
+            landing_offset: p.landing_offset,
+            takeoff_lat: p.takeoff_lat,
+            takeoff_lon: p.takeoff_lon,
+            landing_lat: p.landing_lat,
+            landing_lon: p.landing_lon,
+        },
+    )
+    .await
+    .context("inserting flights row")?;
     insert_source(&mut tx, &flight_id, p.format.pg_enum_value(), &p.source_gz)
         .await
         .context("inserting flight_sources row")?;

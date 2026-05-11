@@ -63,6 +63,14 @@ async fn list_returns_flights_newest_first_with_full_payload_shape() {
     assert_eq!(items[0]["pilot"]["name"], TEST_USER_NAME);
     assert_eq!(items[0]["track"]["takeoff_at"], TAKEOFF_NEWEST);
     assert_eq!(items[0]["track"]["duration"], 600); // landing = takeoff + 600
+    // Offset/point fields ride along on every list row from the seed
+    // defaults; the route mirrors `tracks_md` for these.
+    assert_eq!(items[0]["track"]["takeoff_offset"], 0);
+    assert_eq!(items[0]["track"]["landing_offset"], 0);
+    assert_eq!(items[0]["track"]["takeoff"]["lat"], 0.0);
+    assert_eq!(items[0]["track"]["takeoff"]["lon"], 0.0);
+    assert_eq!(items[0]["track"]["landing"]["lat"], 0.0);
+    assert_eq!(items[0]["track"]["landing"]["lon"], 0.0);
 
     // Final page → no next cursor.
     assert!(json["next_cursor"].is_null());

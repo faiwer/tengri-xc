@@ -29,6 +29,13 @@ async fn main() -> anyhow::Result<()> {
         .context("running migrations")?;
     tracing::info!("migrations applied");
 
+    let backfilled = tengri_server::flight::backfill::run(&pool)
+        .await
+        .context("backfilling flights")?;
+    if backfilled > 0 {
+        tracing::info!(n = backfilled, "flights backfilled");
+    }
+
     let state = AppState::with_origins(
         pool,
         &config.jwt_secret,

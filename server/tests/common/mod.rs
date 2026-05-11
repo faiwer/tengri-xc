@@ -178,12 +178,22 @@ pub async fn seed_user(pool: &PgPool, id: i32, name: &str) -> i32 {
 
 /// Insert a flight row. Caller supplies a (NanoID-shaped) id and the owning
 /// user id. `takeoff_at` / `landing_at` default to `now()` because most tests
-/// don't care about flight-time ordering; reach for [`seed_flight_at`] when
-/// a test asserts on the timestamps. Returns the flight id for chaining.
+/// don't care about flight-time ordering; reach for [`seed_flight_at`] when a
+/// test asserts on the timestamps. Returns the flight id for chaining.
+///
+/// `takeoff_offset` / `landing_offset` are written as `0` and the points as
+/// `(0, 0)` because nullable-on-disk columns would force every API route
+/// reading them to special-case `Option`. Tests that want non-zero values can
+/// `UPDATE` the row directly afterwards.
 pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String {
     sqlx::query(
-        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
-         VALUES ($1, $2, now(), now())",
+        "INSERT INTO flights \
+            (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
+             takeoff_point, landing_point) \
+         VALUES \
+            ($1, $2, now(), now(), 0, 0, \
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
     )
     .bind(flight_id)
     .bind(user_id)
@@ -203,8 +213,13 @@ pub async fn seed_flight_at(
     landing_at: i64,
 ) -> String {
     sqlx::query(
-        "INSERT INTO flights (id, user_id, takeoff_at, landing_at) \
-         VALUES ($1, $2, to_timestamp($3), to_timestamp($4))",
+        "INSERT INTO flights \
+            (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
+             takeoff_point, landing_point) \
+         VALUES \
+            ($1, $2, to_timestamp($3), to_timestamp($4), 0, 0, \
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
     )
     .bind(flight_id)
     .bind(user_id)

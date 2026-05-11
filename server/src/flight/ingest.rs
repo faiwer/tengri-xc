@@ -12,7 +12,7 @@ use flate2::{Compression, write::GzEncoder};
 
 use crate::flight::{
     FlightWindow, Metadata, TengriFile, Track, encode, etag_for, find_flight_window, gpx, igc, kml,
-    kmz,
+    kmz, timezone,
 };
 
 /// Recognised input format. Wraps file-extension dispatch so the
@@ -83,7 +83,7 @@ pub fn parse_input(input: &Path) -> anyhow::Result<Track> {
 ///
 /// For IGC/KML/GPX this is identity. For KMZ we unzip and store the
 /// inner KML — `flight_sources` then carries a value that
-/// `upgrade-tracks` can re-parse without ever needing to know the
+/// `flight::backfill` can re-parse without ever needing to know the
 /// upload was zipped, and the `flight_source_format` enum stays small.
 pub fn normalize_for_storage(
     format: InputFormat,
@@ -121,6 +121,17 @@ pub struct Prepared {
     pub window: FlightWindow,
     pub takeoff_at: i64,
     pub landing_at: i64,
+    /// UTC offset in whole seconds at the takeoff fix. Mirrored into
+    /// the `.tengri` [`Metadata`] and into `flights.takeoff_offset`.
+    pub takeoff_offset: i32,
+    pub landing_offset: i32,
+    /// E5 micro-degrees (deg × 10⁵), pulled straight off the takeoff
+    /// fix. Bound into `flights.takeoff_point` after a degree conversion
+    /// at the SQL boundary.
+    pub takeoff_lat: i32,
+    pub takeoff_lon: i32,
+    pub landing_lat: i32,
+    pub landing_lon: i32,
     /// `gzip(raw_upload_bytes)`. Goes into `flight_sources.bytes`.
     pub source_gz: Vec<u8>,
     /// `gzip(bincode(TengriFile))`. Goes into `flight_tracks.bytes` —
@@ -177,13 +188,27 @@ pub fn prepare_bytes_for_storage(
     let track = parse_format(format, &raw).map_err(PrepareError::Parse)?;
 
     let window = find_flight_window(&track).ok_or(PrepareError::NoWindow)?;
-    let takeoff_at = track.points[window.takeoff_idx].time as i64;
-    let landing_at = track.points[window.landing_idx].time as i64;
+    let p_takeoff = track.points[window.takeoff_idx];
+    let p_landing = track.points[window.landing_idx];
+    let takeoff_at = p_takeoff.time as i64;
+    let landing_at = p_landing.time as i64;
+
+    let takeoff_offset = timezone::offset_seconds_at(p_takeoff.lat, p_takeoff.lon, takeoff_at);
+    let landing_offset = timezone::offset_seconds_at(p_landing.lat, p_landing.lon, landing_at);
+
+    let metadata = Metadata {
+        takeoff_offset,
+        landing_offset,
+        takeoff_lat: p_takeoff.lat,
+        takeoff_lon: p_takeoff.lon,
+        landing_lat: p_landing.lat,
+        landing_lon: p_landing.lon,
+    };
 
     let compact = encode(&track)
         .context("encoding compact track")
         .map_err(PrepareError::Encode)?;
-    let envelope = TengriFile::new(Metadata::default(), compact);
+    let envelope = TengriFile::new(metadata, compact);
     let track_bytes = envelope
         .to_http_bytes()
         .context("encoding TengriFile to http bytes")
@@ -201,6 +226,12 @@ pub fn prepare_bytes_for_storage(
         window,
         takeoff_at,
         landing_at,
+        takeoff_offset,
+        landing_offset,
+        takeoff_lat: p_takeoff.lat,
+        takeoff_lon: p_takeoff.lon,
+        landing_lat: p_landing.lat,
+        landing_lon: p_landing.lon,
         source_gz,
         track_bytes,
         etag,

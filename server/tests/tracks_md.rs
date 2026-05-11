@@ -45,6 +45,15 @@ async fn track_md_returns_id_and_pilot_name() {
     assert_eq!(json["pilot"]["name"], TEST_USER_NAME);
     assert_eq!(json["takeoff_at"], TAKEOFF_AT);
     assert_eq!(json["landing_at"], LANDING_AT);
+    // Offsets and points come from the seed defaults (zeros + `(0, 0)`), so the
+    // assertion is on shape and values: the route projects them through
+    // `EXTRACT` / `ST_Y` / `ST_X` and the JSON stays numeric.
+    assert_eq!(json["takeoff_offset"], 0);
+    assert_eq!(json["landing_offset"], 0);
+    assert_eq!(json["takeoff"]["lat"], 0.0);
+    assert_eq!(json["takeoff"]["lon"], 0.0);
+    assert_eq!(json["landing"]["lat"], 0.0);
+    assert_eq!(json["landing"]["lon"], 0.0);
     // Sentinel `1.0` from `seed_full_track`. We just verify the field is
     // present and a number; the precise value isn't part of the API
     // contract here.

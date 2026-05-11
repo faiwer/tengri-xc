@@ -1,3 +1,4 @@
+pub mod backfill;
 pub mod compact;
 pub mod etag;
 pub(crate) mod geo_text;
@@ -9,6 +10,7 @@ pub mod kmz;
 pub mod metadata;
 pub mod store;
 pub mod tengri;
+pub mod timezone;
 pub mod types;
 pub mod window;
 

@@ -85,8 +85,24 @@ struct TrackRef {
     id: String,
     /// Unix epoch seconds (UTC). Same wire shape as `/tracks/{id}/md`.
     takeoff_at: i64,
-    /// Whole seconds, from the `flights.duration_s` generated column.
+    /// Whole seconds, from the `flights.duration` generated column.
     duration: i32,
+    /// UTC offsets in whole seconds at the takeoff/landing fixes, matching
+    /// `/tracks/{id}/md`. Lets the client render flight-local time on the list
+    /// without a per-row metadata fetch.
+    takeoff_offset: i32,
+    landing_offset: i32,
+    takeoff: Point,
+    landing: Point,
+}
+
+/// Decimal degrees on WGS-84. Same shape as the [`tracks_md`] route.
+///
+/// [`tracks_md`]: crate::routes::tracks_md
+#[derive(Serialize)]
+struct Point {
+    lat: f64,
+    lon: f64,
 }
 
 async fn list_tracks(
@@ -111,7 +127,13 @@ async fn list_tracks(
     let mut query = Sql::select(&[
         "f.id",
         "EXTRACT(EPOCH FROM f.takeoff_at)::bigint",
-        "f.duration_s",
+        "f.duration",
+        "f.takeoff_offset",
+        "f.landing_offset",
+        "ST_Y(f.takeoff_point::geometry)",
+        "ST_X(f.takeoff_point::geometry)",
+        "ST_Y(f.landing_point::geometry)",
+        "ST_X(f.landing_point::geometry)",
         "u.id",
         "u.name",
         "p.country",
@@ -137,7 +159,7 @@ async fn list_tracks(
         );
     }
 
-    let mut rows: Vec<(String, i64, i32, i32, String, Option<String>)> = query
+    let mut rows: Vec<TrackListRow> = query
         .fetch_all(state.pool())
         .await
         .map_err(anyhow::Error::from)?;
@@ -147,8 +169,8 @@ async fn list_tracks(
         rows.truncate(limit as usize);
     }
     let next_cursor = if has_more {
-        let (last_id, last_takeoff, _, _, _, _) = rows.last().expect("has_more implies non-empty");
-        Some(encode_cursor(*last_takeoff as u32, last_id))
+        let last = rows.last().expect("has_more implies non-empty");
+        Some(encode_cursor(last.1 as u32, &last.0))
     } else {
         None
     };
@@ -156,7 +178,20 @@ async fn list_tracks(
     let items = rows
         .into_iter()
         .map(
-            |(flight_id, takeoff_at, duration, user_id, user_name, country)| Item {
+            |(
+                flight_id,
+                takeoff_at,
+                duration,
+                takeoff_offset,
+                landing_offset,
+                takeoff_lat,
+                takeoff_lon,
+                landing_lat,
+                landing_lon,
+                user_id,
+                user_name,
+                country,
+            )| Item {
                 pilot: Pilot {
                     id: user_id,
                     name: user_name,
@@ -166,6 +201,16 @@ async fn list_tracks(
                     id: flight_id,
                     takeoff_at,
                     duration,
+                    takeoff_offset,
+                    landing_offset,
+                    takeoff: Point {
+                        lat: takeoff_lat,
+                        lon: takeoff_lon,
+                    },
+                    landing: Point {
+                        lat: landing_lat,
+                        lon: landing_lon,
+                    },
                 },
             },
         )
@@ -173,6 +218,25 @@ async fn list_tracks(
 
     Ok(Json(ListResponse { items, next_cursor }))
 }
+
+/// Concrete row tuple: `(flight_id, takeoff_at, duration, takeoff_offset,
+/// landing_offset, takeoff_lat, takeoff_lon, landing_lat, landing_lon, user_id,
+/// user_name, country)`. Aliased because the literal tuple is too long to
+/// inline at the call site without harming readability.
+type TrackListRow = (
+    String,
+    i64,
+    i32,
+    i32,
+    i32,
+    f64,
+    f64,
+    f64,
+    f64,
+    i32,
+    String,
+    Option<String>,
+);
 
 /// Pack `(takeoff_at, flight_id)` and base64url-encode. The id is
 /// length-prefixed so the cursor self-describes — flight ids today
