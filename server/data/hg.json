@@ -1,0 +1,534 @@
+{
+  "Aeros": {
+    "single_surface": [
+      "Fox",
+      "Target",
+      "Target 21¶tandem"
+    ],
+    "kingpost": [
+      "Discus",
+      "Discus C"
+    ],
+    "topless": [
+      "Combat 09 GT",
+      "Combat C",
+      "Combat GT",
+      "Combat L",
+      "Combat L 07",
+      "Stealth Combat",
+      "Stealth KPL"
+    ],
+    "rigid": [
+      "Phantom",
+      "Star"
+    ]
+  },
+  "Aerotec": {
+    "kingpost": [
+      "Contact",
+      "Express Moyen",
+      "Express Racing",
+      "Express Senior",
+      "Feder",
+      "Rapace",
+      "Vampir II"
+    ]
+  },
+  "AIR": {
+    "rigid": [
+      "Atos",
+      "Atos C",
+      "Atos CS",
+      "Atos S",
+      "Atos VQ",
+      "Atos VQ 190¶tandem",
+      "Atos VQ Race",
+      "Atos VR",
+      "Atos VR 190¶tandem",
+      "Atos VR Plus",
+      "Atos VRQ",
+      "Atos VRS",
+      "Atos VRS 190¶tandem",
+      "Atos VRS Light",
+      "Atos VX¶tandem"
+    ]
+  },
+  "Airborne": {
+    "single_surface": [
+      "Fun",
+      "Fun 220¶tandem"
+    ],
+    "kingpost": [
+      "Blade",
+      "Blitz",
+      "Sting",
+      "Sting 3 XC",
+      "Sting XC"
+    ],
+    "topless": [
+      "C4",
+      "REV",
+      "Shark"
+    ]
+  },
+  "Airwave & Villinger": {
+    "single_surface": [
+      "Skye"
+    ],
+    "kingpost": [
+      "Calypso",
+      "Calypso Firebird",
+      "Concept 49",
+      "Concept 59",
+      "K2",
+      "K2 Firebird",
+      "K3",
+      "K3 Firebird",
+      "K4",
+      "K4 Firebird",
+      "K4 Plus",
+      "K5",
+      "Klassic",
+      "Magic",
+      "Magic 3",
+      "Magic 4",
+      "Magic 4 Fullrace",
+      "Magic 6",
+      "Magic Fullrace",
+      "Magic Kiss",
+      "Sportster"
+    ]
+  },
+  "Apco Aviation": {
+    "kingpost": [
+      "Fuga",
+      "Nimbus",
+      "Puma",
+      "Santana",
+      "Santana SRC"
+    ]
+  },
+  "Baltussen Henricus": {
+    "kingpost": [
+      "F1 evolution"
+    ]
+  },
+  "Baumgartner D": {
+    "kingpost": [
+      "Ladas"
+    ]
+  },
+  "Bautek": {
+    "kingpost": [
+      "Astir",
+      "Bico",
+      "Fafnir",
+      "Fizz",
+      "Kite",
+      "Milan",
+      "Milan Racer",
+      "Pamir",
+      "Saphir",
+      "Sunrise",
+      "Zephir CX"
+    ],
+    "topless": [
+      "Spice",
+      "Twister"
+    ]
+  },
+  "Condor": {
+    "single_surface": [
+      "Crex",
+      "Flex"
+    ]
+  },
+  "Delta Wing": {
+    "kingpost": [
+      "Phoenix Streak",
+      "Phoenix X"
+    ]
+  },
+  "Ellipse": {
+    "single_surface": [
+      "Sol`R"
+    ]
+  },
+  "Enterprise Wings": {
+    "kingpost": [
+      "Aero",
+      "Desire",
+      "Foil A-Serie",
+      "Foil B Racer",
+      "Foil Combat",
+      "Foil Combat 2"
+    ]
+  },
+  "Europe Sails": {
+    "kingpost": [
+      "Lightning",
+      "Special Dimensione"
+    ]
+  },
+  "Falhawk": {
+    "kingpost": [
+      "Excel"
+    ]
+  },
+  "Finsterwalder": {
+    "kingpost": [
+      "Airfex",
+      "Funfex",
+      "Jetfex",
+      "Lightfex",
+      "Minifex",
+      "Perfex",
+      "Speedfex",
+      "Topfex",
+      "Windfex"
+    ]
+  },
+  "Firebird Sky Sport": {
+    "single_surface": [
+      "Firebird C",
+      "Firebird CX",
+      "Firebird II",
+      "Sierra¶tandem",
+      "Worldcup"
+    ],
+    "kingpost": [
+      "Classic Competition",
+      "Laser",
+      "New Wave",
+      "Quattro",
+      "Spirit",
+      "Uno",
+      "Uno Jumbo",
+      "Uno piccolo"
+    ]
+  },
+  "Fliegerböhm & Flight Design": {
+    "rigid": [
+      "Axxess",
+      "Exxtacy",
+      "Exxtacy Bi¶tandem",
+      "Ghostbuster"
+    ]
+  },
+  "Fulmar": {
+    "kingpost": [
+      "Rival"
+    ]
+  },
+  "Guggenmos Josef & Achim Kühnle": {
+    "kingpost": [
+      "Bullet",
+      "Bullet C",
+      "Bullet Cut",
+      "Bullet Cut-S",
+      "Bullet E",
+      "Bullet Novum",
+      "Bullet Racing",
+      "Bullet RCS M",
+      "Bullet SP",
+      "RCS",
+      "Rebull",
+      "SP",
+      "Super Wing",
+      "Wings C"
+    ],
+    "rigid": [
+      "E7",
+      "ESC",
+      "Esc-c"
+    ]
+  },
+  "Hangglifter": {
+    "single_surface": [
+      "Lifter"
+    ]
+  },
+  "Hauser Hans": {
+    "kingpost": [
+      "Libre I",
+      "Libre II"
+    ]
+  },
+  "Hiway": {
+    "kingpost": [
+      "Demon",
+      "Explorer",
+      "Super Scorpion"
+    ]
+  },
+  "Icaro": {
+    "single_surface": [
+      "Mars",
+      "Piuma",
+      "Relax",
+      "RX 2 BIP"
+    ],
+    "kingpost": [
+      "Brazil",
+      "Easy 2",
+      "GTR¶tandem",
+      "GTR Top Race",
+      "Laminar Easy",
+      "Laminar Easy Bip¶tandem",
+      "MastR",
+      "Orbiter",
+      "Orbiter 2"
+    ],
+    "topless": [
+      "Alto",
+      "Laminar",
+      "Laminar MR",
+      "Laminar MRX",
+      "Laminar ST",
+      "Laminar Zero"
+    ],
+    "rigid": [
+      "Stratos"
+    ]
+  },
+  "Ikarus Pellicci": {
+    "single_surface": [
+      "Duo Club¶tandem",
+      "Grashüpfer"
+    ],
+    "kingpost": [
+      "Ikarus",
+      "Spirit"
+    ]
+  },
+  "Impuls Flugdrachen": {
+    "kingpost": [
+      "Impuls",
+      "Impuls IC"
+    ]
+  },
+  "Iser Herbert": {
+    "kingpost": [
+      "Futura Compact"
+    ]
+  },
+  "Kecur": {
+    "kingpost": [
+      "Tropi"
+    ]
+  },
+  "La Mouette": {
+    "kingpost": [
+      "Atlas",
+      "Azur",
+      "Compact",
+      "Compact Cobra",
+      "Competition",
+      "Hermes",
+      "Profil",
+      "Racer",
+      "Sphinx",
+      "Sport",
+      "Top Swing",
+      "X-Ray"
+    ],
+    "topless": [
+      "Topless"
+    ]
+  },
+  "Moyes": {
+    "single_surface": [
+      "Malibu",
+      "Malibu 2",
+      "Mars"
+    ],
+    "kingpost": [
+      "Gecko",
+      "GT",
+      "GTR",
+      "GTR Race",
+      "Litesport",
+      "Max",
+      "Mega II",
+      "Meteor",
+      "Missile",
+      "MK III",
+      "Sonic",
+      "Super Xtralite SX",
+      "XS",
+      "XS Race",
+      "XT",
+      "Xtralite"
+    ],
+    "topless": [
+      "CSX",
+      "Litespeed",
+      "Litespeed RS",
+      "Litespeed RX",
+      "Litespeed S"
+    ]
+  },
+  "Pacific Diffusion": {
+    "kingpost": [
+      "Select",
+      "Tango"
+    ]
+  },
+  "Polaris": {
+    "single_surface": [
+      "Delta",
+      "Delta Super"
+    ],
+    "kingpost": [
+      "Gamma",
+      "Touring"
+    ]
+  },
+  "Praum Erwin": {
+    "kingpost": [
+      "Windspiel II"
+    ]
+  },
+  "Scherer": {
+    "kingpost": [
+      "Flash"
+    ]
+  },
+  "Schönleber Metallbau": {
+    "kingpost": [
+      "Focus",
+      "Lotus",
+      "Speed N",
+      "Vampir I"
+    ]
+  },
+  "Seedwings": {
+    "single_surface": [
+      "Funky"
+    ],
+    "kingpost": [
+      "Crossover",
+      "Kestrel",
+      "Merlin",
+      "Sensor",
+      "Skyrunner XR",
+      "Space",
+      "Spyder"
+    ],
+    "topless": [
+      "Vertigo",
+      "Viagro",
+      "Viagro Race"
+    ]
+  },
+  "Sirio": {
+    "kingpost": [
+      "Hazard",
+      "Sirius"
+    ]
+  },
+  "Skytec": {
+    "kingpost": [
+      "Epsilon",
+      "Gyro",
+      "Probe"
+    ]
+  },
+  "Solar Wings": {
+    "kingpost": [
+      "Rumour",
+      "Typhoon",
+      "Typhoon ACE"
+    ]
+  },
+  "Steinbach": {
+    "single_surface": [
+      "Euro 2",
+      "Euro 3"
+    ],
+    "kingpost": [
+      "Spot"
+    ]
+  },
+  "Synairgie": {
+    "single_surface": [
+      "Club"
+    ]
+  },
+  "Tecma": {
+    "kingpost": [
+      "Medil"
+    ]
+  },
+  "UP International": {
+    "single_surface": [
+      "Joker"
+    ],
+    "kingpost": [
+      "Axis",
+      "Comet",
+      "Gemini",
+      "Glidezilla",
+      "Reflex",
+      "Reflex CS",
+      "Speed TL",
+      "TRX E",
+      "UP Speed",
+      "Vektor",
+      "XTC DS",
+      "XTR"
+    ]
+  },
+  "Vega": {
+    "kingpost": [
+      "Alfa",
+      "Vega"
+    ]
+  },
+  "Wasp-Air": {
+    "kingpost": [
+      "Falcon 5",
+      "Gryphon DS",
+      "Gryphon Sierra",
+      "Super Gryphon"
+    ]
+  },
+  "Wills Wing": {
+    "single_surface": [
+      "Falcon",
+      "Harrier"
+    ],
+    "kingpost": [
+      "AT",
+      "Cross Country",
+      "Duck",
+      "Eagle",
+      "HP",
+      "RamAir",
+      "Spectrum",
+      "Sport",
+      "Sport 2",
+      "Sport 3",
+      "Sport 3 Race",
+      "Sport E",
+      "Supersport",
+      "U2",
+      "Ultra Sport"
+    ],
+    "topless": [
+      "Fusion",
+      "T2",
+      "T2C"
+    ]
+  },
+  "Wujasin Johann": {
+    "kingpost": [
+      "VK 3 Rebell"
+    ]
+  },
+  "Zettelmaier": {
+    "kingpost": [
+      "Taifun"
+    ]
+  }
+}
