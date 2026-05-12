@@ -3,14 +3,20 @@
     "single_surface": [
       "Fox",
       "Target",
-      "Target 21¶tandem"
+      "Target 21¶tandem",
+      "Student"
     ],
     "kingpost": [
       "Discus",
-      "Discus C"
+      "Discus C",
+      "Sport (Спорт)",
+      "Stealth"
     ],
     "topless": [
+      "Combat",
+      "Combat 09",
       "Combat 09 GT",
+      "Combat 2",
       "Combat C",
       "Combat GT",
       "Combat L",
@@ -261,6 +267,13 @@
       "Super Scorpion"
     ]
   },
+  "Homebuilt": {
+    "kingpost": [
+      "X-13",
+      "X-14",
+      "Dedal"
+    ]
+  },
   "Icaro": {
     "single_surface": [
       "Mars",
@@ -285,6 +298,8 @@
       "Laminar MR",
       "Laminar MRX",
       "Laminar ST",
+      "Laminar Z8",
+      "Laminar Z9",
       "Laminar Zero"
     ],
     "rigid": [
@@ -366,6 +381,11 @@
       "Litespeed RS",
       "Litespeed RX",
       "Litespeed S"
+    ]
+  },
+  "Oleg": {
+    "kingpost": [
+      "Cheburashka"
     ]
   },
   "Pacific Diffusion": {
@@ -453,6 +473,11 @@
   "Synairgie": {
     "single_surface": [
       "Club"
+    ]
+  },
+  "Syromyatnikov": {
+    "topless": [
+      "Raven"
     ]
   },
   "Tecma": {

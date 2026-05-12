@@ -1,0 +1,43 @@
+{
+  "model": {
+    "Aeros": {
+      "Combat": ["Combat (14|15)"],
+      "Combat 09 GT": ["Combat 09 GT(.*)"],
+      "Combat C": ["Combat (12|13)(.\\d)?C"],
+      "Combat GT": ["COMBAT (12|13)(.\\d)? GT"],
+      "Combat L": ["Combat L ?(12|13|14|15)(,\\d)?"],
+      "Discus": ["Discus B ?(12|13|14|15)(.\\d)?", "Diskus"],
+      "Sport (Спорт)": ["Спорт ?(14|15)?"],
+      "Stealth": ["Stealth (1\\d)(.\\d)?"],
+      "Stealth Combat": ["Stealth Combat( \\d)?"],
+      "Stealth KPL": ["StelthKPL"],
+      "Target": ["Target ?(13|16|19|132|162|192)"]
+    },
+    "Homebuilt": {
+      "X-13": ["[xх] ?13"],
+      "X-14": ["[xх] ?14"],
+      "Dedal": ["Дедал"]
+    },
+    "Icaro": {
+      "Laminar": ["Laminar (09|13|14)"],
+      "Laminar MR": ["Laminar MR700"],
+      "Laminar ST": ["Laminar ST ?1(2|3|4)"],
+      "Orbiter": ["(Icaro )?Orbiter (S|M|L)"],
+      "Orbiter 2": ["Orbiter 2 (S|M|L)"]
+    },
+    "La Mouette": {
+      "Atlas": ["Атлас"]
+    },
+    "Moyes": {
+      "Litespeed RX": ["Litespeed RX ?(\\d)(.\\d)?"],
+      "Litespeed S": ["Litespeed S ?(\\d)(.\\d)?"]
+    },
+    "Seedwings": {
+      "Skyrunner XR": ["Skyranner XR"]
+    },
+    "Wills Wing": {
+      "T2": ["T2 ?(1|\\d+)"],
+      "T2C": ["T2C ?(1|\\d+)"]
+    }
+  }
+}
