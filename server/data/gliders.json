@@ -1,0 +1,72 @@
+[
+  {
+    "id": "hg",
+    "name": "Hang Glider",
+    "classes": {
+      "single_surface": "Single Surface",
+      "kingpost": "Kingpost",
+      "topless": "Topless",
+      "rigid": "Rigid"
+    },
+    "brands": [
+      {
+        "id": "aeros",
+        "name": "Aeros",
+        "models": {
+          "single_surface": [
+            {
+              "id": "target-21",
+              "name": "Target 21",
+              "is_tandem": true
+            }
+          ],
+          "kingpost": [
+            {
+              "id": "discus-b",
+              "name": "Discus B",
+              "aliases": ["Discus B 13", "Discus", "Diskus"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "pg",
+    "name": "Paraglider",
+    "classes": {
+      "en_a": "EN A",
+      "en_b": "EN B",
+      "en_c": "EN C",
+      "en_d": "EN D",
+      "ccc": "CCC"
+    },
+    "brands": []
+  },
+  {
+    "id": "sp",
+    "name": "Sailplane",
+    "classes": {
+      "standard": "Standard",
+      "fifteen_metre": "15 m",
+      "eighteen_metre": "18 m",
+      "twenty_metre_two_seater": "20 m Two-seater",
+      "open": "Open",
+      "club": "Club",
+      "motorglider": "Motorglider"
+    },
+    "brands": []
+  },
+  {
+    "id": "other",
+    "name": "Other",
+    "classes": {},
+    "brands": [
+      {
+        "id": "unknown",
+        "name": "Unknown",
+        "models": {}
+      }
+    ]
+  }
+]
