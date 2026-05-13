@@ -10,6 +10,7 @@ export const Permissions = {
   MANAGE_TRACKS: 1 << 1,
   MANAGE_USERS: 1 << 2,
   MANAGE_SETTINGS: 1 << 3,
+  MANAGE_GLIDERS: 1 << 4,
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
