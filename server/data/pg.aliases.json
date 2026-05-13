@@ -1,0 +1,13 @@
+{
+  "model_aliases": {
+    "Airdesign": {
+      "Volt 2": ["Volt ?2"]
+    },
+    "Nova": {
+      "Mentor 3": ["Mentor ?3", "ментор ?3"]
+    },
+    "Ozone": {
+      "Mantra 6": ["Mantra M6"]
+    }
+  }
+}

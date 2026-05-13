@@ -1,0 +1,2992 @@
+{
+  "ADG": {
+    "en-a": [
+      "Alouette",
+      "Amazone",
+      "Colibri",
+      "Kiwi",
+      "Mikado",
+      "Olympic",
+      "Prestige",
+      "Surf¶tandem"
+    ],
+    "en-b": [
+      "Fun",
+      "Havane",
+      "Manta¶tandem",
+      "Nova",
+      "Salsa",
+      "Taïga"
+    ],
+    "en-c": [
+      "Bahia",
+      "Frégate",
+      "Ibis",
+      "Vertige¶tandem"
+    ]
+  },
+  "Advance": {
+    "en-a": [
+      "Alpha 2",
+      "Alpha 3",
+      "Alpha 5",
+      "Alpha 6",
+      "Omega 1",
+      "Omega 2",
+      "Sigma 1",
+      "Sigma 2"
+    ],
+    "en-b": [
+      "Alpha 4",
+      "Alpha 4 Hike",
+      "Beta 1¶tandem",
+      "Beta 2¶tandem",
+      "Beta 3¶tandem",
+      "Beta 5¶tandem",
+      "Beta 6¶tandem",
+      "Bi Advance¶tandem",
+      "Bi Alpha¶tandem",
+      "Epsilon 1",
+      "Epsilon 2",
+      "Epsilon 3",
+      "Epsilon 4",
+      "Epsilon 5",
+      "Epsilon 6",
+      "Epsilon 7",
+      "Epsilon 8",
+      "Iota",
+      "Iota 2",
+      "Pi Bi¶tandem",
+      "Sigma 5",
+      "Sigma 6"
+    ],
+    "en-c": [
+      "Alpha 1",
+      "Beta 4¶tandem",
+      "Omega 4",
+      "Omega 5",
+      "Omega 6",
+      "Omega 7",
+      "Pi",
+      "Pi 2",
+      "Sigma 3",
+      "Sigma 4",
+      "Sigma 7",
+      "Sigma 8",
+      "Sigma 9"
+    ],
+    "en-d": [
+      "Omega 3",
+      "Omega 8",
+      "Omega Xalps",
+      "Omega Xalps 2",
+      "Sigma 10",
+      "Zeta"
+    ]
+  },
+  "Adventure": {
+    "en-b": [
+      "Elle",
+      "Elle Bi¶tandem",
+      "Xpresso"
+    ],
+    "en-c": [
+      "Elle Plus",
+      "Flex One",
+      "Flexway",
+      "Platinium",
+      "Premium",
+      "Reflexion",
+      "Smart",
+      "Speedoo",
+      "Xpert"
+    ]
+  },
+  "Aerodyne": {
+    "en-b": [
+      "Cherokee¶tandem",
+      "Joy",
+      "Jumbe",
+      "Shaolin",
+      "Totem¶tandem",
+      "Yogi"
+    ],
+    "en-c": [
+      "Dune",
+      "Sweet¶tandem"
+    ],
+    "en-d": [
+      "Blaster",
+      "Shaman"
+    ]
+  },
+  "Aeros": {
+    "en-a": [
+      "Super Astra"
+    ],
+    "en-b": [
+      "Accent",
+      "Erebus¶tandem",
+      "Select",
+      "Starlite",
+      "Style",
+      "Style 2",
+      "Style 3",
+      "Virtuoso",
+      "Vitamin¶tandem"
+    ],
+    "en-c": [
+      "Amigo",
+      "Fuego",
+      "Mirage 2013",
+      "Rival"
+    ]
+  },
+  "Aerostudi": {
+    "en-c": [
+      "Lola",
+      "Marilyn"
+    ]
+  },
+  "Aerotec": {
+    "en-b": [
+      "Duck",
+      "Macabou",
+      "Maïdo"
+    ]
+  },
+  "AFM": {
+    "en-c": [
+      "Liberty"
+    ]
+  },
+  "AGT": {
+    "en-b": [
+      "Agt 121",
+      "Agt 131",
+      "Agt 242 Basic"
+    ]
+  },
+  "Aileite": {
+    "en-a": [
+      "Sensor¶tandem"
+    ],
+    "en-b": [
+      "Moonlight¶tandem"
+    ]
+  },
+  "Ailes De K.": {
+    "en-a": [
+      "Passagair¶tandem",
+      "Randonneuse"
+    ],
+    "en-b": [
+      "A 2¶tandem",
+      "Big X",
+      "Brizair 88",
+      "Brizair 90",
+      "Quartz",
+      "Side Air¶tandem",
+      "Speed"
+    ],
+    "en-c": [
+      "Cristal",
+      "Cruisair",
+      "Flyair",
+      "Genair 91",
+      "Spydair",
+      "Techno"
+    ],
+    "en-d": [
+      "Aster X",
+      "Genair 88",
+      "Genair 90",
+      "Genair 92",
+      "Pantair",
+      "Profil",
+      "Sprintair",
+      "Trilair"
+    ]
+  },
+  "Air Cross": {
+    "en-a": [
+      "U Prime",
+      "U Prime 2"
+    ],
+    "en-b": [
+      "U Cruise",
+      "U Double¶tandem",
+      "U Fly",
+      "U Fly 2"
+    ],
+    "en-c": [
+      "Trialp",
+      "U Cross"
+    ],
+    "en-d": [
+      "Usport",
+      "Usport 2",
+      "Usport Evo"
+    ]
+  },
+  "Airdesign": {
+    "en-a": [
+      "Eazy"
+    ],
+    "en-b": [
+      "Hike¶tandem",
+      "Ride¶tandem",
+      "Ride 2¶tandem",
+      "Rise",
+      "Rise 2",
+      "Rise 3",
+      "Vita",
+      "Vita 2"
+    ],
+    "en-c": [
+      "Ufo",
+      "Volt",
+      "Volt 2",
+      "Volt 3"
+    ],
+    "en-d": [
+      "Hero",
+      "Pure",
+      "Pure 2",
+      "Pure 3",
+      "Susi",
+      "Susi 2"
+    ]
+  },
+  "Airea": {
+    "en-b": [
+      "Aspect",
+      "Balance",
+      "Cargo¶tandem",
+      "Fat Willie¶tandem",
+      "Lift",
+      "Rebel",
+      "Renegade",
+      "Session"
+    ],
+    "en-c": [
+      "Revolution",
+      "Shape"
+    ],
+    "en-d": [
+      "Tension"
+    ]
+  },
+  "Airpol": {
+    "en-b": [
+      "Pl 15"
+    ]
+  },
+  "Airslide": {
+    "en-a": [
+      "Cumulus",
+      "Fitness",
+      "Furyo",
+      "Hermès",
+      "Isis"
+    ]
+  },
+  "Air-Sport": {
+    "en-b": [
+      "Ajos",
+      "Chinook",
+      "Chinook 2¶tandem",
+      "Fen",
+      "Pasat"
+    ],
+    "en-c": [
+      "Lhotse"
+    ],
+    "en-d": [
+      "Notos C"
+    ]
+  },
+  "Airsystems": {
+    "en-b": [
+      "Lover",
+      "Phoenix",
+      "Skyamsen"
+    ],
+    "en-c": [
+      "Wisper"
+    ]
+  },
+  "Airtek": {
+    "en-d": [
+      "At",
+      "Flash"
+    ]
+  },
+  "Airwave": {
+    "en-a": [
+      "Black Magic",
+      "Flite",
+      "Gecko 2",
+      "Logic",
+      "Rave",
+      "Reggae",
+      "Tango¶tandem",
+      "Wave"
+    ],
+    "en-b": [
+      "Alpine",
+      "Bi-Boo¶tandem",
+      "Combi¶tandem",
+      "Duet¶tandem",
+      "Duplex¶tandem",
+      "Epic",
+      "Fusion",
+      "Gecko",
+      "Harmony",
+      "Jive",
+      "Kiss",
+      "Mustang",
+      "Mustang 2",
+      "Scenic¶tandem",
+      "Scenic 2¶tandem",
+      "Sport",
+      "Sport 2",
+      "Sport 3",
+      "Sport 5",
+      "Taboo¶tandem",
+      "Tandem¶tandem",
+      "Wave 2",
+      "Wave 3"
+    ],
+    "en-c": [
+      "Cobra",
+      "Magic",
+      "Magic 3",
+      "Magic 4",
+      "Puma",
+      "Samba"
+    ],
+    "en-d": [
+      "Alto",
+      "Alto Xm",
+      "Magic 5",
+      "Rave Race",
+      "Sport 4",
+      "Voodoo",
+      "Voodoo 2",
+      "Xmx",
+      "Xxx"
+    ]
+  },
+  "Angel": {
+    "en-b": [
+      "Highlander"
+    ],
+    "en-d": [
+      "Blue Angel"
+    ]
+  },
+  "APCO Aviation": {
+    "en-a": [
+      "Hilite 2¶tandem",
+      "Karisma",
+      "Karma",
+      "Sabra"
+    ],
+    "en-b": [
+      "Allegra",
+      "Fiesta¶tandem",
+      "Fiesta Light",
+      "Fun 2¶tandem",
+      "Fun 3¶tandem",
+      "Fun For 2¶tandem",
+      "Futura Bi¶tandem",
+      "Game¶tandem",
+      "Hilite 3¶tandem",
+      "Play¶tandem",
+      "Presta",
+      "Prima",
+      "Salsa",
+      "Santana",
+      "Sentra",
+      "Sierra",
+      "Spectra¶tandem",
+      "Starlite",
+      "Tetra",
+      "Vista",
+      "Vista 2",
+      "Vista 3",
+      "Vista 4"
+    ],
+    "en-c": [
+      "Bagheera",
+      "Force",
+      "Futura",
+      "Keara",
+      "Libra",
+      "Power Wing",
+      "Simba",
+      "Thrust Hp",
+      "Vista Hp",
+      "Zefira"
+    ],
+    "en-d": [
+      "Astra",
+      "Lambada",
+      "Supra",
+      "Xtra",
+      "Zen"
+    ]
+  },
+  "Artwing": {
+    "en-a": [
+      "Ena"
+    ]
+  },
+  "Atmos": {
+    "en-b": [
+      "Atmos 40",
+      "Atmos 60"
+    ]
+  },
+  "Aviamecanic": {
+    "en-d": [
+      "Px"
+    ]
+  },
+  "Aviotec": {
+    "en-a": [
+      "Profile"
+    ],
+    "en-c": [
+      "Aztec",
+      "Puma"
+    ]
+  },
+  "Axis": {
+    "en-a": [
+      "Compact 2",
+      "Compact 3"
+    ],
+    "en-b": [
+      "Comet",
+      "Comet 2",
+      "Comet 3",
+      "Compact",
+      "Pluto¶tandem",
+      "Pluto 2",
+      "Pluto 3",
+      "Sirius¶tandem",
+      "Sirius 2¶tandem",
+      "Vega¶tandem"
+    ],
+    "en-c": [
+      "Korsair",
+      "Vega 2",
+      "Vega 3",
+      "Vega 4",
+      "Vega 5",
+      "Venus"
+    ],
+    "en-d": [
+      "Venus 2",
+      "Venus 3",
+      "Venus 4"
+    ],
+    "ccc": [
+      "Mercury Sport"
+    ]
+  },
+  "BGD": {
+    "en-a": [
+      "Adam"
+    ],
+    "en-b": [
+      "Base",
+      "Dual¶tandem",
+      "Epic",
+      "Punk",
+      "Wasp"
+    ],
+    "en-c": [
+      "Cure",
+      "Luna",
+      "Lynx",
+      "Tala"
+    ],
+    "ccc": [
+      "Diva"
+    ]
+  },
+  "Bicla": {
+    "en-b": [
+      "Aster X",
+      "Big X",
+      "Profil"
+    ],
+    "en-c": [
+      "Big X 2"
+    ]
+  },
+  "Bilsam": {
+    "en-b": [
+      "Matrix",
+      "Pelikan"
+    ],
+    "en-d": [
+      "X-Treme"
+    ]
+  },
+  "Bioair": {
+    "en-c": [
+      "Bionic 2"
+    ]
+  },
+  "Blowup": {
+    "en-b": [
+      "Type 30"
+    ],
+    "en-d": [
+      "Competition"
+    ]
+  },
+  "BLS": {
+    "en-a": [
+      "First",
+      "Olympe"
+    ],
+    "en-b": [
+      "Aerologic",
+      "Storm Line"
+    ]
+  },
+  "Bluephoenix": {
+    "en-a": [
+      "Light"
+    ],
+    "en-b": [
+      "Bip 200¶tandem",
+      "Bravo",
+      "First",
+      "Tatoo¶tandem"
+    ],
+    "en-c": [
+      "Ace",
+      "Aktiva",
+      "Evo",
+      "Quattro"
+    ]
+  },
+  "Brindazur": {
+    "en-a": [
+      "Dl 1",
+      "Europa",
+      "Spot",
+      "Star",
+      "Voyager¶tandem"
+    ]
+  },
+  "Caliptair": {
+    "en-b": [
+      "Garuda¶tandem",
+      "Vectis",
+      "Walibis¶tandem"
+    ],
+    "en-c": [
+      "V-56"
+    ]
+  },
+  "Cirus": {
+    "en-b": [
+      "Corsair"
+    ]
+  },
+  "Cloud": {
+    "en-a": [
+      "Eq Sport"
+    ],
+    "en-b": [
+      "Magic Cloud"
+    ],
+    "en-c": [
+      "Aerologic"
+    ]
+  },
+  "Comet": {
+    "en-b": [
+      "Comet",
+      "Discus 1000",
+      "Discus 2000",
+      "Level",
+      "Voyager",
+      "Xt"
+    ],
+    "en-c": [
+      "Comet Cx A",
+      "Comet Rc",
+      "Discovery"
+    ],
+    "en-d": [
+      "Comet Cx"
+    ]
+  },
+  "Condor": {
+    "en-b": [
+      "Alpamayo",
+      "Caesar¶tandem",
+      "Classic",
+      "Equipe",
+      "Obelix¶tandem",
+      "Tornado¶tandem"
+    ],
+    "en-c": [
+      "Carrera",
+      "Fany",
+      "Hp"
+    ],
+    "en-d": [
+      "Sp¶tandem",
+      "Temptation",
+      "Tornado C",
+      "Tornado Fr",
+      "Vip"
+    ]
+  },
+  "CP Products": {
+    "en-b": [
+      "Mono"
+    ]
+  },
+  "Customsail": {
+    "en-a": [
+      "Acid",
+      "Alien¶tandem",
+      "Hp¶tandem",
+      "Jeddaï",
+      "Xp",
+      "Xs"
+    ],
+    "en-b": [
+      "Cirrus¶tandem",
+      "Cloud",
+      "Crx",
+      "Cumulus",
+      "Grx¶tandem",
+      "Surfair"
+    ],
+    "en-c": [
+      "Fidji",
+      "Kl¶tandem",
+      "Trx",
+      "Vrx"
+    ]
+  },
+  "Davinci": {
+    "en-a": [
+      "Rhythm"
+    ],
+    "en-b": [
+      "Classic",
+      "Duet¶tandem"
+    ],
+    "en-d": [
+      "Xchord"
+    ]
+  },
+  "Decollage": {
+    "en-a": [
+      "Viva",
+      "Viva Eco"
+    ],
+    "en-c": [
+      "Strada"
+    ]
+  },
+  "Deltafly": {
+    "en-b": [
+      "Delta Fly 300",
+      "Helix",
+      "Magnum¶tandem",
+      "Spirit"
+    ],
+    "en-c": [
+      "Finesse",
+      "Finesse Plus",
+      "Spirit Fxc"
+    ]
+  },
+  "DK Whisper": {
+    "en-b": [
+      "Humming",
+      "Legato"
+    ],
+    "en-d": [
+      "Symphony"
+    ]
+  },
+  "Dudek": {
+    "en-a": [
+      "Nemo 2",
+      "Nemo 4",
+      "Nemo Xx"
+    ],
+    "en-b": [
+      "Elf",
+      "Manta",
+      "Max",
+      "Nemo",
+      "Optic",
+      "Optic 2",
+      "Orca¶tandem",
+      "Orca 2¶tandem",
+      "Orca Xx¶tandem",
+      "Universal",
+      "Vip",
+      "Vox"
+    ],
+    "en-c": [
+      "Action",
+      "Colt",
+      "Colt 2",
+      "Nucleon",
+      "Plus",
+      "Re Action",
+      "Shark",
+      "Synthesis"
+    ],
+    "en-d": [
+      "Coden",
+      "Freeway",
+      "Lux"
+    ],
+    "ccc": [
+      "Coden Pro"
+    ]
+  },
+  "E2RA": {
+    "en-b": [
+      "Sapho Bi¶tandem",
+      "Weelo"
+    ],
+    "en-c": [
+      "Koovan",
+      "Löyly",
+      "Sapho"
+    ]
+  },
+  "Eagleflight": {
+    "en-b": [
+      "Reflex"
+    ]
+  },
+  "Easyfly": {
+    "en-c": [
+      "Easy",
+      "Sharon"
+    ]
+  },
+  "Edel": {
+    "en-a": [
+      "Aerotik",
+      "Mustang",
+      "Orion",
+      "Racer",
+      "Rainbow",
+      "Space¶tandem",
+      "Stardust"
+    ],
+    "en-b": [
+      "8000",
+      "Apollo",
+      "Atlas",
+      "Confidence",
+      "Control",
+      "Corvette",
+      "Galaxy¶tandem",
+      "Genious",
+      "Jupiter",
+      "Live",
+      "Mercury",
+      "Prime¶tandem",
+      "Promise",
+      "Quantum",
+      "Superspace",
+      "Wisdom",
+      "Zx¶tandem"
+    ],
+    "en-c": [
+      "Populair",
+      "Response",
+      "Saber",
+      "Zx¶tandem"
+    ],
+    "en-d": [
+      "Ace",
+      "Energy",
+      "Excel",
+      "Sector",
+      "Sector Tx",
+      "Week-End"
+    ]
+  },
+  "Edelweiss": {
+    "en-a": [
+      "Arpège",
+      "Corsair",
+      "Évasion",
+      "Falcon"
+    ]
+  },
+  "Eiffel": {
+    "en-b": [
+      "Mirage"
+    ]
+  },
+  "Eolo": {
+    "en-a": [
+      "Gipsy"
+    ]
+  },
+  "Escape": {
+    "en-b": [
+      "S'cool",
+      "S'mile¶tandem",
+      "S'pace",
+      "S21"
+    ],
+    "en-c": [
+      "S'tream"
+    ]
+  },
+  "Falhawk": {
+    "en-a": [
+      "Apex",
+      "Atoll"
+    ],
+    "en-b": [
+      "Acto¶tandem",
+      "Apex X Bi¶tandem",
+      "Arcus",
+      "Arcus Spirit",
+      "Athlète¶tandem",
+      "Aurore",
+      "Neo¶tandem",
+      "Sp Evolution¶tandem"
+    ],
+    "en-c": [
+      "Apex X¶tandem",
+      "Awak"
+    ],
+    "en-d": [
+      "Aruba"
+    ]
+  },
+  "Firebird": {
+    "en-a": [
+      "Arobas",
+      "F1rst",
+      "Sub-One",
+      "Z-One"
+    ],
+    "en-b": [
+      "Apache¶tandem",
+      "Booster",
+      "Choice¶tandem",
+      "Cobra",
+      "Comanche",
+      "Dolphin",
+      "Eagle",
+      "Flame",
+      "Fox",
+      "Grid",
+      "Hornet",
+      "Hornet Sp",
+      "Ignition",
+      "Marlin",
+      "Matrix",
+      "Monster¶tandem",
+      "N-Joy",
+      "Navajo",
+      "Phoenix",
+      "Raven",
+      "Spider",
+      "Twist",
+      "Twix¶tandem",
+      "X - 3"
+    ],
+    "en-c": [
+      "Barracuda",
+      "Condor¶tandem",
+      "Debute",
+      "Eagle 2",
+      "Extase",
+      "G-Sport",
+      "Inspiration",
+      "Rocket"
+    ],
+    "en-d": [
+      "Albatros",
+      "Cult",
+      "F 1 C",
+      "Genesis",
+      "Ninja"
+    ]
+  },
+  "Flightdesign": {
+    "en-a": [
+      "A 4¶tandem",
+      "B 3",
+      "Hot Dream"
+    ],
+    "en-b": [
+      "A 3",
+      "A 5¶tandem",
+      "A 6 Vt",
+      "Boxtair",
+      "Easy",
+      "S1 Vt",
+      "S2 Vt",
+      "S3 Vt",
+      "Stream",
+      "Sx",
+      "Twin 2¶tandem",
+      "Twin 3¶tandem"
+    ],
+    "en-c": [
+      "A 7 Vt",
+      "B 5 Vt",
+      "Dream¶tandem",
+      "Dream 90"
+    ],
+    "en-d": [
+      "B 4 Vt"
+    ]
+  },
+  "Flow": {
+    "en-a": [
+      "Ace"
+    ],
+    "en-b": [
+      "Cosmos"
+    ],
+    "en-d": [
+      "Xc Racer"
+    ]
+  },
+  "Flycastelluccio": {
+    "en-b": [
+      "Aria",
+      "Commander",
+      "Ultima",
+      "Voyager"
+    ],
+    "en-c": [
+      "Quasar Wing",
+      "Smile"
+    ]
+  },
+  "Flyfat": {
+    "en-c": [
+      "Poya",
+      "Poya H2",
+      "Tayo",
+      "Tayo H2"
+    ]
+  },
+  "Flying Planet": {
+    "en-b": [
+      "Astair",
+      "Bee Bip¶tandem",
+      "Duo¶tandem",
+      "Funky",
+      "Malina",
+      "Mengo Bi¶tandem",
+      "Spirit",
+      "Spirit 3",
+      "Syrius",
+      "Whisper 4",
+      "X-Press¶tandem"
+    ],
+    "en-c": [
+      "Gaïa",
+      "Mengo",
+      "Shoo'ka",
+      "Spirit 2",
+      "Whisper",
+      "Whisper 2",
+      "X-Press 2¶tandem"
+    ],
+    "en-d": [
+      "Mystic",
+      "Xéress"
+    ]
+  },
+  "Flyproducts": {
+    "en-b": [
+      "Voyager"
+    ]
+  },
+  "Freefly": {
+    "en-a": [
+      "Marelene",
+      "Merlin"
+    ]
+  },
+  "Freestyle": {
+    "en-b": [
+      "Acro",
+      "Driver",
+      "Lynx",
+      "Starter",
+      "Twin 2¶tandem"
+    ],
+    "en-c": [
+      "Cruise",
+      "Inside",
+      "Master",
+      "Reflex",
+      "Runner"
+    ],
+    "en-d": [
+      "Dart",
+      "Runner C"
+    ]
+  },
+  "Freex": {
+    "en-a": [
+      "Dingo",
+      "Manx"
+    ],
+    "en-b": [
+      "Arcane",
+      "Blade",
+      "Flair",
+      "Frame",
+      "Funiac",
+      "Gemini¶tandem",
+      "Jocker",
+      "Moon",
+      "Pure",
+      "Remus¶tandem",
+      "Serum",
+      "Spear",
+      "Stereo¶tandem",
+      "Sun",
+      "Tiger",
+      "Vaxin",
+      "X-One"
+    ],
+    "en-c": [
+      "F-16",
+      "Frantic¶tandem",
+      "Mission",
+      "Oxygen",
+      "Spark"
+    ],
+    "en-d": [
+      "Fiber"
+    ]
+  },
+  "Fresh": {
+    "en-a": [
+      "Apax"
+    ],
+    "en-b": [
+      "Silex X",
+      "Starlix"
+    ]
+  },
+  "Fun2fly": {
+    "en-a": [
+      "Nucleair",
+      "Profile"
+    ],
+    "en-c": [
+      "Aztec",
+      "Puma"
+    ]
+  },
+  "Funair": {
+    "en-b": [
+      "Chiron",
+      "Fun Air",
+      "Tonic¶tandem"
+    ]
+  },
+  "Funeuropa": {
+    "en-a": [
+      "Tech"
+    ]
+  },
+  "Furst": {
+    "en-b": [
+      "Bls"
+    ]
+  },
+  "Galaxy": {
+    "en-b": [
+      "Speedy"
+    ],
+    "en-c": [
+      "Experence 2",
+      "Scorpion",
+      "Scorpion 3"
+    ]
+  },
+  "Gin Gliders": {
+    "en-a": [
+      "Bolero",
+      "Bolero 3",
+      "Bolero 4",
+      "Bolero 5",
+      "Bolero 6",
+      "Bolero Plus",
+      "Pegasus",
+      "Yeti 4"
+    ],
+    "en-b": [
+      "Atlas",
+      "Bandit",
+      "Beetle¶tandem",
+      "Bongo¶tandem",
+      "Boost",
+      "Carrera",
+      "Carrera Plus",
+      "Explorer",
+      "Gangster",
+      "Oasis",
+      "Osprey¶tandem",
+      "Safari¶tandem",
+      "Sprint",
+      "Sprint 3",
+      "Sprint Evo",
+      "Vantage 2",
+      "Yeti",
+      "Yeti 08",
+      "Zoom",
+      "Zulu"
+    ],
+    "en-c": [
+      "Airflex",
+      "Becool¶tandem",
+      "Bonanza",
+      "Boomerang Sport",
+      "Fuse¶tandem",
+      "Griffin",
+      "Mirage",
+      "Nomad",
+      "Rebel",
+      "Tribe",
+      "Yeti 2011"
+    ],
+    "en-d": [
+      "Boomerang",
+      "Boomerang 2",
+      "Boomerang 3",
+      "Boomerang Gto",
+      "Boomerang X",
+      "X-Alps"
+    ],
+    "ccc": [
+      "Boom Gto 2",
+      "Boomerang 10",
+      "Boomerang 11",
+      "Boomerang 9"
+    ]
+  },
+  "Gradient": {
+    "en-a": [
+      "Bright",
+      "Bright 3",
+      "Bright 4",
+      "Bright 5",
+      "Denali"
+    ],
+    "en-b": [
+      "Aspen",
+      "Aspen 2",
+      "Bigolden¶tandem",
+      "Bigolden 3¶tandem",
+      "Delite",
+      "Golden",
+      "Golden 2",
+      "Golden 3",
+      "Golden 4",
+      "Golden 5",
+      "Impuls",
+      "Montana",
+      "Nevada 2",
+      "Nevada 2012",
+      "Onyx¶tandem",
+      "Taurus",
+      "Topas"
+    ],
+    "en-c": [
+      "Aspen 3",
+      "Aspen 4",
+      "Aspen 5",
+      "Aspen 6",
+      "Bigolden 2¶tandem",
+      "Bliss",
+      "Saphir",
+      "Saphir 2000"
+    ],
+    "en-d": [
+      "Avax",
+      "Avax Rs",
+      "Avax Rx",
+      "Avax Xc",
+      "Avax Xc 2",
+      "Avax Xc 3",
+      "Avax Xc 5"
+    ]
+  },
+  "Gwing": {
+    "en-b": [
+      "Intermediate"
+    ]
+  },
+  "Gypaaile": {
+    "en-a": [
+      "Carlit",
+      "Palas",
+      "Swan¶tandem"
+    ],
+    "en-b": [
+      "Arbizon",
+      "Estive",
+      "Marboré"
+    ],
+    "en-c": [
+      "Tozal"
+    ]
+  },
+  "Harley": {
+    "en-a": [
+      "Mistral",
+      "Sirocco",
+      "Typhoon",
+      "Ultima"
+    ],
+    "en-b": [
+      "Elit"
+    ],
+    "en-c": [
+      "Aurora",
+      "Eclipse"
+    ],
+    "en-d": [
+      "Cyclone"
+    ]
+  },
+  "Hawkwings": {
+    "en-b": [
+      "Kestrel"
+    ]
+  },
+  "Hekra": {
+    "en-b": [
+      "Karat¶tandem",
+      "Karat Css"
+    ]
+  },
+  "Highenergy": {
+    "en-c": [
+      "Skybolt"
+    ]
+  },
+  "Holartica": {
+    "en-b": [
+      "Orage¶tandem"
+    ]
+  },
+  "Icaro": {
+    "en-a": [
+      "Cyber 2",
+      "Cyber 4",
+      "Cyber Te",
+      "Pica"
+    ],
+    "en-b": [
+      "Buteo",
+      "Cyber",
+      "Force",
+      "Gravis",
+      "Ice",
+      "Incanto",
+      "Instinct",
+      "Instinct Te",
+      "Pandion",
+      "Parus¶tandem",
+      "Play",
+      "Twice¶tandem",
+      "Twice Te¶tandem",
+      "Wildcat"
+    ],
+    "en-c": [
+      "Ice 2 Xc",
+      "Instinct 2",
+      "Maverick 2",
+      "Maverick 3"
+    ],
+    "en-d": [
+      "Aquila",
+      "Sitta"
+    ]
+  },
+  "Independence": {
+    "en-a": [
+      "Cruiser",
+      "Cruiser 3",
+      "Cruiser 4",
+      "Grasshopper",
+      "Merlin",
+      "Mountain",
+      "Pioneer",
+      "Zippy"
+    ],
+    "en-b": [
+      "Air Taxi¶tandem",
+      "Akron",
+      "Avalon",
+      "Dragon",
+      "Dragon 2",
+      "Dragon 3",
+      "Duett¶tandem",
+      "Galaxy¶tandem",
+      "Garuda",
+      "Geronimo",
+      "Geronimo 2",
+      "Speed¶tandem",
+      "Tensing",
+      "Voyager¶tandem"
+    ],
+    "en-c": [
+      "Excalibur",
+      "Radical",
+      "Sportster"
+    ],
+    "en-d": [
+      "Striker"
+    ]
+  },
+  "Inferno": {
+    "en-b": [
+      "Inferno",
+      "Inferno 6.6",
+      "Inferno 7",
+      "Inferno 8.8",
+      "Light"
+    ],
+    "en-c": [
+      "Charisma"
+    ],
+    "en-d": [
+      "Inferno 5.5"
+    ]
+  },
+  "Iparair": {
+    "en-a": [
+      "As",
+      "Elur",
+      "Odei"
+    ]
+  },
+  "ITV": {
+    "en-a": [
+      "Agena",
+      "Alcor",
+      "Atlas¶tandem",
+      "Boxer 2",
+      "Dolpo 2",
+      "Dolpo 3",
+      "Électra",
+      "Olympe",
+      "Pegase¶tandem",
+      "Titan¶tandem",
+      "Véga 11"
+    ],
+    "en-b": [
+      "Alnaïr",
+      "Astérion¶tandem",
+      "Astérope",
+      "Azimut",
+      "Boxer",
+      "Boxer Gt",
+      "Cyclop¶tandem",
+      "Dolpo",
+      "Jade",
+      "Jedi",
+      "Manitoba¶tandem",
+      "Merak Bi¶tandem",
+      "Nunki",
+      "Opale",
+      "Pawnee",
+      "Polaris",
+      "Proxima",
+      "Rubis",
+      "Stewart¶tandem",
+      "Tepee",
+      "Thanka¶tandem",
+      "Tomahawk",
+      "Topaze",
+      "Tsampa",
+      "Turquoise¶tandem",
+      "Véga 10",
+      "Zénith¶tandem"
+    ],
+    "en-c": [
+      "Annapurna",
+      "Astir",
+      "Awak¶tandem",
+      "Awak 2",
+      "Diamant",
+      "Equinox",
+      "Jedi 2",
+      "Lapoon",
+      "Merak",
+      "Météor",
+      "Siam",
+      "Skat"
+    ],
+    "en-d": [
+      "Ariès",
+      "Atiks",
+      "Dakota",
+      "Dakota Sport",
+      "Gold",
+      "Saphir",
+      "Saphir Must"
+    ]
+  },
+  "Jojowing": {
+    "en-b": [
+      "Instinct",
+      "Quest¶tandem",
+      "Yoki"
+    ],
+    "en-c": [
+      "Addiction",
+      "Speedy"
+    ]
+  },
+  "Junkers": {
+    "en-a": [
+      "Accord",
+      "Excel",
+      "Practic"
+    ],
+    "en-b": [
+      "Proton",
+      "Vento"
+    ],
+    "en-d": [
+      "Vento S"
+    ]
+  },
+  "Justra": {
+    "en-b": [
+      "Accord",
+      "Excel",
+      "Practic"
+    ]
+  },
+  "Kenbec": {
+    "en-a": [
+      "Sky-C",
+      "Sylphe"
+    ]
+  },
+  "Krippendorf": {
+    "en-a": [
+      "Duck",
+      "Ecco"
+    ],
+    "en-b": [
+      "Cut",
+      "Tango"
+    ],
+    "en-c": [
+      "Primo"
+    ],
+    "en-d": [
+      "Malibu"
+    ]
+  },
+  "Lisi": {
+    "en-c": [
+      "Max",
+      "Smile¶tandem"
+    ]
+  },
+  "Little Cloud": {
+    "en-b": [
+      "Spiruline Ez",
+      "Spiruline Gt"
+    ],
+    "en-c": [
+      "Spiruline 2012"
+    ],
+    "en-d": [
+      "Bidule¶tandem"
+    ]
+  },
+  "Luba": {
+    "en-a": [
+      "Opium"
+    ],
+    "en-b": [
+      "Funy",
+      "Lazer"
+    ]
+  },
+  "Mac Para": {
+    "en-a": [
+      "Muse",
+      "Muse 3",
+      "Muse 4",
+      "Progress"
+    ],
+    "en-b": [
+      "Charger",
+      "Diamond¶tandem",
+      "Diva",
+      "Eden¶tandem",
+      "Eden 2",
+      "Eden 3",
+      "Eden 4",
+      "Eden 5",
+      "Eden 6",
+      "Envy",
+      "Hawaï",
+      "Illusion",
+      "Intox",
+      "Mountain",
+      "Muse 2",
+      "Nirvana¶tandem",
+      "Outback",
+      "Paradis",
+      "Pasha¶tandem",
+      "Pasha 2¶tandem",
+      "Pasha 3¶tandem",
+      "Pasha 4¶tandem",
+      "Pasha 5¶tandem",
+      "Pasha 6¶tandem",
+      "Prestige",
+      "Velvia"
+    ],
+    "en-c": [
+      "Elan",
+      "Elan 2",
+      "Envy 2",
+      "Feeling",
+      "Magus Xc",
+      "Marvel",
+      "Spice",
+      "Trance",
+      "Vision"
+    ],
+    "en-d": [
+      "Heaven",
+      "Icon",
+      "Magus",
+      "Magus 2",
+      "Magus 3",
+      "Magus 4",
+      "Magus Xc2",
+      "Meep-Meep",
+      "Sense",
+      "Velvet",
+      "Yukon"
+    ]
+  },
+  "Maya": {
+    "en-a": [
+      "Haydi"
+    ],
+    "en-b": [
+      "Nomad¶tandem",
+      "Shaman"
+    ]
+  },
+  "MCC Aviation": {
+    "en-a": [
+      "Amaya 2",
+      "Amaya 3"
+    ],
+    "en-b": [
+      "Amaya",
+      "Arolla",
+      "Beluga¶tandem",
+      "Beluga 4¶tandem",
+      "Boréa",
+      "Boréa 2",
+      "Boréa H2",
+      "Explora",
+      "Malula",
+      "Orbéa",
+      "Orbéa 2",
+      "Orbéa Evo"
+    ],
+    "en-c": [
+      "Insinia"
+    ]
+  },
+  "Moskito": {
+    "en-b": [
+      "Synto"
+    ],
+    "en-c": [
+      "Viper"
+    ]
+  },
+  "Munich": {
+    "en-d": [
+      "Joy",
+      "Ms"
+    ]
+  },
+  "Neo": {
+    "en-d": [
+      "X Lite",
+      "X Ride"
+    ]
+  },
+  "Nervures": {
+    "en-a": [
+      "Morea"
+    ],
+    "en-b": [
+      "Aloha",
+      "Alpamayo¶tandem",
+      "Altaï¶tandem",
+      "Altéa",
+      "Arteson¶tandem",
+      "Erébus¶tandem",
+      "Espade",
+      "Estive",
+      "Etna",
+      "Fitz Roy¶tandem",
+      "Kenya",
+      "Spantik",
+      "Stromboli¶tandem",
+      "Toubkal¶tandem",
+      "Valluna"
+    ],
+    "en-c": [
+      "Diamir¶tandem",
+      "Diamir 2",
+      "Faïal",
+      "Huapi",
+      "Kaïlash",
+      "Lhotse",
+      "Lol",
+      "Whizz"
+    ]
+  },
+  "Nirvana": {
+    "en-b": [
+      "Alix",
+      "Desire"
+    ],
+    "en-c": [
+      "Master"
+    ]
+  },
+  "Niviuk": {
+    "en-a": [
+      "Koyot 2",
+      "Koyot 3"
+    ],
+    "en-b": [
+      "Artik",
+      "Hook",
+      "Hook 2",
+      "Hook 3",
+      "Hook 4",
+      "Ikuma",
+      "Ikuma P",
+      "Koyot",
+      "Link",
+      "Nk1",
+      "Skin 2",
+      "Skin 2 P¶tandem",
+      "Takoo¶tandem",
+      "Takoo 3¶tandem",
+      "Takoo 4¶tandem"
+    ],
+    "en-c": [
+      "Artik 2",
+      "Artik 3",
+      "Artik 4",
+      "Artik 5",
+      "Takoo 2¶tandem"
+    ],
+    "en-d": [
+      "Icepeak 6",
+      "Icepeak 7",
+      "Klimber P",
+      "Kougar",
+      "Peak",
+      "Peak 2",
+      "Peak 3¶tandem",
+      "Peak 4",
+      "Roller"
+    ],
+    "ccc": [
+      "Icepeak 7 Pro",
+      "Icepeak 8"
+    ]
+  },
+  "North": {
+    "en-a": [
+      "C",
+      "Solution¶tandem"
+    ],
+    "en-b": [
+      "Dimension",
+      "Evolution",
+      "Sting",
+      "Swan"
+    ],
+    "en-d": [
+      "Exception",
+      "Révolution"
+    ]
+  },
+  "Nova": {
+    "en-a": [
+      "Pheron",
+      "Phorus",
+      "Primax",
+      "Prion",
+      "Prion 2",
+      "Prion 3",
+      "Prion 4",
+      "Trend"
+    ],
+    "en-b": [
+      "Aeron",
+      "Artax",
+      "Bion¶tandem",
+      "Bion 2¶tandem",
+      "Carbon",
+      "Gemini¶tandem",
+      "Ion",
+      "Ion 2",
+      "Ion 3",
+      "Ion 4",
+      "Ion 5",
+      "Jamboo¶tandem",
+      "Mamboo",
+      "Mentor",
+      "Mentor 2",
+      "Mentor 3",
+      "Mentor 4",
+      "Mentor 5",
+      "Oryx",
+      "Phantom 2016",
+      "Phelix",
+      "Philou",
+      "Philou Classic",
+      "Phocus",
+      "Phönix",
+      "Phor2¶tandem",
+      "Ra",
+      "Rookie",
+      "Rotor",
+      "Syntax",
+      "Tattoo",
+      "Taxy¶tandem",
+      "X-Act",
+      "X-Large¶tandem",
+      "X-Ray"
+    ],
+    "en-c": [
+      "Argon",
+      "Axon",
+      "Factor",
+      "Factor 2",
+      "Ibex",
+      "Ibex 3",
+      "Radon",
+      "Sector",
+      "Triton 2",
+      "Tycoon"
+    ],
+    "en-d": [
+      "Cxc",
+      "Ibex 2",
+      "Krypton",
+      "Phantom",
+      "Sphynx",
+      "Susi",
+      "Triton",
+      "Vertex",
+      "X-Pert",
+      "Xenon",
+      "Xyon"
+    ],
+    "ccc": [
+      "Triton 2 Light"
+    ]
+  },
+  "Odyssee": {
+    "en-a": [
+      "Osmose Course"
+    ],
+    "en-b": [
+      "Osmose"
+    ]
+  },
+  "OL": {
+    "en-b": [
+      "Compact"
+    ],
+    "en-c": [
+      "Korsair"
+    ]
+  },
+  "Onika": {
+    "en-b": [
+      "Double Fly¶tandem",
+      "Pegasus 3"
+    ],
+    "en-d": [
+      "Yumi 2"
+    ]
+  },
+  "Orion": {
+    "en-a": [
+      "Papillon"
+    ],
+    "en-c": [
+      "Primo"
+    ],
+    "en-d": [
+      "Malibu C"
+    ]
+  },
+  "Ostermunchner": {
+    "en-d": [
+      "Etoile"
+    ]
+  },
+  "Oyaconcept": {
+    "en-b": [
+      "Grafic"
+    ]
+  },
+  "Ozone": {
+    "en-a": [
+      "Atom 3",
+      "Jomo",
+      "Mojo",
+      "Mojo 2",
+      "Mojo 4",
+      "Mojo 5",
+      "Mojo Pwr"
+    ],
+    "en-b": [
+      "Addict",
+      "Atom",
+      "Buzz",
+      "Buzz Pwr",
+      "Buzz Z",
+      "Buzz Z3",
+      "Buzz Z4",
+      "Buzz Z5",
+      "Cosmic Rider¶tandem",
+      "Electron",
+      "Element",
+      "Element 2",
+      "Geo",
+      "Geo 2",
+      "Geo 3",
+      "Geo 4",
+      "Geo 5",
+      "Indy",
+      "Kona",
+      "Mag 2 Lite¶tandem",
+      "Magmax¶tandem",
+      "Magnum¶tandem",
+      "Magnum 2¶tandem",
+      "Mc Daddy¶tandem",
+      "Mojo 3",
+      "Octane",
+      "Roadster 2",
+      "Rush",
+      "Rush 2",
+      "Rush 4",
+      "Rush 5",
+      "Spark",
+      "Swift",
+      "Swift 4",
+      "Ultralite",
+      "Ultralite 3",
+      "Ultralite 4",
+      "Vibe",
+      "Vulcan"
+    ],
+    "en-c": [
+      "Addict 2",
+      "Alpina",
+      "Alpina 2",
+      "Alpina 3",
+      "Delta",
+      "Delta 2",
+      "Delta 3",
+      "Mantra",
+      "Mantra 2",
+      "Octane 2",
+      "Octane Flx",
+      "Proton",
+      "Proton Gt",
+      "Roadster",
+      "Rush 3",
+      "Speedster",
+      "Speedster 2",
+      "Swift 2",
+      "Swiftmax¶tandem",
+      "Viper 2"
+    ],
+    "en-d": [
+      "Enzo",
+      "Lm 4",
+      "Lm 5",
+      "Lm 6",
+      "Mantra 3",
+      "Mantra 4",
+      "Mantra 6",
+      "Viper 4",
+      "Z Alps",
+      "Zeno"
+    ],
+    "ccc": [
+      "Enzo 2",
+      "Enzo 3"
+    ]
+  },
+  "Paraavis": {
+    "en-b": [
+      "Corvette",
+      "Ivengo",
+      "Jazz",
+      "Joy",
+      "Marlin",
+      "Tango¶tandem"
+    ],
+    "en-c": [
+      "Dart",
+      "Dream"
+    ],
+    "en-d": [
+      "Vario"
+    ]
+  },
+  "Paraborne": {
+    "en-b": [
+      "Ranger",
+      "Seal"
+    ]
+  },
+  "Parachutesdef": {
+    "en-a": [
+      "Drakkar",
+      "Finesse 4"
+    ]
+  },
+  "Paradelta Parma": {
+    "en-b": [
+      "Bamboo",
+      "Big Bang",
+      "Bingo",
+      "Blaster¶tandem",
+      "Bomber",
+      "Bora",
+      "Bora 2",
+      "Break¶tandem",
+      "Breeze¶tandem",
+      "Broken Wings"
+    ],
+    "en-c": [
+      "Ben Hur¶tandem",
+      "Breathless"
+    ],
+    "en-d": [
+      "Basic",
+      "Ben Hur T5¶tandem"
+    ]
+  },
+  "Paraflite": {
+    "en-c": [
+      "Birdwing 3"
+    ]
+  },
+  "Paramania": {
+    "en-b": [
+      "Revo 2"
+    ],
+    "en-c": [
+      "Action",
+      "Fusion"
+    ],
+    "en-d": [
+      "Action Gt"
+    ]
+  },
+  "Parasail": {
+    "en-a": [
+      "Jaguar Xc",
+      "Jet",
+      "Zebra Xs"
+    ],
+    "en-b": [
+      "Calange"
+    ],
+    "en-d": [
+      "Duck"
+    ]
+  },
+  "Paratech": {
+    "en-a": [
+      "P11",
+      "P12",
+      "P3"
+    ],
+    "en-b": [
+      "P20",
+      "P21",
+      "P22",
+      "P23",
+      "P24",
+      "P25",
+      "P26",
+      "P27",
+      "P28",
+      "P41¶tandem",
+      "P42",
+      "P43",
+      "P44",
+      "P45",
+      "P50",
+      "P80",
+      "Pbi3¶tandem",
+      "Pbi4¶tandem",
+      "Pbi5¶tandem",
+      "Pbi6¶tandem",
+      "Relax"
+    ],
+    "en-c": [
+      "P40¶tandem",
+      "P60",
+      "P81"
+    ],
+    "en-d": [
+      "P2",
+      "P5",
+      "P6",
+      "P7",
+      "P70"
+    ]
+  },
+  "Pegas": {
+    "en-b": [
+      "Aile",
+      "Arcus",
+      "Avis",
+      "Avis 3"
+    ],
+    "en-c": [
+      "Bain",
+      "Bellus",
+      "Fenix",
+      "Pony Trek",
+      "Xc"
+    ]
+  },
+  "Perche": {
+    "en-b": [
+      "Bigfoot¶tandem",
+      "Bliss",
+      "Ecco",
+      "Graffity",
+      "Saga",
+      "Smart",
+      "Vector¶tandem"
+    ],
+    "en-c": [
+      "Aerologic¶tandem",
+      "Maxx",
+      "Sensor",
+      "Sonic",
+      "Viper"
+    ],
+    "en-d": [
+      "Dynamic",
+      "Vmax"
+    ]
+  },
+  "Phi": {
+    "en-a": [
+      "Symphonia"
+    ]
+  },
+  "Pilots": {
+    "en-a": [
+      "One",
+      "Peak"
+    ]
+  },
+  "Powerplay": {
+    "en-b": [
+      "Sting"
+    ]
+  },
+  "PPC": {
+    "en-c": [
+      "Mustang",
+      "Thunderbolt"
+    ]
+  },
+  "Pro-Design": {
+    "en-a": [
+      "Thesis"
+    ],
+    "en-b": [
+      "Accura",
+      "Accura 2",
+      "Accura 3",
+      "Amiga¶tandem",
+      "Amiga 2¶tandem",
+      "Carrier¶tandem",
+      "Challenger C",
+      "Classic",
+      "Combit Cut",
+      "Companion¶tandem",
+      "Corrado¶tandem",
+      "Cuga",
+      "Cuga 2",
+      "Effect",
+      "Effect 2",
+      "Eole",
+      "Jalpa",
+      "Jazz¶tandem",
+      "Relax",
+      "Thema",
+      "Thema 2",
+      "Thema 3",
+      "Thermik",
+      "Titan"
+    ],
+    "en-c": [
+      "Challenger¶tandem",
+      "Challenger S",
+      "Compact",
+      "Jalpa 2",
+      "Pro-Feel",
+      "Pro-Ject",
+      "Target"
+    ],
+    "en-d": [
+      "Airbow",
+      "Contest",
+      "Kestrel",
+      "Max"
+    ]
+  },
+  "Proselyte": {
+    "en-a": [
+      "Aliante¶tandem"
+    ]
+  },
+  "Raul Rodriguez Acro Wings": {
+    "en-c": [
+      "Rolling"
+    ]
+  },
+  "Reflex": {
+    "en-b": [
+      "Genie",
+      "Reflex"
+    ]
+  },
+  "Salewa": {
+    "en-b": [
+      "Salewa",
+      "X - 3"
+    ]
+  },
+  "SEA": {
+    "en-b": [
+      "Aeromaster¶tandem"
+    ]
+  },
+  "Sfair": {
+    "en-b": [
+      "Tropo"
+    ]
+  },
+  "Sigma": {
+    "en-b": [
+      "Sigma"
+    ]
+  },
+  "Sky": {
+    "en-a": [
+      "Fides",
+      "Fides 3",
+      "Fides 4",
+      "Fides 5"
+    ],
+    "en-b": [
+      "Anakis",
+      "Anakis 2",
+      "Anakis 3",
+      "Atis",
+      "Atis 2",
+      "Atis 3",
+      "Atis 4",
+      "Brontes",
+      "Cima",
+      "Fides 2",
+      "Fides 2 Evo",
+      "Gaia",
+      "Golem¶tandem",
+      "Kea",
+      "Lift",
+      "Metis¶tandem",
+      "Metis 2¶tandem",
+      "Metis 3¶tandem"
+    ],
+    "en-c": [
+      "Antea",
+      "Antea 2",
+      "Apollo¶tandem",
+      "Ares",
+      "Argos",
+      "Brontes 2",
+      "Divine",
+      "Exos",
+      "Flirt"
+    ],
+    "en-d": [
+      "Ares 2",
+      "Fever"
+    ]
+  },
+  "Sky Country": {
+    "en-a": [
+      "Muscat 3"
+    ],
+    "en-b": [
+      "D3bi¶tandem",
+      "Discovery 2",
+      "Discovery 3¶tandem",
+      "Discovery 4",
+      "Discovery 5",
+      "Escort¶tandem",
+      "Escort 2¶tandem",
+      "Moscito",
+      "Muscat 2",
+      "Scooter 2014"
+    ],
+    "en-c": [
+      "Mystic 2",
+      "Mystic 3",
+      "Scorpion 3",
+      "Scorpion 4"
+    ],
+    "en-d": [
+      "Evolution X",
+      "Space"
+    ]
+  },
+  "Skyangel": {
+    "en-a": [
+      "Camargue",
+      "Silver Ghost¶tandem"
+    ],
+    "en-b": [
+      "Duck"
+    ]
+  },
+  "Skyjam": {
+    "en-a": [
+      "Wave",
+      "Wave 2"
+    ],
+    "en-b": [
+      "Creek",
+      "Creek 2",
+      "Creek'xe",
+      "Orca¶tandem",
+      "Stream"
+    ],
+    "en-c": [
+      "X'stream"
+    ]
+  },
+  "Skyline Flight Gear": {
+    "en-a": [
+      "Owl"
+    ],
+    "en-b": [
+      "Falcon",
+      "Falcon 2009"
+    ],
+    "en-c": [
+      "Air Control"
+    ]
+  },
+  "Skyman": {
+    "en-a": [
+      "Amicus",
+      "Rock"
+    ],
+    "en-b": [
+      "Crosscountry",
+      "Heartbeat",
+      "Passengair¶tandem",
+      "Sir Edmund",
+      "Tandem¶tandem"
+    ],
+    "en-c": [
+      "Crossalps"
+    ]
+  },
+  "Skywalk": {
+    "en-a": [
+      "Masala 2",
+      "Mescal",
+      "Mescal 2",
+      "Mescal 3",
+      "Mescal 4",
+      "Mescal 5",
+      "Mojito Hy"
+    ],
+    "en-b": [
+      "Arriba",
+      "Arriba 2",
+      "Arriba 3",
+      "Cayenne",
+      "Cayenne 2",
+      "Chili",
+      "Chili 2",
+      "Chili 3",
+      "Chili 4",
+      "Cumeo",
+      "Hype",
+      "Join't¶tandem",
+      "Join't 2¶tandem",
+      "Join't 3¶tandem",
+      "Masala",
+      "Scotch",
+      "Silex X",
+      "Tequila",
+      "Tequila 2",
+      "Tequila 3",
+      "Tequila 4",
+      "Tequila 5"
+    ],
+    "en-c": [
+      "Cayenne 3",
+      "Cayenne 4",
+      "Cayenne 5",
+      "Poison",
+      "Poison 2",
+      "Spice",
+      "Tonic"
+    ],
+    "en-d": [
+      "Poison 3",
+      "Poison X Alps",
+      "Tonka",
+      "Tonka 2",
+      "X-Alps",
+      "X-Alps 3"
+    ],
+    "ccc": [
+      "X-Alps 2"
+    ]
+  },
+  "Sol Sports": {
+    "en-a": [
+      "Prymus 2",
+      "Prymus 4",
+      "Start One"
+    ],
+    "en-b": [
+      "Atmus 2",
+      "Atmus One",
+      "Balance",
+      "Big Boy",
+      "Ellus",
+      "Ellus 2",
+      "Ellus 3",
+      "Ellus 4",
+      "Ellus 5",
+      "Impulse",
+      "Jumbo¶tandem",
+      "Kangaroo¶tandem",
+      "Kangaroo 2¶tandem",
+      "Koala¶tandem",
+      "Kuat¶tandem",
+      "Kuat 2¶tandem",
+      "Neon",
+      "Prymus",
+      "Prymus 3",
+      "Quasar",
+      "Sycross",
+      "Synergy",
+      "Synergy 2",
+      "Synergy 3",
+      "Unno",
+      "Yaris"
+    ],
+    "en-c": [
+      "Axion",
+      "Cyclone",
+      "Eclipse",
+      "Kangaroo 3¶tandem",
+      "Kangaroo 4¶tandem",
+      "Lotus",
+      "Onyx",
+      "Synergy 4",
+      "Synergy 5",
+      "Torck",
+      "Vello"
+    ],
+    "en-d": [
+      "Torck 2"
+    ]
+  },
+  "Sportluise": {
+    "en-d": [
+      "Argos"
+    ]
+  },
+  "Steinert": {
+    "en-a": [
+      "Montana P 1"
+    ]
+  },
+  "Skyward": {
+    "en-a": [
+      "Score"
+    ],
+    "en-b": [
+      "Hawk",
+      "Nuvo",
+      "Raven",
+      "Rêve",
+      "Rêve Xc"
+    ],
+    "en-d": [
+      "Skyward",
+      "Zirro"
+    ]
+  },
+  "Stollinger": {
+    "en-b": [
+      "Master"
+    ],
+    "en-d": [
+      "Supermaster"
+    ]
+  },
+  "Storm": {
+    "en-b": [
+      "Williwaw"
+    ],
+    "en-c": [
+      "Hawk"
+    ]
+  },
+  "Sun Gliders": {
+    "en-b": [
+      "Forte",
+      "Loche",
+      "Partner¶tandem",
+      "Smart"
+    ],
+    "en-c": [
+      "Boxer",
+      "Cruiser",
+      "Lava",
+      "Libero",
+      "Libero 2",
+      "Mild",
+      "Mild Plus",
+      "Power Nitro",
+      "Power Razor 2",
+      "Power Silex",
+      "Powerforte"
+    ]
+  },
+  "Sup'air": {
+    "en-a": [
+      "Eona"
+    ],
+    "en-b": [
+      "Eiko",
+      "Leaf",
+      "Sora¶tandem"
+    ],
+    "en-c": [
+      "Taska"
+    ],
+    "en-d": [
+      "Wild"
+    ]
+  },
+  "Swing": {
+    "en-a": [
+      "Axis 4",
+      "Axis 5",
+      "Discus",
+      "Mito"
+    ],
+    "en-b": [
+      "Arcus",
+      "Arcus 3",
+      "Arcus 4",
+      "Arcus 5",
+      "Arcus 6¶tandem",
+      "Arcus 7",
+      "Arcus Rs",
+      "Astral¶tandem",
+      "Astral 2",
+      "Astral 3",
+      "Astral 4",
+      "Astral 5",
+      "Axis",
+      "Axis 3¶tandem",
+      "Everest",
+      "Mistral 2",
+      "Mistral 3¶tandem",
+      "Mistral 4",
+      "Mistral 5",
+      "Mistral 6",
+      "Mistral 7",
+      "Nyos",
+      "Nyos Rs",
+      "Picco",
+      "Sensis",
+      "Sinus",
+      "Twin 4¶tandem",
+      "Twin 5¶tandem",
+      "Twin Sr¶tandem"
+    ],
+    "en-c": [
+      "Astral 6",
+      "Astral 7",
+      "Cirrus 2",
+      "Cirrus 3",
+      "Cirrus 4",
+      "Mistral¶tandem",
+      "Mythos",
+      "Nexus",
+      "Stratus 7",
+      "Ventus 2"
+    ],
+    "en-d": [
+      "Apus Rs",
+      "Competition",
+      "Minoa",
+      "Nimbus",
+      "Prisma",
+      "Stratus 8",
+      "Trinity Rs",
+      "Ventus"
+    ]
+  },
+  "Swingup": {
+    "en-b": [
+      "Caligo",
+      "Macaon¶tandem"
+    ],
+    "en-d": [
+      "Gamma"
+    ]
+  },
+  "Sycon": {
+    "en-c": [
+      "Chiron"
+    ]
+  },
+  "Team": {
+    "en-a": [
+      "Green"
+    ],
+    "en-b": [
+      "Airborne",
+      "Big One¶tandem",
+      "Blue",
+      "Blue Two¶tandem",
+      "Explorer",
+      "Green-B",
+      "Rascal"
+    ],
+    "en-c": [
+      "Attitude",
+      "Red"
+    ],
+    "en-d": [
+      "Pinacle"
+    ]
+  },
+  "Technicair": {
+    "en-b": [
+      "Kalypso",
+      "Kanaï",
+      "Kinley",
+      "Koala",
+      "Kolt",
+      "Koyott",
+      "Skott¶tandem"
+    ]
+  },
+  "Touchandgo": {
+    "en-b": [
+      "Acro¶tandem",
+      "Tornado"
+    ]
+  },
+  "Trekking": {
+    "en-a": [
+      "Diablo",
+      "Espace¶tandem",
+      "Miura",
+      "Previa",
+      "Ritmo¶tandem",
+      "Thermic"
+    ],
+    "en-b": [
+      "Alpine",
+      "B-Bus¶tandem",
+      "Bird",
+      "Carver",
+      "Elise",
+      "Espada¶tandem",
+      "K2",
+      "Modena",
+      "Moonlight",
+      "Parawing",
+      "Rando",
+      "Sebring",
+      "Senso",
+      "Senso Trek",
+      "Shuttle¶tandem",
+      "Sunbeam",
+      "Twingo¶tandem",
+      "Urraco Sp",
+      "Xenos"
+    ],
+    "en-c": [
+      "Boxster",
+      "Civic",
+      "Dynasty",
+      "Esprit¶tandem",
+      "Legend",
+      "Parawing Sport",
+      "Prelude",
+      "Urraco",
+      "Vanquish"
+    ],
+    "en-d": [
+      "Comet Cx 2",
+      "Mondial",
+      "Odyssey¶tandem",
+      "Victory Speed"
+    ]
+  },
+  "Triple Seven": {
+    "en-a": [
+      "D-Light",
+      "Deck",
+      "Pawn"
+    ],
+    "en-b": [
+      "Bishop¶tandem",
+      "K-Light",
+      "Knight",
+      "Rook",
+      "Rook 2"
+    ],
+    "en-d": [
+      "King",
+      "Queen"
+    ]
+  },
+  "Turnpoint": {
+    "en-b": [
+      "Maui"
+    ],
+    "en-c": [
+      "Kim"
+    ]
+  },
+  "UP International": {
+    "en-a": [
+      "Ascent",
+      "Ascent 2",
+      "Ascent 3",
+      "Ascent 4",
+      "Kuna",
+      "Pulse"
+    ],
+    "en-b": [
+      "Boogie",
+      "Cab¶tandem",
+      "Groove",
+      "K2 2¶tandem",
+      "K2³¶tandem",
+      "Kantega",
+      "Kantega 2",
+      "Kantega Xc",
+      "Kantega Xc 2",
+      "Kibo",
+      "Lhotse",
+      "Makalu",
+      "Makalu 2",
+      "Makalu 3",
+      "Makalu 4",
+      "Makalu Light",
+      "Pick-Up¶tandem",
+      "Pico",
+      "Sherpa¶tandem",
+      "Sherpa 2¶tandem",
+      "Summit",
+      "Summit 2",
+      "Summit 3",
+      "Summit Xc",
+      "Summit Xc 3",
+      "Vision",
+      "Vision Classic"
+    ],
+    "en-c": [
+      "Blues",
+      "Soul",
+      "Stellar¶tandem",
+      "Summit Xc 2",
+      "Summit Xc 4",
+      "Trango",
+      "Trango 2",
+      "Trango 3",
+      "Trango Xc 2"
+    ],
+    "en-d": [
+      "Escape",
+      "Flash",
+      "Gambit",
+      "Katana",
+      "Kendo",
+      "Kendo C",
+      "Meru",
+      "Trango X-Race",
+      "Trango Xc",
+      "Trango Xc 3",
+      "Trango Xlight2"
+    ]
+  },
+  "Usvoiles": {
+    "en-a": [
+      "Alizé",
+      "Storm 201",
+      "Storm 301",
+      "Storm 311",
+      "Storm 401¶tandem"
+    ],
+    "en-b": [
+      "Williwaw",
+      "Zéphir"
+    ],
+    "en-c": [
+      "Hurricane",
+      "T-Bird¶tandem"
+    ],
+    "en-d": [
+      "Mistral"
+    ]
+  },
+  "U-Turn": {
+    "en-a": [
+      "Alpine Peak",
+      "Bodyguard",
+      "Bodyguard 2",
+      "Bodyguard 3",
+      "Emotion",
+      "Emotion 2",
+      "Emotion 3",
+      "Eternity",
+      "Evolution",
+      "Ladyguard"
+    ],
+    "en-b": [
+      "Airwolf",
+      "Annapurna",
+      "Blacklight",
+      "Blacklight 2",
+      "Cross Rock",
+      "Free Force",
+      "Infinity",
+      "Infinity 2",
+      "Infinity 3",
+      "Infinity 4",
+      "Lightning",
+      "Obsession",
+      "Obsession 2",
+      "Passenger¶tandem",
+      "Passenger 2¶tandem",
+      "U 2¶tandem"
+    ],
+    "en-c": [
+      "Free Force 3",
+      "Passion"
+    ],
+    "en-d": [
+      "Redout",
+      "Trinity"
+    ]
+  },
+  "Vonblon": {
+    "en-c": [
+      "Sensor"
+    ]
+  },
+  "VS": {
+    "en-a": [
+      "Cougar",
+      "Saxo"
+    ],
+    "en-c": [
+      "Vs"
+    ],
+    "en-d": [
+      "Magic¶tandem"
+    ]
+  },
+  "VTS": {
+    "en-a": [
+      "Birdy",
+      "Liberty",
+      "Pacific",
+      "Spoutnik"
+    ]
+  },
+  "Wallendair": {
+    "en-c": [
+      "Synergy"
+    ]
+  },
+  "Willswing": {
+    "en-b": [
+      "At 1",
+      "At 2",
+      "Sierra"
+    ]
+  },
+  "Windtech": {
+    "en-a": [
+      "Altaïr",
+      "Arial",
+      "Coral",
+      "Honey",
+      "Honey 2",
+      "Impulse",
+      "Spiro",
+      "Tempus"
+    ],
+    "en-b": [
+      "Ambar",
+      "Bali",
+      "Bali 2",
+      "Bantoo¶tandem",
+      "Cargo¶tandem",
+      "Isis",
+      "Kali",
+      "Midas",
+      "Pulsar",
+      "Quarx 2",
+      "Ru¶tandem",
+      "Serak",
+      "Sherpa¶tandem",
+      "Sienna",
+      "Tecno",
+      "Tempest",
+      "Tonic",
+      "Tuareg¶tandem",
+      "Tucan¶tandem",
+      "Zenith",
+      "Zenith Evolution",
+      "Zephyr",
+      "Zephyr 2"
+    ],
+    "en-c": [
+      "Combat",
+      "Fenix",
+      "Kena",
+      "Kinetik",
+      "Quarx",
+      "Syncro"
+    ],
+    "en-d": [
+      "Ajax",
+      "Kronos",
+      "Silex"
+    ]
+  },
+  "Wings Of Change": {
+    "en-a": [
+      "Edonis",
+      "Isis",
+      "Ötzi"
+    ],
+    "en-b": [
+      "Chinhook¶tandem",
+      "Crossblade",
+      "Druid¶tandem",
+      "Nemesis",
+      "Taifun",
+      "Tuareg",
+      "Twister",
+      "Twister Xi",
+      "Xplor-Air¶tandem"
+    ],
+    "en-c": [
+      "Nemeton",
+      "Predator",
+      "Tsunami"
+    ],
+    "en-d": [
+      "Braveheart"
+    ]
+  },
+  "XIX": {
+    "en-a": [
+      "Smile"
+    ],
+    "en-b": [
+      "Art 1",
+      "Form 2",
+      "Form 3",
+      "Inter 1",
+      "Inter 2"
+    ],
+    "en-c": [
+      "Form 1",
+      "Top 2"
+    ]
+  },
+  "Ynovar": {
+    "en-b": [
+      "Ynit"
+    ]
+  },
+  "Zerogravity": {
+    "en-b": [
+      "Flow"
+    ]
+  }
+}
