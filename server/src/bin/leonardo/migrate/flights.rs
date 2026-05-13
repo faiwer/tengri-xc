@@ -19,7 +19,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, anyhow};
-use sqlx::{MySqlPool, PgPool, Row};
+use sqlx::{MySqlPool, PgPool};
 use tengri_server::flight::{
     ingest::{PrepareError, Prepared, prepare_path_for_storage},
     store::{FlightRow, InsertFlightError, insert_flight_idempotent, insert_source, insert_track},
@@ -146,12 +146,15 @@ fn record(
     }
 }
 
+#[derive(sqlx::FromRow)]
 struct SourceFlight {
     id: u64,
     /// `userID` is `mediumint unsigned` in Leonardo, comfortably inside
     /// `i64`. We carry it as `i64` so the existing `format!("…userID={}…")`
     /// reporting and the `i32::try_from(...)` step downstream stay
-    /// straightforward.
+    /// straightforward. `try_from = "u32"` does the signed/widening hop
+    /// at decode time, matching the wire type sqlx returns.
+    #[sqlx(try_from = "u32")]
     user_id: i64,
     /// `YYYY` if the date is real, `"0000"` for the rows whose
     /// `DATE='0000-00-00'` placeholder we still want to try resolving.
@@ -162,7 +165,7 @@ struct SourceFlight {
 }
 
 async fn fetch(mysql: &MySqlPool) -> anyhow::Result<Vec<SourceFlight>> {
-    let rows = sqlx::query(
+    sqlx::query_as::<_, SourceFlight>(
         "SELECT \
              ID            AS id, \
              userID        AS user_id, \
@@ -176,24 +179,7 @@ async fn fetch(mysql: &MySqlPool) -> anyhow::Result<Vec<SourceFlight>> {
     )
     .fetch_all(mysql)
     .await
-    .context("querying leonardo_flights")?;
-
-    rows.into_iter()
-        .map(|r| {
-            // `leonardo_flights.userID` is `mediumint unsigned` in
-            // Leonardo, but the column is wide enough on the wire that
-            // sqlx hands it back as `u32`. Cast through that into `i64`
-            // so the rest of the binary doesn't have to think about
-            // signedness; values are far inside the range.
-            let user_id: u32 = r.try_get("user_id")?;
-            Ok(SourceFlight {
-                id: r.try_get::<u64, _>("id")?,
-                user_id: user_id as i64,
-                year_dir: r.try_get::<String, _>("year_dir")?,
-                filename: r.try_get::<String, _>("filename")?,
-            })
-        })
-        .collect()
+    .context("querying leonardo_flights")
 }
 
 fn expected_path(root: &Path, src: &SourceFlight) -> PathBuf {

@@ -26,7 +26,7 @@
 //! step honest.
 
 use anyhow::Context;
-use sqlx::{MySqlPool, PgPool, Row};
+use sqlx::{MySqlPool, PgPool};
 use tengri_server::user::UserSex;
 
 use super::{Failure, Report};
@@ -62,6 +62,7 @@ pub async fn run(mysql: &MySqlPool, pg: &PgPool) -> anyhow::Result<Report> {
     })
 }
 
+#[derive(sqlx::FromRow)]
 struct SourcePilot {
     pilot_id: i64,
     /// `mediumint unsigned` in source: max 2^24 - 1 ≈ 16.7M, so
@@ -87,8 +88,12 @@ struct UpsertOutcome {
 }
 
 async fn fetch(mysql: &MySqlPool) -> anyhow::Result<Vec<SourcePilot>> {
-    let rows = sqlx::query(
-        "SELECT p.pilotID, p.CIVL_ID, p.countryCode, p.Sex \
+    sqlx::query_as::<_, SourcePilot>(
+        "SELECT \
+             p.pilotID     AS pilot_id, \
+             p.CIVL_ID     AS civl_id, \
+             p.countryCode AS country_code, \
+             p.Sex         AS sex \
          FROM leonardo_pilots p \
          WHERE p.serverID = 0 \
            AND p.pilotID > 0 \
@@ -101,22 +106,7 @@ async fn fetch(mysql: &MySqlPool) -> anyhow::Result<Vec<SourcePilot>> {
     )
     .fetch_all(mysql)
     .await
-    .context("querying leonardo_pilots for profiles")?;
-
-    rows.into_iter()
-        .map(|r| {
-            Ok(SourcePilot {
-                pilot_id: r.try_get::<i64, _>("pilotID")?,
-                // sqlx-mysql decodes MEDIUMINT UNSIGNED as u32;
-                // any other Rust type triggers a runtime decode
-                // error rather than silently widening, so match
-                // it exactly here.
-                civl_id: r.try_get::<u32, _>("CIVL_ID")?,
-                country_code: r.try_get::<String, _>("countryCode")?,
-                sex: r.try_get::<String, _>("Sex")?,
-            })
-        })
-        .collect()
+    .context("querying leonardo_pilots for profiles")
 }
 
 /// Project a source pilot into a destination profile row. Returns

@@ -68,7 +68,7 @@ struct ListResponse {
 /// Trimmed projection for the table view. `country` is the only profile-side
 /// field we pull (one optional `text`, ~3 bytes); the rest of the profile stays
 /// off the list query.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 struct ListItem {
     id: i32,
     name: String,
@@ -126,8 +126,8 @@ async fn list(
         "u.email",
         "u.permissions",
         "p.country",
-        "EXTRACT(EPOCH FROM u.created_at)::bigint",
-        "EXTRACT(EPOCH FROM u.last_login_at)::bigint",
+        "EXTRACT(EPOCH FROM u.created_at)::bigint AS created_at",
+        "EXTRACT(EPOCH FROM u.last_login_at)::bigint AS last_login_at",
     ])
     .from("users u")
     .left_join("user_profiles p", "p.user_id = u.id")
@@ -152,50 +152,23 @@ async fn list(
         );
     }
 
-    type Row = (
-        i32,
-        String,
-        Option<String>,
-        Option<String>,
-        i32,
-        Option<String>,
-        i64,
-        Option<i64>,
-    );
-    let mut rows: Vec<Row> = query.fetch_all(state.pool()).await.map_err(into_internal)?;
+    let mut items: Vec<ListItem> = query.fetch_all(state.pool()).await.map_err(into_internal)?;
 
-    let has_more = rows.len() > limit as usize;
+    let has_more = items.len() > limit as usize;
     if has_more {
-        rows.truncate(limit as usize);
+        items.truncate(limit as usize);
     }
 
     let next_cursor = if has_more {
-        let (id, _, _, _, permissions, _, created_at, _) =
-            rows.last().expect("has_more implies non-empty");
+        let last = items.last().expect("has_more implies non-empty");
         Some(encode_cursor(
-            is_admin(*permissions),
-            *created_at as u32,
-            *id,
+            is_admin(last.permissions),
+            last.created_at as u32,
+            last.id,
         ))
     } else {
         None
     };
-
-    let items = rows
-        .into_iter()
-        .map(
-            |(id, name, login, email, permissions, country, created_at, last_login_at)| ListItem {
-                id,
-                name,
-                login,
-                email,
-                permissions,
-                country,
-                created_at,
-                last_login_at,
-            },
-        )
-        .collect();
 
     Ok(Json(ListResponse { items, next_cursor }))
 }

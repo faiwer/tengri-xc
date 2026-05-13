@@ -46,6 +46,10 @@ bitflags! {
         /// Change global project settings (rate limits, feature
         /// flags, anything the operator console exposes).
         const MANAGE_SETTINGS   = 1 << 3;
+        /// View / edit the canonical brand + glider-model dictionary.
+        /// Read-only for now; gates the `/admin/gliders` endpoint and
+        /// the matching settings nav item.
+        const MANAGE_GLIDERS    = 1 << 4;
     }
 }
 

@@ -22,7 +22,7 @@ use std::io::Read;
 
 use anyhow::{Context, anyhow};
 use flate2::read::GzDecoder;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 
 use super::{
     ingest::{InputFormat, prepare_bytes_for_storage},
@@ -49,6 +49,7 @@ pub async fn run(pool: &PgPool) -> anyhow::Result<usize> {
     Ok(pending.len())
 }
 
+#[derive(sqlx::FromRow)]
 struct Pending {
     flight_id: String,
     source_format: String,
@@ -56,7 +57,7 @@ struct Pending {
 }
 
 async fn fetch_pending(pool: &PgPool) -> anyhow::Result<Vec<Pending>> {
-    let rows = sqlx::query(
+    sqlx::query_as::<_, Pending>(
         "SELECT f.id AS flight_id, s.format::text AS source_format, s.bytes AS source_bytes \
          FROM flights f \
          JOIN flight_sources s ON s.flight_id = f.id \
@@ -66,17 +67,8 @@ async fn fetch_pending(pool: &PgPool) -> anyhow::Result<Vec<Pending>> {
     )
     .bind(VERSION as i16)
     .fetch_all(pool)
-    .await?;
-
-    rows.into_iter()
-        .map(|r| {
-            Ok(Pending {
-                flight_id: r.try_get::<String, _>("flight_id")?,
-                source_format: r.try_get::<String, _>("source_format")?,
-                source_bytes: r.try_get::<Vec<u8>, _>("source_bytes")?,
-            })
-        })
-        .collect()
+    .await
+    .map_err(Into::into)
 }
 
 async fn upgrade_one(pool: &PgPool, row: &Pending) -> anyhow::Result<()> {
