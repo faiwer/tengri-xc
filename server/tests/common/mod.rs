@@ -125,22 +125,33 @@ async fn reset_schema(pool: &PgPool) {
         .expect("apply migrations on test DB");
 }
 
-/// Wipe all rows but keep the schema. `RESTART IDENTITY` rewinds the user-id
-/// sequence so tests can re-use deterministic ids like `1`. `CASCADE` deals
-/// with the FK chain (flights → tracks/sources).
+/// Wipe all rows but keep the schema. `RESTART IDENTITY` rewinds identity
+/// sequences so tests can re-use deterministic ids. `CASCADE` deals with the
+/// FK chains (flights → tracks/sources, gliders → flights).
 ///
 /// `site_settings` is a singleton-row table — TRUNCATE would lose the row
 /// migrations inserted, so we DELETE + INSERT to rewind every column to its
-/// schema default between tests. Tests that mutate site settings can rely on
-/// the next one starting from defaults.
+/// schema default between tests.
+///
+/// Seeds a default "unresolved other-kind" glider (id=1) so [`seed_flight`]
+/// can populate the NOT-NULL `glider_id` without each test having to think
+/// about it. The brand/model dictionaries stay empty — tests that care about
+/// glider details seed their own rows.
 async fn truncate_data(pool: &PgPool) {
     sqlx::query(
-        "TRUNCATE flight_tracks, flight_sources, flights, user_profiles, users \
+        "TRUNCATE flight_tracks, flight_sources, flights, \
+                  gliders, glider_models, brands, \
+                  user_profiles, users \
          RESTART IDENTITY CASCADE",
     )
     .execute(pool)
     .await
     .expect("truncate fixture tables");
+
+    sqlx::query("INSERT INTO gliders (id, kind) VALUES (1, 'other')")
+        .execute(pool)
+        .await
+        .expect("seed default test glider");
 
     sqlx::query("DELETE FROM site_settings")
         .execute(pool)
@@ -151,6 +162,11 @@ async fn truncate_data(pool: &PgPool) {
         .await
         .expect("reseed site_settings defaults");
 }
+
+/// `glider_id` value pointing at the default unresolved glider seeded by
+/// [`truncate_data`]. Tests that don't care about wing classification reach
+/// for this; tests that do can insert their own row and pass the real id.
+pub const DEFAULT_TEST_GLIDER_ID: i32 = 1;
 
 /// Convenience: build the app router on top of a pooled `AppState`.
 pub async fn test_app() -> (Router, PgPool) {
@@ -189,14 +205,16 @@ pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String
     sqlx::query(
         "INSERT INTO flights \
             (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
-             takeoff_point, landing_point) \
+             takeoff_point, landing_point, glider_id) \
          VALUES \
             ($1, $2, now(), now(), 0, 0, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
-             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             $3)",
     )
     .bind(flight_id)
     .bind(user_id)
+    .bind(DEFAULT_TEST_GLIDER_ID)
     .execute(pool)
     .await
     .expect("seed flight");
@@ -215,16 +233,18 @@ pub async fn seed_flight_at(
     sqlx::query(
         "INSERT INTO flights \
             (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
-             takeoff_point, landing_point) \
+             takeoff_point, landing_point, glider_id) \
          VALUES \
             ($1, $2, to_timestamp($3), to_timestamp($4), 0, 0, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
-             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             $5)",
     )
     .bind(flight_id)
     .bind(user_id)
     .bind(takeoff_at)
     .bind(landing_at)
+    .bind(DEFAULT_TEST_GLIDER_ID)
     .execute(pool)
     .await
     .expect("seed flight");
