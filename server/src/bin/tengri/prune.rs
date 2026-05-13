@@ -1,22 +1,20 @@
-//! `tengri prune` — wipe every data table in the database while
-//! keeping the schema (and the `_sqlx_migrations` ledger) intact.
-//! Roughly the moral equivalent of "drop the DB and re-migrate" but
-//! cheaper and reusable for tests / dev resets.
+//! `tengri prune` — wipe every data table in the database while keeping the
+//! schema (and the `_sqlx_migrations` ledger) intact. Roughly the moral
+//! equivalent of "drop the DB and re-migrate" but cheaper and reusable for
+//! tests / dev resets.
 //!
-//! How: a single `TRUNCATE users, flights, flight_tracks,
-//! flight_sources RESTART IDENTITY CASCADE`. `RESTART IDENTITY`
-//! resets the `users.id` sequence so a fresh dataset starts from 1
-//! again — important because the leonardo importer bumps that
-//! sequence past `MAX(pilotID)` and we don't want a stale post-import
-//! value lingering into the next session.
+//! How: a single `TRUNCATE … RESTART IDENTITY CASCADE` over every data table.
+//! `RESTART IDENTITY` resets the identity sequences so a fresh dataset starts
+//! from 1 again — important because the Leonardo importer bumps `users.id` past
+//! `MAX(pilotID)` and we don't want a stale post-import value lingering into
+//! the next session.
 //!
-//! Why we don't `DROP TABLE` and re-migrate: prune is meant to run in
-//! tens of milliseconds and not require a separate `tengri migrate`
-//! pass afterwards. We keep `_sqlx_migrations` untouched so the
-//! schema-version chain stays valid.
+//! Why we don't `DROP TABLE` and re-migrate: prune is meant to run in tens of
+//! milliseconds and not require a separate `tengri migrate` pass afterwards. We
+//! keep `_sqlx_migrations` untouched so the schema-version chain stays valid.
 //!
-//! Safety: prints the row counts about to be deleted and asks for
-//! `y/N` confirmation. `--yes` skips the prompt for scripts/CI.
+//! Safety: prints the row counts about to be deleted and asks for `y/N`
+//! confirmation. `--yes` skips the prompt for scripts/CI.
 
 use std::io::{self, Write};
 
@@ -25,13 +23,16 @@ use sqlx::PgPool;
 
 use super::shared::connect_pool;
 
-/// Tables we wipe, listed in the order their counts are printed. The
-/// `TRUNCATE` itself takes them all at once with `CASCADE`, so the
-/// order in this list is purely cosmetic — but matching parent →
-/// child reads naturally in the summary.
+/// Tables we wipe, listed in the order their counts are printed. The `TRUNCATE`
+/// itself takes them all at once with `CASCADE`, so the order in this list is
+/// purely cosmetic — but matching parent → child reads naturally in the
+/// summary.
 const TABLES: &[&str] = &[
     "users",
     "user_profiles",
+    "brands",
+    "glider_models",
+    "gliders",
     "flights",
     "flight_tracks",
     "flight_sources",

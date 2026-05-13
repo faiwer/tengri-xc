@@ -1,17 +1,7 @@
 {
   "Aeros": {
-    "single_surface": [
-      "Fox",
-      "Target",
-      "Target 21¶tandem",
-      "Student"
-    ],
-    "kingpost": [
-      "Discus",
-      "Discus C",
-      "Sport (Спорт)",
-      "Stealth"
-    ],
+    "single_surface": ["Fox", "Target", "Target 21¶tandem", "Student"],
+    "kingpost": ["Discus", "Discus C", "Sport (Спорт)", "Stealth"],
     "topless": [
       "Combat",
       "Combat 09",
@@ -24,10 +14,7 @@
       "Stealth Combat",
       "Stealth KPL"
     ],
-    "rigid": [
-      "Phantom",
-      "Star"
-    ]
+    "rigid": ["Phantom", "Star"]
   },
   "Aerotec": {
     "kingpost": [
@@ -60,27 +47,12 @@
     ]
   },
   "Airborne": {
-    "single_surface": [
-      "Fun",
-      "Fun 220¶tandem"
-    ],
-    "kingpost": [
-      "Blade",
-      "Blitz",
-      "Sting",
-      "Sting 3 XC",
-      "Sting XC"
-    ],
-    "topless": [
-      "C4",
-      "REV",
-      "Shark"
-    ]
+    "single_surface": ["Fun", "Fun 220¶tandem"],
+    "kingpost": ["Blade", "Blitz", "Sting", "Sting 3 XC", "Sting XC"],
+    "topless": ["C4", "REV", "Shark"]
   },
   "Airwave & Villinger": {
-    "single_surface": [
-      "Skye"
-    ],
+    "single_surface": ["Skye"],
     "kingpost": [
       "Calypso",
       "Calypso Firebird",
@@ -106,23 +78,13 @@
     ]
   },
   "Apco Aviation": {
-    "kingpost": [
-      "Fuga",
-      "Nimbus",
-      "Puma",
-      "Santana",
-      "Santana SRC"
-    ]
+    "kingpost": ["Fuga", "Nimbus", "Puma", "Santana", "Santana SRC"]
   },
   "Baltussen Henricus": {
-    "kingpost": [
-      "F1 evolution"
-    ]
+    "kingpost": ["F1 evolution"]
   },
   "Baumgartner D": {
-    "kingpost": [
-      "Ladas"
-    ]
+    "kingpost": ["Ladas"]
   },
   "Bautek": {
     "kingpost": [
@@ -138,27 +100,16 @@
       "Sunrise",
       "Zephir CX"
     ],
-    "topless": [
-      "Spice",
-      "Twister"
-    ]
+    "topless": ["Spice", "Twister"]
   },
   "Condor": {
-    "single_surface": [
-      "Crex",
-      "Flex"
-    ]
+    "single_surface": ["Crex", "Flex"]
   },
   "Delta Wing": {
-    "kingpost": [
-      "Phoenix Streak",
-      "Phoenix X"
-    ]
+    "kingpost": ["Phoenix Streak", "Phoenix X"]
   },
   "Ellipse": {
-    "single_surface": [
-      "Sol`R"
-    ]
+    "single_surface": ["Sol`R"]
   },
   "Enterprise Wings": {
     "kingpost": [
@@ -171,15 +122,10 @@
     ]
   },
   "Europe Sails": {
-    "kingpost": [
-      "Lightning",
-      "Special Dimensione"
-    ]
+    "kingpost": ["Lightning", "Special Dimensione"]
   },
   "Falhawk": {
-    "kingpost": [
-      "Excel"
-    ]
+    "kingpost": ["Excel"]
   },
   "Finsterwalder": {
     "kingpost": [
@@ -214,17 +160,10 @@
     ]
   },
   "Fliegerböhm & Flight Design": {
-    "rigid": [
-      "Axxess",
-      "Exxtacy",
-      "Exxtacy Bi¶tandem",
-      "Ghostbuster"
-    ]
+    "rigid": ["Axxess", "Exxtacy", "Exxtacy Bi¶tandem", "Ghostbuster"]
   },
   "Fulmar": {
-    "kingpost": [
-      "Rival"
-    ]
+    "kingpost": ["Rival"]
   },
   "Guggenmos Josef & Achim Kühnle": {
     "kingpost": [
@@ -243,44 +182,25 @@
       "Super Wing",
       "Wings C"
     ],
-    "rigid": [
-      "E7",
-      "ESC",
-      "Esc-c"
-    ]
+    "rigid": ["E7", "ESC", "Esc-c"]
   },
   "Hangglifter": {
-    "single_surface": [
-      "Lifter"
-    ]
+    "single_surface": ["Lifter"]
   },
   "Hauser Hans": {
-    "kingpost": [
-      "Libre I",
-      "Libre II"
-    ]
+    "kingpost": ["Libre I", "Libre II"]
   },
   "Hiway": {
-    "kingpost": [
-      "Demon",
-      "Explorer",
-      "Super Scorpion"
-    ]
+    "kingpost": ["Demon", "Explorer", "Super Scorpion"]
   },
-  "Homebuilt": {
-    "kingpost": [
-      "X-13",
-      "X-14",
-      "Dedal"
-    ]
+  "Matvienko": {
+    "kingpost": ["Dedal"]
+  },
+  "Sutyagin": {
+    "kingpost": ["X-13", "X-14"]
   },
   "Icaro": {
-    "single_surface": [
-      "Mars",
-      "Piuma",
-      "Relax",
-      "RX 2 BIP"
-    ],
+    "single_surface": ["Mars", "Piuma", "Relax", "RX 2 BIP"],
     "kingpost": [
       "Brazil",
       "Easy 2",
@@ -302,35 +222,20 @@
       "Laminar Z9",
       "Laminar Zero"
     ],
-    "rigid": [
-      "Stratos"
-    ]
+    "rigid": ["Stratos"]
   },
   "Ikarus Pellicci": {
-    "single_surface": [
-      "Duo Club¶tandem",
-      "Grashüpfer"
-    ],
-    "kingpost": [
-      "Ikarus",
-      "Spirit"
-    ]
+    "single_surface": ["Duo Club¶tandem", "Grashüpfer"],
+    "kingpost": ["Ikarus", "Spirit"]
   },
   "Impuls Flugdrachen": {
-    "kingpost": [
-      "Impuls",
-      "Impuls IC"
-    ]
+    "kingpost": ["Impuls", "Impuls IC"]
   },
   "Iser Herbert": {
-    "kingpost": [
-      "Futura Compact"
-    ]
+    "kingpost": ["Futura Compact"]
   },
   "Kecur": {
-    "kingpost": [
-      "Tropi"
-    ]
+    "kingpost": ["Tropi"]
   },
   "La Mouette": {
     "kingpost": [
@@ -347,16 +252,10 @@
       "Top Swing",
       "X-Ray"
     ],
-    "topless": [
-      "Topless"
-    ]
+    "topless": ["Topless"]
   },
   "Moyes": {
-    "single_surface": [
-      "Malibu",
-      "Malibu 2",
-      "Mars"
-    ],
+    "single_surface": ["Malibu", "Malibu 2", "Mars"],
     "kingpost": [
       "Gecko",
       "GT",
@@ -384,48 +283,26 @@
     ]
   },
   "Oleg": {
-    "kingpost": [
-      "Cheburashka"
-    ]
+    "kingpost": ["Cheburashka"]
   },
   "Pacific Diffusion": {
-    "kingpost": [
-      "Select",
-      "Tango"
-    ]
+    "kingpost": ["Select", "Tango"]
   },
   "Polaris": {
-    "single_surface": [
-      "Delta",
-      "Delta Super"
-    ],
-    "kingpost": [
-      "Gamma",
-      "Touring"
-    ]
+    "single_surface": ["Delta", "Delta Super"],
+    "kingpost": ["Gamma", "Touring"]
   },
   "Praum Erwin": {
-    "kingpost": [
-      "Windspiel II"
-    ]
+    "kingpost": ["Windspiel II"]
   },
   "Scherer": {
-    "kingpost": [
-      "Flash"
-    ]
+    "kingpost": ["Flash"]
   },
   "Schönleber Metallbau": {
-    "kingpost": [
-      "Focus",
-      "Lotus",
-      "Speed N",
-      "Vampir I"
-    ]
+    "kingpost": ["Focus", "Lotus", "Speed N", "Vampir I"]
   },
   "Seedwings": {
-    "single_surface": [
-      "Funky"
-    ],
+    "single_surface": ["Funky"],
     "kingpost": [
       "Crossover",
       "Kestrel",
@@ -435,60 +312,36 @@
       "Space",
       "Spyder"
     ],
-    "topless": [
-      "Vertigo",
-      "Viagro",
-      "Viagro Race"
-    ]
+    "topless": ["Vertigo", "Viagro", "Viagro Race"]
   },
   "Sirio": {
-    "kingpost": [
-      "Hazard",
-      "Sirius"
-    ]
+    "kingpost": ["Hazard", "Sirius"]
   },
   "Skytec": {
-    "kingpost": [
-      "Epsilon",
-      "Gyro",
-      "Probe"
-    ]
+    "kingpost": ["Epsilon", "Gyro", "Probe"]
   },
   "Solar Wings": {
-    "kingpost": [
-      "Rumour",
-      "Typhoon",
-      "Typhoon ACE"
-    ]
+    "kingpost": ["Rumour", "Typhoon", "Typhoon ACE"]
   },
   "Steinbach": {
-    "single_surface": [
-      "Euro 2",
-      "Euro 3"
-    ],
-    "kingpost": [
-      "Spot"
-    ]
+    "single_surface": ["Euro 2", "Euro 3"],
+    "kingpost": ["Spot"]
   },
   "Synairgie": {
-    "single_surface": [
-      "Club"
-    ]
+    "single_surface": ["Club"]
+  },
+  "USSR": {
+    "single_surface": ["UT"]
   },
   "Syromyatnikov": {
-    "topless": [
-      "Raven"
-    ]
+    "kingpost": ["Kirpich"],
+    "topless": ["Raven"]
   },
   "Tecma": {
-    "kingpost": [
-      "Medil"
-    ]
+    "kingpost": ["Medil"]
   },
   "UP International": {
-    "single_surface": [
-      "Joker"
-    ],
+    "single_surface": ["Joker"],
     "kingpost": [
       "Axis",
       "Comet",
@@ -505,24 +358,13 @@
     ]
   },
   "Vega": {
-    "kingpost": [
-      "Alfa",
-      "Vega"
-    ]
+    "kingpost": ["Alfa", "Vega"]
   },
   "Wasp-Air": {
-    "kingpost": [
-      "Falcon 5",
-      "Gryphon DS",
-      "Gryphon Sierra",
-      "Super Gryphon"
-    ]
+    "kingpost": ["Falcon 5", "Gryphon DS", "Gryphon Sierra", "Super Gryphon"]
   },
   "Wills Wing": {
-    "single_surface": [
-      "Falcon",
-      "Harrier"
-    ],
+    "single_surface": ["Falcon", "Harrier"],
     "kingpost": [
       "AT",
       "Cross Country",
@@ -540,20 +382,12 @@
       "U2",
       "Ultra Sport"
     ],
-    "topless": [
-      "Fusion",
-      "T2",
-      "T2C"
-    ]
+    "topless": ["Fusion", "T2", "T2C"]
   },
   "Wujasin Johann": {
-    "kingpost": [
-      "VK 3 Rebell"
-    ]
+    "kingpost": ["VK 3 Rebell"]
   },
   "Zettelmaier": {
-    "kingpost": [
-      "Taifun"
-    ]
+    "kingpost": ["Taifun"]
   }
 }

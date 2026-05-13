@@ -2562,6 +2562,7 @@ dependencies = [
  "tracing-subscriber",
  "twox-hash",
  "tzf-rs",
+ "unicode-normalization",
  "uuid",
  "zip",
 ]
