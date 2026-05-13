@@ -10,22 +10,24 @@ import type { ResolvedPreferences } from '../core/preferences';
 // `Intl.DateTimeFormat` construction is non-trivial; cache one per (preference
 // value, has-offset?) so repeated render calls don't allocate.
 
-const DATE_FMT_DMY_VIEWER = new Intl.DateTimeFormat(undefined, {
+// Order is locale-driven (`en-GB` → D/M/Y, `en-US` → M/D/Y); the separator
+// literal that the locale would emit (`/` or `-`) is discarded by
+// `joinWithDots` so every short date renders as `dd.mm.yyyy` / `mm.dd.yyyy`.
+// With `undefined` instead of a fixed locale we'd inherit the browser's locale
+// order, which on en-US would silently swap dmy → mdy.
+const DATE_FMT_DMY_VIEWER = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
 });
 
-const DATE_FMT_DMY_UTC = new Intl.DateTimeFormat(undefined, {
+const DATE_FMT_DMY_UTC = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
   timeZone: 'UTC',
 });
 
-// `en-US` is the canonical month-day-year locale: forces M/D/Y order
-// and `/` separators regardless of the page's locale, matching what
-// US pilots expect.
 const DATE_FMT_MDY_VIEWER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
   month: '2-digit',
@@ -109,8 +111,16 @@ export const formatShortDate = (
       : offsetSeconds === undefined
         ? DATE_FMT_DMY_VIEWER
         : DATE_FMT_DMY_UTC;
-  return fmt.format(at(epochSeconds, offsetSeconds));
+  return joinWithDots(fmt.formatToParts(at(epochSeconds, offsetSeconds)));
 };
+
+/** Drop locale separators (`/`, `-`), keep numeric parts in their
+ *  locale-chosen order, glue with `.`. */
+const joinWithDots = (parts: Intl.DateTimeFormatPart[]): string =>
+  parts
+    .filter((p) => p.type !== 'literal')
+    .map((p) => p.value)
+    .join('.');
 
 /**
  * `HH:mm` (24-hour) or `hh:mm AM/PM` (12-hour) per the user's preference.

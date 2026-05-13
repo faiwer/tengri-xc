@@ -10,7 +10,7 @@ import { useErrorToast } from '../../core/hooks';
 import { isAdminBits } from '../../core/identity';
 import { usePreferences } from '../../core/preferences';
 import { routes } from '../../core/routes';
-import { formatShortDate } from '../../utils/formatDateTime';
+import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
 import { SettingsSection } from './SettingsSection';
 import styles from './UsersSettings.module.scss';
 import { useUsersFeed } from './useUsersFeed';
@@ -60,9 +60,13 @@ export function UsersSettings() {
         title: 'Last login',
         dataIndex: 'lastLoginAt',
         key: 'lastLoginAt',
-        width: '100px',
+        width: '160px',
         render: (epoch: number | null) =>
-          epoch === null ? <Muted>never</Muted> : formatShortDate(epoch, prefs),
+          epoch === null ? (
+            <Muted>never</Muted>
+          ) : (
+            `${formatShortDate(epoch, prefs)} ${formatShortTime(epoch, prefs)}`
+          ),
       },
     ],
     [prefs],
