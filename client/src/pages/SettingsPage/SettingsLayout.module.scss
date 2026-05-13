@@ -4,7 +4,6 @@
 .layout {
   display: grid;
   grid-template-columns: 220px 1fr;
-  gap: 1.5rem;
 }
 
 // Break out of the PageLayout content card's 1rem padding on three sides so the
@@ -17,7 +16,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  margin: -1rem 0 -1rem -1rem;
   padding: 1rem 0.75rem 10rem;
   background: #0f172a;
   border-radius: 7px 0 0 7px;

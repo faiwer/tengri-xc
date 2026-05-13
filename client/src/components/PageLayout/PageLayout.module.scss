@@ -22,13 +22,11 @@
   padding: 1rem 0 0 0;
 }
 
-// The actual "card": white surface with a full border, separated
-// from the page footer by `margin-bottom`. Flex column so pages
-// that want to fill the viewport height (e.g. TrackPage's two-pane
-// map+chart layout) can grow with `flex: 1` against a definite
-// parent.
+// The actual "card": white surface with a full border, separated from the page
+// footer by `margin-bottom`. Flex column so pages that want to fill the
+// viewport height (e.g. TrackPage's two-pane map+chart layout) can grow with
+// `flex: 1` against a definite parent.
 .content {
-  padding: 1rem;
   flex: 1;
   min-width: 0;
   background: #fff;
@@ -40,10 +38,9 @@
   min-height: 0;
 }
 
-// Opt-in via the `fit` prop. Cancels the `flex: 1` stretch so the
-// card sits at its natural content height — used by the settings
-// shell where short stub pages would otherwise leave a tall white
-// expanse below the form.
+// Opt-in via the `fit` prop. Cancels the `flex: 1` stretch so the card sits at
+// its natural content height — used by the settings shell where short stub
+// pages would otherwise leave a tall white expanse below the form.
 .contentFit {
   flex: 0 0 auto;
 }

@@ -89,7 +89,6 @@ export function GlidersSettings() {
         </div>
       ) : (
         <Tree
-          className={styles.tree}
           treeData={treeData}
           expandedKeys={expandedKeys}
           onExpand={setExpandedKeys}

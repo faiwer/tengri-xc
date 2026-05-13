@@ -151,7 +151,7 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
   return (
     <SettingsSection
       title="System settings"
-      subtitle="Site-wide configuration."
+      scrollable
       action={
         isDirty && (
           <Button

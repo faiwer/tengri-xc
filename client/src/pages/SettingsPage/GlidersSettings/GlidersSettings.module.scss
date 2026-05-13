@@ -8,15 +8,15 @@
   width: 240px;
 }
 
+// Floats above the tree's top-right corner so the tree itself starts at the
+// very top of the body. Inside the scrollable body (`position: relative`) so it
+// anchors there; this means it scrolls with the tree content rather than
+// staying pinned — switch to `position: sticky` if we want it always visible.
 .controls {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: var(--page-content-pad);
+  right: var(--page-content-pad);
   z-index: 1;
-}
-
-.tree {
-  margin-top: 8px;
 }
 
 .tandem {

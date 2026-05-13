@@ -75,6 +75,7 @@ export function UsersSettings() {
   return (
     <SettingsSection
       title="Users"
+      scrollable
       action={
         <Input.Search
           allowClear
