@@ -7,6 +7,7 @@ import { PrivacyPage, TermsPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
 import {
   AuthorizationSettings,
+  GlidersSettings,
   MyFlightsSettings,
   PreferencesSettings,
   ProfileSettings,
@@ -58,6 +59,7 @@ export function App() {
                     <Route path="system" element={<SystemSettings />} />
                     <Route path="users" element={<UsersSettings />} />
                     <Route path="users/:id" element={<UserDetailSettings />} />
+                    <Route path="gliders" element={<GlidersSettings />} />
                   </Route>
                 </Routes>
               </BrowserRouter>

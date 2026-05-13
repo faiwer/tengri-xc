@@ -1,0 +1,40 @@
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search {
+  width: 240px;
+}
+
+.controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.tree {
+  margin-top: 8px;
+}
+
+.tandem {
+  margin-left: 6px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.empty {
+  padding: 32px 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+.brandIcon {
+  color: #6787d4;
+}
+
+.classIcon {
+  color: #269b33;
+}

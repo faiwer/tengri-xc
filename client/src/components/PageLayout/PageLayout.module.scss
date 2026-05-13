@@ -1,3 +1,8 @@
+// The vertical metrics in this file (`.header` height, `.content`
+// padding/margin, `.footer` height) feed `--page-chrome` in `index.scss`. If
+// you change any of them, update the variable so `calc(100vh -
+// var(--page-chrome))` consumers stay correct.
+
 // Centering column only. Background and borders moved to `.content`
 // so the header reads as part of the page (sky-blue app bg shows
 // through behind the title and account buttons).

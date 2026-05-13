@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import styles from './SettingsSection.module.scss';
 
@@ -10,6 +11,13 @@ interface SettingsSectionProps {
    * the section just makes the spot consistent.
    */
   action?: ReactNode;
+  /**
+   * When true, the body is capped by viewport height and scrolls internally
+   * instead of pushing the page taller. The header stays fixed at the top of
+   * the section, body gets its own scrollbar. Use for long, page-shaped content
+   * (tables, trees) that would otherwise blow past 100vh.
+   */
+  scrollable?: boolean;
   children?: ReactNode;
 }
 
@@ -26,10 +34,11 @@ export function SettingsSection({
   title,
   subtitle,
   action,
+  scrollable = false,
   children,
 }: SettingsSectionProps) {
   return (
-    <section className={styles.section}>
+    <section className={clsx(styles.section, scrollable && styles.scrollable)}>
       <header className={styles.header}>
         <div className={styles.headerText}>
           <h2 className={styles.title}>{title}</h2>

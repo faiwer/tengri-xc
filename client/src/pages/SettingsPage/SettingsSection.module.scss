@@ -3,6 +3,31 @@
   flex-direction: column;
 }
 
+// Opt-in via the `scrollable` prop. Anchors the section to the viewport so long
+// bodies (gliders tree, big tables) scroll internally instead of pushing the
+// whole page past 100vh. `--page-chrome` is the PageLayout offset (see
+// `index.scss`). `min-height` keeps short bodies from looking squished; on
+// viewports where `min` would exceed `max`, CSS picks `min` and the section
+// overflows the viewport gracefully (rare in practice).
+.scrollable {
+  min-height: 70vh;
+  max-height: calc(100vh - var(--page-chrome));
+
+  .header {
+    flex-shrink: 0;
+    margin-bottom: 0;
+  }
+
+  .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    // Anchor for absolutely-positioned children in scrollable pages (e.g. the
+    // gliders kind switcher pinned to the top-right corner).
+    position: relative;
+  }
+}
+
 // `min-height` keeps the header from collapsing when the action slot
 // is empty / conditional, so toggling a Save button doesn't shift the
 // content below.

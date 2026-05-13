@@ -19,6 +19,7 @@ import {
 } from '../../core/identity';
 import { routes } from '../../core/routes';
 import styles from './SettingsLayout.module.scss';
+import { SpIcon } from '../../components/icons';
 
 interface NavItem {
   label: string;
@@ -93,6 +94,12 @@ export function SettingsLayout() {
           icon: <TeamOutlined />,
           permission: Permissions.MANAGE_USERS,
           matchPrefix: true,
+        },
+        {
+          label: 'Gliders',
+          to: routes.settings.gliders(),
+          icon: <SpIcon />,
+          permission: Permissions.MANAGE_GLIDERS,
         },
       ],
     },

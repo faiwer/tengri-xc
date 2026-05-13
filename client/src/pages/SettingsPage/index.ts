@@ -1,3 +1,4 @@
+export { GlidersSettings } from './GlidersSettings';
 export { PreferencesSettings } from './PreferencesSettings';
 export { SettingsLayout } from './SettingsLayout';
 export { SystemSettings } from './SystemSettings';
