@@ -9,16 +9,13 @@
 //! Same code path, same idempotency guarantees.
 
 use anyhow::Context;
-use tengri_server::flight::backfill;
+use tengri_server::{flight::backfill, migrate};
 
 use super::shared::connect_pool;
 
 pub async fn run() -> anyhow::Result<()> {
     let pool = connect_pool().await?;
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .context("running migrations")?;
+    migrate::apply(&sqlx::migrate!("./migrations"), &pool).await?;
     println!("migrations applied");
 
     let backfilled = backfill::run(&pool).await.context("backfilling flights")?;

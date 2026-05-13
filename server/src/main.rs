@@ -1,6 +1,6 @@
 use anyhow::Context;
 use sqlx::postgres::PgPoolOptions;
-use tengri_server::{AppState, Config, build_app, telemetry};
+use tengri_server::{AppState, Config, build_app, migrate, telemetry};
 use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
@@ -23,10 +23,7 @@ async fn main() -> anyhow::Result<()> {
         .context("connecting to Postgres")?;
     tracing::info!("postgres pool ready");
 
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .context("running migrations")?;
+    migrate::apply(&sqlx::migrate!("./migrations"), &pool).await?;
     tracing::info!("migrations applied");
 
     let backfilled = tengri_server::flight::backfill::run(&pool)
