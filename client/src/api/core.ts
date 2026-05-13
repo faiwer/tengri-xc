@@ -63,8 +63,16 @@ function formatIssues(issues: z.core.$ZodIssue[]): string {
     .join('; ');
 }
 
+/**
+ * Query-string values. `undefined` is dropped, so callers can write `{ page:
+ * opts.page }` without a pre-filter. Keys are camelCase here and snake_cased at
+ * the wire boundary, matching the JSON-body convention.
+ */
+export type ApiQuery = Record<string, string | number | boolean | undefined>;
+
 export interface ApiRequestOptions {
   signal?: AbortSignal;
+  query?: ApiQuery;
 }
 
 interface FetchOptions extends ApiRequestOptions {
@@ -74,7 +82,7 @@ interface FetchOptions extends ApiRequestOptions {
 
 /** Issue the request, normalize transport/HTTP failures into `ApiError` subclasses. */
 async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
-  const url = SERVER_URL + path;
+  const url = SERVER_URL + buildPath(path, options.query);
   const method = options.method ?? 'GET';
   const init: RequestInit = {
     method,
@@ -110,6 +118,32 @@ async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
     throw await readErrorBody(response);
   }
   return response;
+}
+
+/**
+ * Append `query` to `path` as a snake_cased URL search string. Returns `path`
+ * unchanged when there's nothing to append (no query, or every value was
+ * `undefined`). Caller is expected to keep `path` free of an existing `?` —
+ * query goes through this helper.
+ */
+function buildPath(path: string, query: ApiQuery | undefined): string {
+  if (!query) {
+    return path;
+  }
+
+  const params = new URLSearchParams();
+  const snake = snakecaseKeys(query as Record<string, unknown>) as Record<
+    string,
+    unknown
+  >;
+  for (const [key, value] of Object.entries(snake)) {
+    if (value !== undefined) {
+      params.append(key, String(value));
+    }
+  }
+
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 /**

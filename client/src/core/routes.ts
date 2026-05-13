@@ -15,5 +15,6 @@ export const routes = {
     system: () => '/settings/system',
     users: () => '/settings/users',
     user: (id: number) => `/settings/users/${id}`,
+    gliders: () => '/settings/gliders',
   },
 };
