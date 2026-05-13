@@ -92,6 +92,7 @@ export function GlidersSettings() {
           treeData={treeData}
           expandedKeys={expandedKeys}
           onExpand={setExpandedKeys}
+          expandAction="click"
           selectable={false}
           showIcon
           showLine

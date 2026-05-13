@@ -38,3 +38,17 @@
 .classIcon {
   color: #269b33;
 }
+
+.treeNode {
+  :global(.ant-tree-node-content-wrapper) {
+    // By default it has an ugly big left padding. It seems not to be used.
+    padding-left: 0 !important;
+    // To avoid occupying the full width of the parent.
+    flex-grow: 0 !important;
+  }
+
+  :global(.ant-tree-switcher) {
+    // They are too dark by default.
+    opacity: 0.7;
+  }
+}

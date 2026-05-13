@@ -90,10 +90,12 @@ export function buildTree(
       const classKey = `class:${brand.id}:${cls}`;
       classNodes.push({
         key: classKey,
+        className: styles.treeNode,
         title: CLASS_LABEL[cls],
         icon: CLASS_ICON,
         children: models.map((m) => ({
           key: `model:${brand.id}:${m.id}`,
+          className: styles.treeNode,
           title: m.isTandem ? (
             <>
               {m.name}
@@ -118,6 +120,7 @@ export function buildTree(
     const brandKey = `brand:${brand.id}`;
     treeData.push({
       key: brandKey,
+      className: styles.treeNode,
       title: brand.name,
       icon: BRAND_ICON,
       children: classNodes,
