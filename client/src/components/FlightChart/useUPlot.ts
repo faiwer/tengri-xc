@@ -39,7 +39,12 @@ export const useUPlot = (
     const merged: Options = {
       width: container.clientWidth,
       height: container.clientHeight,
-      cursor: { drag: { setScale: false } },
+      cursor: {
+        show: true,
+        x: true,
+        y: false,
+        drag: { x: false, y: false },
+      },
       scales: {
         x: { time: true },
         y: { auto: true },
