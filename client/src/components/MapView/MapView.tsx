@@ -22,7 +22,9 @@ export function MapView({ children }: MapViewProps) {
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={DEFAULT_ZOOM}
           gestureHandling="greedy"
-          disableDefaultUI={false}
+          disableDefaultUI
+          fullscreenControl
+          mapTypeControl
         >
           {children}
         </Map>
