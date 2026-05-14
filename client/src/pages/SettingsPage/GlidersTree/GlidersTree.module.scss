@@ -1,0 +1,28 @@
+// Antd `Tree` ships some defaults that don't suit our compact list-style trees.
+// Scoped to `.root` so the overrides apply only to glider trees and don't leak
+// to other antd Trees.
+.root {
+  :global(.ant-tree-node-content-wrapper) {
+    // Default has a chunky left padding that doesn't appear to be used.
+    padding-left: 0 !important;
+    // Stop the row from stretching to the full container width.
+    flex-grow: 0 !important;
+  }
+
+  :global(.ant-tree-switcher) {
+    // Default switcher arrow is too dark for the surrounding tone.
+    opacity: 0.7;
+  }
+}
+
+.brandIcon {
+  color: var(--glider-brand-color);
+}
+
+.classIcon {
+  color: var(--glider-class-color);
+}
+
+.kindIcon {
+  color: var(--glider-kind-color);
+}

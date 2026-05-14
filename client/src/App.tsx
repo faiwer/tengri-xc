@@ -9,6 +9,7 @@ import {
   AuthorizationSettings,
   GlidersSettings,
   MyFlightsSettings,
+  MyGlidersSettings,
   PreferencesSettings,
   ProfileSettings,
   SettingsLayout,
@@ -56,6 +57,7 @@ export function App() {
                     />
                     <Route path="stats" element={<StatsSettings />} />
                     <Route path="my-flights" element={<MyFlightsSettings />} />
+                    <Route path="my-gliders" element={<MyGlidersSettings />} />
                     <Route path="system" element={<SystemSettings />} />
                     <Route path="users" element={<UsersSettings />} />
                     <Route path="users/:id" element={<UserDetailSettings />} />

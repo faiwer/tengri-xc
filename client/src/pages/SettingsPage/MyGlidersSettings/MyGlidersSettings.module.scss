@@ -1,0 +1,61 @@
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty {
+  padding: 32px 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+.tandem {
+  margin-left: 6px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.flightCount {
+  margin-left: 8px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.private,
+.unknown {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// Private = model row owned by this pilot (custom). Surfaced as a soft indigo
+// tag so the catalogue / custom split reads at a glance.
+.private {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+// Unknown class — the importer couldn't pin a cert / shape, so the row landed
+// with `class='unknown'`. Tinted amber so it reads as "needs attention" without
+// being alarming.
+.unknown {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.leaf {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.leafLabel {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

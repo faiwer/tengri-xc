@@ -77,6 +77,11 @@ export function SettingsLayout() {
           to: routes.settings.myFlights(),
           icon: <RiseOutlined />,
         },
+        {
+          label: 'My gliders',
+          to: routes.settings.myGliders(),
+          icon: <SpIcon />,
+        },
       ],
     },
     {

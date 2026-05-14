@@ -1,10 +1,11 @@
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, Input, Segmented, Skeleton, Tooltip, Tree } from 'antd';
+import { Button, Input, Segmented, Skeleton, Tooltip } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 
 import { SportIo, type Sport } from '../../../api/admin/gliders.io';
 import { LoadError } from '../../../components/LoadError';
 import { useLocalStorageValue } from '../../../utils/useLocalStorageValue';
+import { GlidersTree } from '../GlidersTree';
 import { SettingsSection } from '../SettingsSection';
 import { buildTree, type TreeBuild } from './buildTree';
 import { useGliderCatalog } from './useGliderCatalog';
@@ -88,15 +89,11 @@ export function GlidersSettings() {
             : 'No models in the dictionary yet.'}
         </div>
       ) : (
-        <Tree
+        <GlidersTree
           treeData={treeData}
           expandedKeys={expandedKeys}
           onExpand={setExpandedKeys}
           expandAction="click"
-          selectable={false}
-          showIcon
-          showLine
-          blockNode
         />
       )}
     </SettingsSection>

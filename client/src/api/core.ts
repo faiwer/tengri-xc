@@ -147,22 +147,20 @@ function buildPath(path: string, query: ApiQuery | undefined): string {
 }
 
 /**
- * Build the right `ApiError` subclass for a non-OK response. 422 with
- * a `{ fields }` body becomes [`ValidationError`]; everything else
- * stays a plain [`HttpError`]. Body parsing failures fall back to a
- * status-only `HttpError` (the request did fail; the failure shape
- * is just opaque to the caller).
+ * Build the right `ApiError` subclass for a non-OK response. The server shape
+ * is `{ error, message, fields? }` for every error path; we read `message` so
+ * the FE can surface the human text without re-deriving it from the status. 422
+ * with a `fields` map promotes to [`ValidationError`]; everything else stays an
+ * [`HttpError`] carrying just the message. Body parsing failures fall back to a
+ * status-only `HttpError` (the request did fail; the failure shape is just
+ * opaque to the caller).
  */
 async function readErrorBody(response: Response): Promise<HttpError> {
-  if (response.status !== 422) {
-    return new HttpError(response.status);
-  }
-
   let raw: unknown;
   try {
     raw = await response.json();
   } catch {
-    return new HttpError(422);
+    return new HttpError(response.status);
   }
 
   // Same camelcase rewrite as success bodies: server keys are
@@ -175,12 +173,16 @@ async function readErrorBody(response: Response): Promise<HttpError> {
           fields?: Record<string, string>;
         })
       : null;
-  const fields = camelized?.fields;
-  if (!fields || typeof fields !== 'object') {
-    return new HttpError(422, camelized?.message);
+
+  if (response.status === 422) {
+    const fields = camelized?.fields;
+    if (!fields || typeof fields !== 'object') {
+      return new HttpError(422, camelized?.message);
+    }
+    return new ValidationError(fields, camelized?.message);
   }
 
-  return new ValidationError(fields, camelized?.message);
+  return new HttpError(response.status, camelized?.message);
 }
 
 /**

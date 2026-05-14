@@ -12,6 +12,7 @@ export const routes = {
     authorization: () => '/settings/authorization',
     stats: () => '/settings/stats',
     myFlights: () => '/settings/my-flights',
+    myGliders: () => '/settings/my-gliders',
     system: () => '/settings/system',
     users: () => '/settings/users',
     user: (id: number) => `/settings/users/${id}`,

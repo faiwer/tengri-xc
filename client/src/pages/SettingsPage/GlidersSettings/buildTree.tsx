@@ -1,4 +1,3 @@
-import { DatabaseOutlined, HomeOutlined } from '@ant-design/icons';
 import type { DataNode } from 'antd/es/tree';
 
 import type {
@@ -9,6 +8,7 @@ import type {
   Sport,
 } from '../../../api/admin/gliders.io';
 import { GliderKindIcon } from '../../../components/icons';
+import { BrandIcon, ClassIcon } from '../GlidersTree';
 import styles from './GlidersSettings.module.scss';
 
 export interface TreeBuild {
@@ -90,12 +90,10 @@ export function buildTree(
       const classKey = `class:${brand.id}:${cls}`;
       classNodes.push({
         key: classKey,
-        className: styles.treeNode,
         title: CLASS_LABEL[cls],
         icon: CLASS_ICON,
         children: models.map((m) => ({
           key: `model:${brand.id}:${m.id}`,
-          className: styles.treeNode,
           title: m.isTandem ? (
             <>
               {m.name}
@@ -120,7 +118,6 @@ export function buildTree(
     const brandKey = `brand:${brand.id}`;
     treeData.push({
       key: brandKey,
-      className: styles.treeNode,
       title: brand.name,
       icon: BRAND_ICON,
       children: classNodes,
@@ -140,17 +137,19 @@ export function buildTree(
  * taxonomy and isn't picker-reachable from this page; mapped to an empty list
  * to satisfy the `Sport` record.
  */
-const CLASS_ORDER: Record<Sport, readonly GliderClass[]> = {
+const CLASS_ORDER: Record<Sport, GliderClass[]> = {
   pg: ['en_a', 'en_b', 'en_c', 'en_d', 'ccc'],
   hg: ['single_surface', 'kingpost', 'topless', 'rigid'],
   sp: [
     'club',
+    'thirteen_point_five_metre',
     'standard',
     'fifteen_metre',
     'eighteen_metre',
     'twenty_metre_two_seater',
     'open',
-    'motorglider',
+    'microlift',
+    'ultralight',
   ],
   other: [],
 };
@@ -165,14 +164,20 @@ const CLASS_LABEL: Record<GliderClass, string> = {
   kingpost: 'Kingpost',
   topless: 'Topless',
   rigid: 'Rigid',
+  thirteen_point_five_metre: '13.5 m',
   standard: 'Standard',
   fifteen_metre: '15 m',
   eighteen_metre: '18 m',
   twenty_metre_two_seater: '20 m two-seater',
   open: 'Open',
   club: 'Club',
-  motorglider: 'Motorglider',
+  microlift: 'Microlift',
+  ultralight: 'Ultralight',
+  // The admin catalog endpoint never emits `'unknown'` (curated rows can't
+  // carry it); the label is here only so this record stays exhaustive over
+  // `GliderClass`.
+  unknown: 'Unknown',
 };
 
-const BRAND_ICON = <HomeOutlined className={styles.brandIcon} />;
-const CLASS_ICON = <DatabaseOutlined className={styles.classIcon} />;
+const BRAND_ICON = <BrandIcon />;
+const CLASS_ICON = <ClassIcon />;

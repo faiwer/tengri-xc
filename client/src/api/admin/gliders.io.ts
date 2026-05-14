@@ -25,13 +25,19 @@ export const GliderClassIo = z.enum([
   'kingpost',
   'topless',
   'rigid',
+  'thirteen_point_five_metre',
   'standard',
   'fifteen_metre',
   'eighteen_metre',
   'twenty_metre_two_seater',
   'open',
   'club',
-  'motorglider',
+  'microlift',
+  'ultralight',
+  // `'unknown'` is only emitted for custom (pilot-private) models the Leonardo
+  // importer couldn't classify. The admin catalog endpoint never returns it
+  // (curated rows are opinionated), but `/me/gliders` does.
+  'unknown',
 ]);
 export type GliderClass = z.infer<typeof GliderClassIo>;
 
