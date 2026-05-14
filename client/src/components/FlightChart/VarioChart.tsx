@@ -17,6 +17,7 @@ interface VarioChartProps {
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
   onHoverFractionChange?: HoverFractionHandler;
+  hoverFraction?: number | null;
 }
 
 /**
@@ -38,6 +39,7 @@ export function VarioChart({
   track,
   window,
   onHoverFractionChange,
+  hoverFraction,
 }: VarioChartProps) {
   const prefs = usePreferences();
   const { data } = useVarioSeries(track, window, prefs);
@@ -49,7 +51,7 @@ export function VarioChart({
     }),
     [prefs.varioUnit],
   );
-  const ref = useUPlot(data, opts, onHoverFractionChange);
+  const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
   return <div ref={ref} className={styles.chart} />;
 }
 

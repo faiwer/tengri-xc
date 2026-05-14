@@ -13,10 +13,11 @@ import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { altitudeRange } from '../track/altitudeRange';
 import { findIndexAt } from '../track/findIndexAt';
-import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
+import { trackToPaths, type TrackWindow } from '../track/toPaths';
 import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
+import { useTrackBounds } from './useTrackBounds';
 import { useTrackHoverPoint } from './useTrackHoverPoint';
 
 type LoadState =
@@ -91,11 +92,13 @@ export function TrackPage() {
     () => (track ? trackToPaths(track, window, insights?.segments) : null),
     [track, window, insights],
   );
-  const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
-  const { point: hoverPoint, setHoverFraction } = useTrackHoverPoint(
-    track,
-    window,
-  );
+  const bounds = useTrackBounds(track, window);
+  const {
+    point: hoverPoint,
+    mapHoverFraction,
+    setHoverFraction,
+    setHoverLatLng,
+  } = useTrackHoverPoint(track, window, bounds);
 
   return (
     <PageLayout>
@@ -117,7 +120,7 @@ export function TrackPage() {
         </aside>
         <div className={styles.right}>
           <div className={styles.mapSlot}>
-            <MapView>
+            <MapView onHoverLatLng={setHoverLatLng}>
               {paths && <TrackPolyline paths={paths} />}
               <TrackHoverMarker point={hoverPoint} />
               <FitBounds bounds={bounds} />
@@ -128,6 +131,7 @@ export function TrackPage() {
               track={track}
               window={window}
               onHoverFractionChange={setHoverFraction}
+              hoverFraction={mapHoverFraction}
             />
           )}
         </div>

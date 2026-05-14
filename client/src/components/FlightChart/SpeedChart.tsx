@@ -16,6 +16,7 @@ interface SpeedChartProps {
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
   onHoverFractionChange?: HoverFractionHandler;
+  hoverFraction?: number | null;
 }
 
 /**
@@ -47,6 +48,7 @@ export function SpeedChart({
   track,
   window,
   onHoverFractionChange,
+  hoverFraction,
 }: SpeedChartProps) {
   const prefs = usePreferences();
   const { data } = useSpeedSeries(track, window, prefs);
@@ -60,7 +62,7 @@ export function SpeedChart({
     }),
     [hasTas, prefs.speedUnit],
   );
-  const ref = useUPlot(data, opts, onHoverFractionChange);
+  const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
 
   return <div ref={ref} className={styles.chart} />;
 }

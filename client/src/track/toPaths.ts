@@ -4,6 +4,8 @@ import type { VarioSegment } from './varioSegments/segments';
 export interface TrackPath {
   /** CSS color for this run; map renderer falls back to a default if absent. */
   color?: string;
+  /** Original track index for `points[0]`. */
+  startIdx: number;
   points: google.maps.LatLngLiteral[];
 }
 
@@ -71,7 +73,7 @@ export function trackToPaths(
   }
 
   if (!window) {
-    return [{ points: projectRange(track, 0, fixCount) }];
+    return [projectPath(track, 0, fixCount)];
   }
 
   const takeoff = clamp(window.takeoffIdx, 0, fixCount);
@@ -79,25 +81,19 @@ export function trackToPaths(
   const paths: TrackPath[] = [];
 
   if (takeoff > 0) {
-    paths.push({
-      color: COLOR_PRE_POST,
-      points: projectRange(track, 0, takeoff + 1),
-    });
+    paths.push(projectPath(track, 0, takeoff + 1, COLOR_PRE_POST));
   }
 
   if (landing > takeoff) {
     if (segments && segments.length > 0) {
       pushVarioRuns(paths, track, segments, fixCount);
     } else {
-      paths.push({ points: projectRange(track, takeoff, landing + 1) });
+      paths.push(projectPath(track, takeoff, landing + 1));
     }
   }
 
   if (landing < fixCount - 1) {
-    paths.push({
-      color: COLOR_PRE_POST,
-      points: projectRange(track, landing, fixCount),
-    });
+    paths.push(projectPath(track, landing, fixCount, COLOR_PRE_POST));
   }
 
   return paths;
@@ -115,10 +111,7 @@ const pushVarioRuns = (
     if (to <= from) {
       continue;
     }
-    paths.push({
-      color: colorForBucket(segment.bucket),
-      points: projectRange(track, from, to),
-    });
+    paths.push(projectPath(track, from, to, colorForBucket(segment.bucket)));
   }
 };
 
@@ -154,18 +147,19 @@ export function pathsBounds(
   return { south: minLat, west: minLng, north: maxLat, east: maxLng };
 }
 
-const projectRange = (
+const projectPath = (
   track: Track,
   from: number,
   to: number,
-): google.maps.LatLngLiteral[] => {
+  color?: string,
+): TrackPath => {
   const len = to - from;
   const points: google.maps.LatLngLiteral[] = new Array(len);
   for (let i = 0; i < len; i++) {
     const j = from + i;
     points[i] = { lat: track.lat[j]! / 1e5, lng: track.lng[j]! / 1e5 };
   }
-  return points;
+  return { color, startIdx: from, points };
 };
 
 const clamp = (v: number, min: number, max: number): number =>

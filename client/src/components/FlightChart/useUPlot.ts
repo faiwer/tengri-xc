@@ -30,8 +30,12 @@ export const useUPlot = (
   data: AlignedData,
   opts: Pick<Options, 'axes' | 'series'> & Partial<Options>,
   onHoverFractionChange?: HoverFractionHandler,
+  hoverFraction?: number | null,
 ): RefObject<HTMLDivElement | null> => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<uPlot | null>(null);
+
+  useExternalCursor(chartRef, data, hoverFraction);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -46,7 +50,7 @@ export const useUPlot = (
         ? [
             ...setCursorHooks,
             (chart) => {
-              onHoverFractionChange(geChartHoverFraction(chart, data));
+              onHoverFractionChange(getChartHoverFraction(chart, data));
             },
           ]
         : setCursorHooks,
@@ -71,6 +75,7 @@ export const useUPlot = (
     };
 
     const chart = new uPlot(merged, data, container);
+    chartRef.current = chart;
     const clearHover = () => {
       onHoverFractionChange?.(null);
     };
@@ -89,13 +94,48 @@ export const useUPlot = (
       container.removeEventListener('mouseleave', clearHover);
       resize.disconnect();
       chart.destroy();
+      chartRef.current = null;
     };
   }, [data, opts, onHoverFractionChange]);
 
   return containerRef;
 };
 
-const geChartHoverFraction = (
+const useExternalCursor = (
+  chartRef: RefObject<uPlot | null>,
+  data: AlignedData,
+  hoverFraction?: number | null,
+): void => {
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) {
+      return;
+    }
+
+    if (hoverFraction === null || hoverFraction === undefined) {
+      // Move off-plot to clear the cursor when map hover leaves the track.
+      chart.setCursor({ left: -10, top: -10 });
+      return;
+    }
+
+    const timeSeries = data[0];
+    if (timeSeries.length < 2) {
+      return;
+    }
+
+    const first = Number(timeSeries[0]);
+    const last = Number(timeSeries[timeSeries.length - 1]);
+    const target = first + clamp(hoverFraction, 0, 1) * (last - first);
+    const left = chart.valToPos(target, 'x', true);
+
+    chart.setCursor({
+      left,
+      top: chart.bbox.top + chart.bbox.height / 2,
+    });
+  }, [chartRef, data, hoverFraction]);
+};
+
+const getChartHoverFraction = (
   chart: uPlot,
   data: AlignedData,
 ): number | null => {

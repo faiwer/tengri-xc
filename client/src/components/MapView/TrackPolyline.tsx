@@ -22,7 +22,9 @@ export function TrackPolyline({ paths }: TrackPolylineProps) {
   const map = useMap();
 
   useEffect(() => {
-    if (!map) return;
+    if (!map) {
+      return;
+    }
 
     const polylines = paths.map(
       (path) =>

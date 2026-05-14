@@ -16,6 +16,7 @@ interface AltitudeChartProps {
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
   onHoverFractionChange?: HoverFractionHandler;
+  hoverFraction?: number | null;
 }
 
 /**
@@ -38,6 +39,7 @@ export function AltitudeChart({
   track,
   window,
   onHoverFractionChange,
+  hoverFraction,
 }: AltitudeChartProps) {
   const prefs = usePreferences();
   const { data, hasBaro } = useAltitudeSeries(track, window, prefs);
@@ -48,7 +50,7 @@ export function AltitudeChart({
     }),
     [hasBaro, prefs.units],
   );
-  const ref = useUPlot(data, opts, onHoverFractionChange);
+  const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
 
   return <div ref={ref} className={styles.chart} />;
 }

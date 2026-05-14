@@ -13,6 +13,8 @@ interface FlightChartProps {
   track: Track;
   window: TrackWindow;
   onHoverFractionChange?: HoverFractionHandler;
+  /** External map hover progress; drives the chart cursor line. */
+  hoverFraction?: number | null;
 }
 
 type ChartKind = 'altitude' | 'speed' | 'vario';
@@ -32,6 +34,7 @@ export function FlightChart({
   track,
   window,
   onHoverFractionChange,
+  hoverFraction,
 }: FlightChartProps) {
   const [activeKind, setActiveKind] = useLocalStorageValue(
     'flight-chart-tab',
@@ -52,6 +55,7 @@ export function FlightChart({
             track={track}
             window={window}
             onHoverFractionChange={onHoverFractionChange}
+            hoverFraction={hoverFraction}
           />
         )}
         {activeKind === 'speed' && (
@@ -59,6 +63,7 @@ export function FlightChart({
             track={track}
             window={window}
             onHoverFractionChange={onHoverFractionChange}
+            hoverFraction={hoverFraction}
           />
         )}
         {activeKind === 'vario' && (
@@ -66,6 +71,7 @@ export function FlightChart({
             track={track}
             window={window}
             onHoverFractionChange={onHoverFractionChange}
+            hoverFraction={hoverFraction}
           />
         )}
       </div>
