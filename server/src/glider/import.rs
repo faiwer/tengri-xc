@@ -1,9 +1,11 @@
 //! Load brands + canonical glider models into the DB from a caller-supplied
-//! `hg.json` or `pg.json` payload. UPSERT-based so re-runs pick up edits;
-//! `class` / `is_tandem` changes on existing models fan out to every dependent
-//! `gliders` row via the `sync_glider_denorm` trigger from migration
-//! `0009_gliders.sql`. The whole thing runs in one transaction — a parse error
-//! or constraint trip rolls everything back.
+//! `hg.json` or `pg.json` payload. UPSERT-based so re-runs pick up edits. The
+//! whole thing runs in one transaction — a parse error or constraint trip
+//! rolls everything back.
+//!
+//! Canonical rows only: every brand and model written here has `user_id IS
+//! NULL`. Per-pilot custom rows live alongside (with `user_id IS NOT NULL`)
+//! and are written by the Leonardo importer's resolver, not by this loader.
 //!
 //! One call handles one kind. IO is the caller's job; this module only sees
 //! the JSON string.
@@ -21,7 +23,7 @@ use unicode_normalization::char::is_combining_mark;
 
 /// Marker appended to a model name in the JSON to flag tandem variants (e.g.
 /// `Atos VR 190¶tandem`). Stripped during parse; the boolean lands in
-/// `glider_models.is_tandem`.
+/// `models.is_tandem`.
 const TANDEM_SUFFIX: &str = "¶tandem";
 
 pub struct Summary {
@@ -61,12 +63,13 @@ struct ModelRecord {
     is_tandem: bool,
 }
 
-/// `glider_models` has `PRIMARY KEY (brand_id, id)` and `UNIQUE (brand_id, name)`.
-/// Catch dictionary duplicates here so the error names them up-front instead of
-/// letting the UPSERT silently overwrite whichever it hits second. We check both
-/// display-name and slug collisions: two models in the same brand whose names
-/// differ only in diacritics would crash the slug PK at INSERT time, so we'd
-/// rather fail in the parser with a useful message.
+/// `models` PK is `(brand_id, kind, id)` and the canonical-only partial unique
+/// constraint pins `(brand_id, kind, name) WHERE user_id IS NULL`. Catch
+/// dictionary duplicates here so the error names them up-front instead of
+/// letting the UPSERT silently overwrite whichever it hits second. We check
+/// both display-name and slug collisions: two models in the same brand whose
+/// names differ only in diacritics would crash the slug PK at INSERT time, so
+/// we'd rather fail in the parser with a useful message.
 fn check_no_duplicates(records: &[ModelRecord]) -> anyhow::Result<()> {
     let mut seen_name: HashSet<(&str, &str)> = HashSet::with_capacity(records.len());
     let mut seen_slug: HashSet<(&str, &str)> = HashSet::with_capacity(records.len());
@@ -234,7 +237,7 @@ async fn apply(pool: &PgPool, records: Vec<ModelRecord>) -> anyhow::Result<Summa
 
     for r in &records {
         let row = sqlx::query(
-            "INSERT INTO glider_models (brand_id, kind, id, name, class, is_tandem) \
+            "INSERT INTO models (brand_id, kind, id, name, class, is_tandem) \
              VALUES ($1, $2::glider_kind, $3, $4, $5::glider_class, $6) \
              ON CONFLICT (brand_id, kind, id) DO UPDATE SET \
                  name      = EXCLUDED.name, \

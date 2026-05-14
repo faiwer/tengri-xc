@@ -127,19 +127,22 @@ async fn reset_schema(pool: &PgPool) {
 
 /// Wipe all rows but keep the schema. `RESTART IDENTITY` rewinds identity
 /// sequences so tests can re-use deterministic ids. `CASCADE` deals with the FK
-/// chains (flights → tracks/sources, gliders → flights).
+/// chains (flights → tracks/sources, models → flights).
 ///
 /// `site_settings` is a singleton-row table — TRUNCATE would lose the row
 /// migrations inserted, so we DELETE + INSERT to rewind every column to its
 /// schema default between tests.
 ///
-/// Seeds a default user (`id=1`). [`seed_flight`] writes `glider_id` as NULL,
-/// matching the production "no metadata at ingest" path; tests that care about
-/// a wing seed their own `gliders` row and `UPDATE` the flight.
+/// Seeds a default user (`id=1`) and a canonical `(test, pg, default)` wing so
+/// [`seed_flight`] / [`seed_flight_at`] can satisfy the `flights → models`
+/// composite FK without each test having to think about it. Tests that care
+/// about a specific wing seed their own canonical row with
+/// [`seed_canonical_model`] and pass `(brand_id, kind, model_id)` to
+/// [`seed_flight_with_glider`].
 async fn truncate_data(pool: &PgPool) {
     sqlx::query(
         "TRUNCATE flight_tracks, flight_sources, flights, \
-                  gliders, glider_models, brands, \
+                  models, brands, \
                   user_profiles, users \
          RESTART IDENTITY CASCADE",
     )
@@ -152,6 +155,18 @@ async fn truncate_data(pool: &PgPool) {
         .await
         .expect("seed default test user");
 
+    seed_canonical_model(
+        pool,
+        TEST_BRAND_ID,
+        TEST_BRAND_NAME,
+        TEST_KIND,
+        TEST_MODEL_ID,
+        TEST_MODEL_NAME,
+        "en_a",
+        false,
+    )
+    .await;
+
     sqlx::query("DELETE FROM site_settings")
         .execute(pool)
         .await
@@ -160,6 +175,57 @@ async fn truncate_data(pool: &PgPool) {
         .execute(pool)
         .await
         .expect("reseed site_settings defaults");
+}
+
+/// The default-fixture wing every [`seed_flight`] points at. Tests that
+/// don't care about wing identity rely on these; tests that do override
+/// via [`seed_flight_with_glider`].
+pub const TEST_BRAND_ID: &str = "test";
+pub const TEST_BRAND_NAME: &str = "Test Brand";
+pub const TEST_KIND: &str = "pg";
+pub const TEST_MODEL_ID: &str = "default";
+pub const TEST_MODEL_NAME: &str = "Default Test Model";
+
+/// Insert (or update) a canonical brand + model pair (`user_id IS NULL`).
+/// Idempotent — re-running with the same ids overwrites the names/class.
+#[allow(clippy::too_many_arguments)]
+pub async fn seed_canonical_model(
+    pool: &PgPool,
+    brand_id: &str,
+    brand_name: &str,
+    kind: &str,
+    model_id: &str,
+    model_name: &str,
+    class: &str,
+    is_tandem: bool,
+) {
+    sqlx::query(
+        "INSERT INTO brands (id, name) VALUES ($1, $2) \
+         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name",
+    )
+    .bind(brand_id)
+    .bind(brand_name)
+    .execute(pool)
+    .await
+    .expect("seed canonical brand");
+
+    sqlx::query(
+        "INSERT INTO models (brand_id, kind, id, name, class, is_tandem) \
+         VALUES ($1, $2::glider_kind, $3, $4, $5::glider_class, $6) \
+         ON CONFLICT (brand_id, kind, id) DO UPDATE SET \
+             name      = EXCLUDED.name, \
+             class     = EXCLUDED.class, \
+             is_tandem = EXCLUDED.is_tandem",
+    )
+    .bind(brand_id)
+    .bind(kind)
+    .bind(model_id)
+    .bind(model_name)
+    .bind(class)
+    .bind(is_tandem)
+    .execute(pool)
+    .await
+    .expect("seed canonical model");
 }
 
 /// Convenience: build the app router on top of a pooled `AppState`.
@@ -193,36 +259,63 @@ pub async fn seed_user(pool: &PgPool, id: i32, name: &str) -> i32 {
     id
 }
 
-/// Insert a flight row. Caller supplies a (NanoID-shaped) id and the owning
-/// user id. `takeoff_at` / `landing_at` default to `now()` because most tests
-/// don't care about flight-time ordering; reach for [`seed_flight_at`] when a
-/// test asserts on the timestamps. Returns the flight id for chaining.
+/// Insert a flight row pointing at the default `(test, pg, default)` wing
+/// seeded by [`truncate_data`]. Caller supplies a (NanoID-shaped) id and
+/// the owning user id. `takeoff_at` / `landing_at` default to `now()`
+/// because most tests don't care about flight-time ordering; reach for
+/// [`seed_flight_at`] when a test asserts on the timestamps. Returns the
+/// flight id for chaining.
 ///
-/// `takeoff_offset` / `landing_offset` are written as `0` and the points as
-/// `(0, 0)` because nullable-on-disk columns would force every API route
-/// reading them to special-case `Option`. `glider_id` is left NULL (the
-/// production "no metadata at ingest" shape); tests that need a wing seed their
-/// own `gliders` row and `UPDATE` the flight.
+/// `takeoff_offset` / `landing_offset` are written as `0` and the points
+/// as `(0, 0)` because nullable-on-disk columns would force every API
+/// route reading them to special-case `Option`.
 pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String {
+    seed_flight_with_glider(
+        pool,
+        flight_id,
+        user_id,
+        TEST_BRAND_ID,
+        TEST_KIND,
+        TEST_MODEL_ID,
+    )
+    .await
+}
+
+/// Like [`seed_flight`] but lets the caller pin the wing. The
+/// `(brand_id, kind, model_id)` triple must already exist in `models`
+/// (the test's job to seed via [`seed_canonical_model`] or by inserting a
+/// custom row directly).
+pub async fn seed_flight_with_glider(
+    pool: &PgPool,
+    flight_id: &str,
+    user_id: i32,
+    brand_id: &str,
+    kind: &str,
+    model_id: &str,
+) -> String {
     sqlx::query(
         "INSERT INTO flights \
             (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
-             takeoff_point, landing_point) \
+             takeoff_point, landing_point, brand_id, kind, model_id) \
          VALUES \
             ($1, $2, now(), now(), 0, 0, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
-             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             $3, $4::glider_kind, $5)",
     )
     .bind(flight_id)
     .bind(user_id)
+    .bind(brand_id)
+    .bind(kind)
+    .bind(model_id)
     .execute(pool)
     .await
     .expect("seed flight");
     flight_id.to_owned()
 }
 
-/// Like [`seed_flight`] but with explicit takeoff/landing Unix-epoch seconds.
-/// Use when the test asserts on the timestamp wire format.
+/// Like [`seed_flight`] but with explicit takeoff/landing Unix-epoch
+/// seconds. Use when the test asserts on the timestamp wire format.
 pub async fn seed_flight_at(
     pool: &PgPool,
     flight_id: &str,
@@ -233,16 +326,20 @@ pub async fn seed_flight_at(
     sqlx::query(
         "INSERT INTO flights \
             (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
-             takeoff_point, landing_point) \
+             takeoff_point, landing_point, brand_id, kind, model_id) \
          VALUES \
             ($1, $2, to_timestamp($3), to_timestamp($4), 0, 0, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
-             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography)",
+             ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
+             $5, $6::glider_kind, $7)",
     )
     .bind(flight_id)
     .bind(user_id)
     .bind(takeoff_at)
     .bind(landing_at)
+    .bind(TEST_BRAND_ID)
+    .bind(TEST_KIND)
+    .bind(TEST_MODEL_ID)
     .execute(pool)
     .await
     .expect("seed flight");

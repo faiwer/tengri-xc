@@ -73,11 +73,11 @@ struct Tally {
     missing: usize,
     broken: usize,
     no_window: usize,
-    /// Brand resolved but model didn't — no alias hit, possibly no models
-    /// catalogued for `(brand, cat_kind)` at all. Imported with `model_id =
-    /// NULL`, raw text preserved. Operator action: extend `*.aliases.json` or
-    /// `<kind>.json` if the raw is a real model.
-    model_unresolved: Vec<String>,
+    /// Brand resolved canonically, model didn't — the importer created a
+    /// per-pilot custom `models` row to host the flight. Operator action:
+    /// extend `*.aliases.json` or `<kind>.json` if the raw is a real model
+    /// we just don't have yet, so the next run resolves it canonically.
+    customs_created: Vec<String>,
 }
 
 impl Tally {
@@ -98,12 +98,12 @@ impl Tally {
                 .push(format!("no takeoff/landing detected: {}", self.no_window));
         }
 
-        if !self.model_unresolved.is_empty() {
+        if !self.customs_created.is_empty() {
             report.notes.push(format!(
-                "model unresolved (brand only): {} flights",
-                self.model_unresolved.len()
+                "custom models created: {} distinct wings",
+                self.customs_created.len()
             ));
-            for line in &self.model_unresolved {
+            for line in &self.customs_created {
                 report.notes.push(format!("  {line}"));
             }
         }
@@ -182,9 +182,15 @@ fn record(
 fn tally_note(tally: &mut Tally, src: &SourceFlight, note: Option<ResolveNote>) {
     let Some(note) = note else { return };
     match note {
-        ResolveNote::ModelUnresolved { brand, raw, kind } => tally
-            .model_unresolved
-            .push(format!("ID={} {brand} ({kind}) / '{raw}'", src.id)),
+        ResolveNote::CustomModelCreated {
+            brand,
+            raw,
+            kind,
+            class,
+        } => tally.customs_created.push(format!(
+            "ID={} {brand} ({kind} / {class}) / '{raw}'",
+            src.id
+        )),
     }
 }
 
@@ -379,7 +385,9 @@ async fn insert_rows(
             takeoff_lon: p.takeoff_lon,
             landing_lat: p.landing_lat,
             landing_lon: p.landing_lon,
-            glider_id: Some(resolved.glider_id),
+            brand_id: &resolved.brand_id,
+            kind: resolved.kind,
+            model_id: &resolved.model_id,
             propulsion: resolved.propulsion,
             launch_method,
         },

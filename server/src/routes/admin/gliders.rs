@@ -29,9 +29,8 @@ struct CatalogQuery {
     kind: String,
 }
 
-/// Kinds the admin dictionary covers. `'other'` is intentionally excluded — it
-/// exists for unresolved uploads on the `gliders` row, not for the canonical
-/// dictionary.
+/// Kinds the admin dictionary covers. `'other'` is intentionally excluded —
+/// it's the catch-all `glider_kind` value the canonical catalog never uses.
 const ALLOWED_KINDS: [&str; 3] = ["hg", "pg", "sp"];
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -75,13 +74,18 @@ async fn catalog(
 
     let pool = state.pool();
 
+    // Canonical-only on both sides — the admin catalog editor shows curated
+    // rows, not pilot-private customs.
     let brands: Vec<Brand> = sqlx::query_as::<_, Brand>(
         "SELECT b.id, b.name \
          FROM brands b \
-         WHERE EXISTS ( \
-             SELECT 1 FROM glider_models m \
-              WHERE m.brand_id = b.id AND m.kind = $1::glider_kind \
-         ) \
+         WHERE b.user_id IS NULL \
+           AND EXISTS ( \
+               SELECT 1 FROM models m \
+                WHERE m.brand_id = b.id \
+                  AND m.kind = $1::glider_kind \
+                  AND m.user_id IS NULL \
+           ) \
          ORDER BY b.name",
     )
     .bind(kind)
@@ -91,8 +95,8 @@ async fn catalog(
 
     let models: Vec<Model> = sqlx::query_as::<_, Model>(
         "SELECT brand_id, id, name, class::text AS class, is_tandem \
-         FROM glider_models \
-         WHERE kind = $1::glider_kind \
+         FROM models \
+         WHERE kind = $1::glider_kind AND user_id IS NULL \
          ORDER BY brand_id, name",
     )
     .bind(kind)

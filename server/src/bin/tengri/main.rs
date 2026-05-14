@@ -13,9 +13,9 @@
 //!   re-encoding `.tengri` blobs after a version bump).
 //! - `prune` — wipe every data row from the configured DB (keeping the schema
 //!   intact). Useful for resetting between Leonardo imports.
-//! - `import-gliders` — load `brands` + `glider_models` from one JSON
-//!   dictionary (`--kind=<hg|pg|sp> --file=<path>`). One invocation per kind;
-//!   idempotent, UPSERT-based.
+//! - `import-gliders` — load `brands` + `models` from one JSON dictionary
+//!   (`--kind=<hg|pg|sp> --file=<path>`). One invocation per kind; idempotent,
+//!   UPSERT-based. Canonical rows only (`user_id IS NULL`).
 //! - `db` — open psql against the configured database (or run a one-shot query
 //!   via `tengri db -- -c 'SELECT …'`).
 //!
@@ -62,11 +62,13 @@ enum Cmd {
         input: PathBuf,
     },
 
-    /// Ingest a flight log into the database under the given user.
-    /// Inserts a `flights` row, the gzipped source into `flight_sources`,
-    /// and the encoded HTTP wire form into `flight_tracks` (kind = `full`).
-    /// All three writes happen in a single transaction; on failure nothing
-    /// is committed.
+    /// Ingest a flight log into the database under the given user. Inserts a
+    /// `flights` row, the gzipped source into `flight_sources`, and the encoded
+    /// HTTP wire form into `flight_tracks` (kind = `full`). All three writes
+    /// happen in a single transaction; on failure nothing is committed. The
+    /// wing must already exist in `models` — canonical rows are looked up
+    /// directly, custom rows under the same caller (`models.user_id = user_id`
+    /// of the flight).
     Add {
         /// Input flight log (.igc, .kml, .kmz, .gpx).
         input: PathBuf,
@@ -74,6 +76,20 @@ enum Cmd {
         /// Owning user id (`users.id`). The user must already exist.
         #[arg(long = "user-id")]
         user_id: i32,
+
+        /// Brand slug (`brands.id`), e.g. `aeros`, `42:bobs` for a custom.
+        #[arg(long)]
+        brand: String,
+
+        /// Glider kind.
+        #[arg(long, value_parser = ["hg", "pg", "sp"])]
+        kind: String,
+
+        /// Model slug within `(brand, kind)`, e.g. `combat-l-07`. For a
+        /// pilot-custom model this is `<user_id>:<slug>` (the resolver
+        /// uses the same convention).
+        #[arg(long)]
+        model: String,
     },
 
     /// Delete a flight by id. Cascades to `flight_tracks` and
@@ -115,9 +131,7 @@ enum Cmd {
 
     /// Load brands + canonical glider models for one kind (`hg`, `pg`, or
     /// `sp`) from a JSON dictionary file. Run once per kind. Idempotent —
-    /// re-running picks up JSON edits; `class` / `is_tandem` changes fan
-    /// out to existing `gliders` rows via the `sync_glider_denorm` trigger
-    /// from migration `0009`.
+    /// re-running picks up JSON edits and UPSERTs `class` / `is_tandem`.
     ImportGliders {
         /// Glider kind the file describes.
         #[arg(long, value_parser = ["hg", "pg", "sp"])]
@@ -139,7 +153,13 @@ fn run() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::Convert { input, output } => convert::run(input, output),
         Cmd::Inspect { input } => inspect::run(input),
-        Cmd::Add { input, user_id } => run_async(add::run(input, user_id)),
+        Cmd::Add {
+            input,
+            user_id,
+            brand,
+            kind,
+            model,
+        } => run_async(add::run(input, user_id, brand, kind, model)),
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::Prune { yes } => run_async(prune::run(yes)),

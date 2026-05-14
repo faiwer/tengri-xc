@@ -1,5 +1,10 @@
-//! Resolve, dedupe, and insert one `gliders` row per pilot per distinct wing
-//! seen in `leonardo_flights`.
+//! Resolve a Leonardo source row to `(brand_id, kind, model_id)` — the
+//! composite FK from `flights` to `models`. For wings whose model isn't in our
+//! canonical catalog, materialise a per-pilot custom `models` row (`user_id =
+//! pilot`, `id = '<user_id>:<slugify(raw)>'`) so the flight has something to
+//! point at. Brand resolution stays canonical-only: Leo's `gliderBrandID` is a
+//! curated enum mirrored in `data/leo.brands.json`, so a brand we can't resolve
+//! canonically is a `SkipReason`, not a custom row.
 //!
 //! ## Inputs
 //!
@@ -7,12 +12,12 @@
 //!   `gliderCertCategory`, `category`, plus the pilot's `userID`.
 //! - `data/leo.brands.json` — Leo's `gliderBrandID` enum mirrored from
 //!   `FN_brands.php`. Curated display names slugify into our `brands.id`s where
-//!   we have a matching entry.
+//!   we have a matching canonical entry.
 //! - `data/{hg,pg}.aliases.json` — regex-keyed `brand → model → [pattern]` maps
 //!   that canonicalise raw `glider` strings within a resolved brand.
-//! - `brands` and `glider_models` already loaded into Postgres (run `tengri
-//!   import-gliders` first); we read them once at construction for kind-guard
-//!   lookups and slug→display-name reverse maps.
+//! - `brands` and `models` already loaded into Postgres (run `tengri
+//!   import-gliders` first); we read canonical rows once at construction for
+//!   the direct-slug lookup and the reverse display-name map.
 //!
 //! All three data files are read from disk at startup (not `include_str!`'d
 //! into the binary, see `.cursor/rules/data-files.mdc`). A missing
@@ -23,38 +28,44 @@
 //! ## Resolution policy
 //!
 //! Trust the pilot's brand pick. `gliderBrandID > 0` and the slug resolves in
-//! `brands`:
+//! `brands` (canonical only):
 //!
-//! - direct slug hit on `glider_models.id` (within `(brand, cat_kind)`) → fully
-//!   resolved row.
-//! - alias regex within `(brand, cat_kind)` → fully resolved row.
-//! - otherwise → keep `brand_id`, `model_id = NULL`, `model_text =
-//!   raw_glider_string`, `class = NULL` (with PG cert/tandem hints from
-//!   `gliderCertCategory` and `category=3` if applicable). Same fallback
-//!   whether the model name simply didn't match our aliases or we have no
-//!   models catalogued for `(brand, cat_kind)` at all — we can't tell those
-//!   apart, and the catalog is incomplete on purpose.
+//! 1. Direct slug hit on `models.id` (within `(brand, cat_kind, user_id IS
+//!    NULL)`) → canonical resolution.
+//! 2. Alias regex within `(brand, cat_kind)` → canonical resolution.
+//! 3. Otherwise → custom path. `INSERT INTO models … ON CONFLICT (brand_id,
+//!    kind, id) DO NOTHING`: the id is deterministic
+//!    (`<user_id>:<slugify(raw)>`), so cosmetic variants of the same raw text
+//!    from the same pilot collide on the PK and dedupe naturally. A
+//!    `CustomModelCreated` note surfaces in the run report — operator may want
+//!    to extend the canonical catalog so the next run resolves it instead of
+//!    accumulating customs.
 //!
 //! Anything else (`gliderBrandID = 0`, leo id we don't have, slug not in
 //! `brands`, `kind=other`) returns [`Err(SkipReason)`] so the operator can
 //! categorise + fix the data upstream and re-run. The flights step is
 //! idempotent so re-runs pick up the rows.
 //!
-//! Note: a pilot can pick a brand that has no models in our catalog for the
-//! cat-derived kind. That row still imports — our catalog is incomplete on
-//! purpose, and the brand might genuinely make wings of that kind we haven't
-//! entered yet. Findable post-import with `WHERE model_id IS NULL`.
+//! ## Custom-model class
 //!
-//! ## Dedupe
+//! `models.class` is NOT NULL. For PG customs we pull a hint from
+//! `gliderCertCategory`. For HG customs we have the rigid-vs-flex bit on `cat`
+//! (so HG rigid → `'rigid'`), and for flex Leo's `category` enum splits
+//! kingpost (`1`) from topless (`2`); `single_surface` isn't on Leo's form so
+//! it never appears, and unset `category` lands as `'unknown'`. For SP customs
+//! Leo records `cat=8` and nothing else. Anything indeterminate lands as
+//! `class='unknown'` — a distinct enum value so the row migrates and the
+//! pilot/operator can refine it later.
 //!
-//! Per-pilot. The dedupe key is the full resolution tuple `(user_id, kind,
-//! class, is_tandem, brand_id_or_text, model_id_or_text)` — exactly what we'd
-//! insert. Same wing flown by two pilots → two `gliders` rows (one each). The
-//! cache is run-scoped; cross-run idempotency comes from a `find_existing`
-//! lookup on cache miss before the INSERT.
+//! ## Cache
+//!
+//! Run-scoped, keyed on `(user_id, brand_id, cat_kind, slugify(raw))`. Cosmetic
+//! variants of the same raw text (whitespace / punctuation / case) all slugify
+//! to the same key and share one entry, which matters most for the custom path
+//! (saves repeat INSERTs across a long import). Cross-run idempotency comes
+//! from `ON CONFLICT DO NOTHING` on the model PK.
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
 
 use anyhow::{Context, anyhow};
 use regex::{Regex, RegexBuilder};
@@ -87,29 +98,34 @@ pub struct GliderInput<'a> {
     pub category: u32,
 }
 
-/// Output of one resolution. `glider_id` is what the flights row binds;
-/// `propulsion` and `launch_method` are derived from the same source row (split
-/// out here because `cat` carries propulsion bits and the resolver already
-/// touches `cat`).
+/// Output of one resolution. `(brand_id, kind, model_id)` is the composite FK
+/// that lands on the `flights` row. `propulsion` comes off the same source row
+/// (split out here because `cat` carries propulsion bits and the resolver
+/// already touches `cat`).
 pub struct Resolved {
-    pub glider_id: i32,
+    pub brand_id: String,
+    pub kind: &'static str,
+    pub model_id: String,
     pub propulsion: &'static str,
-    /// Note about a non-fatal oddity worth surfacing in `Report::notes`. `None`
-    /// when the row resolved cleanly with no caveats.
+    /// Non-fatal note for the run report. Emitted only on the *first*
+    /// occurrence of a `(user, brand, kind, raw_slug)` bucket; subsequent cache
+    /// hits return `None` to keep the report from listing the same custom model
+    /// once per flight on it.
     pub note: Option<ResolveNote>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ResolveNote {
-    /// Brand resolved but model didn't — neither a direct slug match nor any
-    /// alias regex hit, and possibly no models catalogued for `(brand,
-    /// cat_kind)` at all. Imported with `model_id = NULL`, `model_text = raw`.
-    /// Operator action: extend `*.aliases.json` (or `<kind>.json`) if the raw
-    /// spelling is a real model we don't have yet.
-    ModelUnresolved {
+    /// Brand resolved canonically, model didn't — a per-pilot custom row was
+    /// inserted into `models`. Operator action: extend the canonical catalog
+    /// (`<kind>.json` + `tengri import-gliders`) if the raw is a real model we
+    /// just don't have yet, so the next run resolves it canonically instead of
+    /// accumulating customs.
+    CustomModelCreated {
         brand: String,
         raw: String,
         kind: &'static str,
+        class: &'static str,
     },
 }
 
@@ -122,29 +138,30 @@ impl std::fmt::Display for SkipReason {
     }
 }
 
-/// Process-scoped, build-once. Holds the brand/model dictionaries, the alias
-/// regexes, and the per-pilot dedupe cache. Single resolver per `leonardo
-/// migrate` run.
+/// Process-scoped, build-once. Holds the canonical brand/model dictionaries,
+/// the alias regexes, and the per-pilot resolution cache. Single resolver per
+/// `leonardo migrate` run.
 pub struct GliderResolver {
     /// Leo `gliderBrandID` → display name. Values that slugify to a row in
-    /// `brands` count as resolved; the rest fall through to the "leo brand X
-    /// not in our dictionary" skip path. Includes Leo IDs we don't have a match
-    /// for, so the skip reason can name them.
+    /// `brands` (canonical) count as resolved; the rest fall through to the
+    /// "leo brand X not in our dictionary" skip path. Includes Leo IDs we don't
+    /// have a match for, so the skip reason can name them.
     leo_brands: HashMap<i32, String>,
-    /// `brands.id` → `brands.name` for note formatting. Display name is what
-    /// the operator sees in the report.
+    /// Canonical `brands.id` → `brands.name` for note formatting. Custom brands
+    /// aren't in here — Leo never creates them (brand resolution is
+    /// canonical-only).
     brand_names: HashMap<String, String>,
-    /// All canonical models, indexed by `(brand_id, kind)`. Used both for the
-    /// direct slug hit path and to compile the alias regexes against real model
-    /// rows; the per-model `class` / `is_tandem` also feeds the same columns on
-    /// the resolved `gliders` row so the importer doesn't have to wait for the
-    /// `sync_glider_denorm` trigger to backfill them.
+    /// Canonical models, indexed by `(brand_id, kind)`. Used for the direct
+    /// slug-hit path and as the target set the alias regexes compile against.
     models_by_brand_kind: HashMap<(String, &'static str), Vec<ModelEntry>>,
     /// Compiled alias regexes per kind, listed per `(brand_id, model_id)`.
     /// Iterated in declaration order; first hit wins within a brand.
     alias_rules: HashMap<&'static str, Vec<AliasRule>>,
-    /// Run-scoped per-pilot dedupe cache.
-    cache: HashMap<DedupeKey, i32>,
+    /// Run-scoped resolution cache. Key includes `slugify(raw_glider_text)` so
+    /// cosmetic variants of the same wing share an entry. Value is the resolved
+    /// `model_id` (canonical or custom — distinguishable by the `<user_id>:`
+    /// prefix if needed; downstream code doesn't need to care).
+    cache: HashMap<CacheKey, String>,
 }
 
 struct AliasRule {
@@ -157,76 +174,48 @@ struct AliasRule {
 
 struct ModelEntry {
     id: String,
-    class: &'static str,
-    is_tandem: bool,
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone)]
-struct DedupeKey {
+struct CacheKey {
     user_id: i32,
+    brand_id: String,
     kind: &'static str,
-    class: Option<&'static str>,
-    is_tandem: Option<bool>,
-    brand_id: Option<String>,
-    brand_text: Option<String>,
-    model_id: Option<String>,
-    model_text: Option<String>,
-}
-
-/// The 7 columns of `gliders` that `classify` produces, plus an optional rollup
-/// note. `Resolver::resolve` builds a `DedupeKey` from these and either hits
-/// the cache or hands the struct to `upsert_glider`.
-struct Classified {
-    kind: &'static str,
-    class: Option<&'static str>,
-    is_tandem: Option<bool>,
-    brand_id: Option<String>,
-    brand_text: Option<String>,
-    model_id: Option<String>,
-    model_text: Option<String>,
-    note: Option<ResolveNote>,
+    raw_slug: String,
 }
 
 impl GliderResolver {
     pub async fn build(pool: &PgPool) -> anyhow::Result<Self> {
         let leo_brands = parse_leo_brands()?;
 
-        let brands = sqlx::query_as::<_, (String, String)>("SELECT id, name FROM brands")
-            .fetch_all(pool)
-            .await
-            .context("loading brands")?;
-        let brand_names: HashMap<String, String> = brands.into_iter().collect();
-
-        let models = sqlx::query_as::<_, (String, String, String, String, bool)>(
-            "SELECT brand_id, kind::text, id, class::text, is_tandem FROM glider_models",
+        let brands = sqlx::query_as::<_, (String, String)>(
+            "SELECT id, name FROM brands WHERE user_id IS NULL",
         )
         .fetch_all(pool)
         .await
-        .context("loading glider_models")?;
+        .context("loading canonical brands")?;
+        let brand_names: HashMap<String, String> = brands.into_iter().collect();
+
+        let models = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT brand_id, kind::text, id FROM models WHERE user_id IS NULL",
+        )
+        .fetch_all(pool)
+        .await
+        .context("loading canonical models")?;
 
         let mut models_by_brand_kind: HashMap<(String, &'static str), Vec<ModelEntry>> =
             HashMap::new();
-        for (brand_id, kind, id, class, is_tandem) in models {
+        for (brand_id, kind, id) in models {
             let kind = kind_str_to_static(&kind).ok_or_else(|| {
                 anyhow!(
                     "unexpected glider_kind '{kind}' on {brand_id}/{id}; the resolver only \
                      handles pg/hg/sp/other"
                 )
             })?;
-            let class = canonical_class_str(&class).ok_or_else(|| {
-                anyhow!(
-                    "unexpected glider_class '{class}' on {brand_id}/{id}; resolver was built \
-                     against an older schema"
-                )
-            })?;
             models_by_brand_kind
                 .entry((brand_id, kind))
                 .or_default()
-                .push(ModelEntry {
-                    id,
-                    class,
-                    is_tandem,
-                });
+                .push(ModelEntry { id });
         }
 
         let alias_rules = compile_alias_rules(&brand_names, &models_by_brand_kind)?;
@@ -255,47 +244,9 @@ impl GliderResolver {
             )));
         }
 
-        let classified = self.classify(cat_kind, input)?;
-
-        let key = DedupeKey {
-            user_id: input.user_id,
-            kind: classified.kind,
-            class: classified.class,
-            is_tandem: classified.is_tandem,
-            brand_id: classified.brand_id.clone(),
-            brand_text: classified.brand_text.clone(),
-            model_id: classified.model_id.clone(),
-            model_text: classified.model_text.clone(),
-        };
-        if let Some(id) = self.cache.get(&key) {
-            return Ok(Resolved {
-                glider_id: *id,
-                propulsion,
-                note: classified.note,
-            });
-        }
-
-        let glider_id = upsert_glider(pool, input.leo_flight_id, input.user_id, &classified)
-            .await
-            .map_err(|e| SkipReason(format!("upsert glider: {e:#}")))?;
-        self.cache.insert(key, glider_id);
-
-        Ok(Resolved {
-            glider_id,
-            propulsion,
-            note: classified.note,
-        })
-    }
-
-    /// Run the resolution policy. Returns the columns that will land on the
-    /// `gliders` row, plus an optional `ResolveNote` for the rollup.
-    fn classify(
-        &self,
-        cat_kind: &'static str,
-        input: &GliderInput<'_>,
-    ) -> Result<Classified, SkipReason> {
-        // gliderBrandID=0 means the pilot didn't pick a brand. Per the policy
-        // we don't guess; the operator fixes the source row.
+        // Brand resolution. `gliderBrandID=0` means the pilot didn't pick a
+        // brand; we don't guess. Unknown or unmapped ids → skip with a
+        // categorised reason.
         if input.glider_brand_id == 0 {
             return Err(SkipReason(
                 "gliderBrandID = 0 — no brand picked, fix the source row".to_string(),
@@ -308,80 +259,104 @@ impl GliderResolver {
                 input.glider_brand_id
             ))
         })?;
-        let brand_id_candidate = slugify(leo_name);
-        if !self.brand_names.contains_key(&brand_id_candidate) {
+        let brand_id = slugify(leo_name);
+        if !self.brand_names.contains_key(&brand_id) {
             return Err(SkipReason(format!(
                 "leo brand '{leo_name}' not in our dictionary — add to data/{cat_kind}.json"
             )));
         }
 
-        // No kind guard: an empty `(brand, kind)` bucket in our catalog just
-        // means we haven't entered the brand's models of that kind yet, not
-        // that the brand doesn't make them. Such rows fall through to the
-        // brand-only resolution below, same as rows where the brand+kind
-        // matches but the specific model name doesn't.
+        // Cache lookup. The key's `raw_slug` collapses cosmetic variants
+        // (whitespace / punctuation / case) onto one entry.
         let raw = input.glider_text.trim();
-        let slug = slugify(raw);
-        if let Some(model) = self
-            .models_by_brand_kind
-            .get(&(brand_id_candidate.clone(), cat_kind))
-            .and_then(|models| models.iter().find(|m| m.id == slug))
-        {
-            return Ok(Classified {
+        let raw_slug = slugify(raw);
+        let cache_key = CacheKey {
+            user_id: input.user_id,
+            brand_id: brand_id.clone(),
+            kind: cat_kind,
+            raw_slug: raw_slug.clone(),
+        };
+        if let Some(model_id) = self.cache.get(&cache_key) {
+            return Ok(Resolved {
+                brand_id,
                 kind: cat_kind,
-                class: Some(model.class),
-                is_tandem: Some(model.is_tandem),
-                brand_id: Some(brand_id_candidate),
-                brand_text: None,
-                model_id: Some(model.id.clone()),
-                model_text: None,
-                note: None,
-            });
-        }
-        if let Some(rule) = self.match_alias_in_brand(cat_kind, &brand_id_candidate, raw) {
-            let (class, is_tandem) =
-                self.class_tandem_for(&rule.brand_id, cat_kind, &rule.model_id);
-            return Ok(Classified {
-                kind: cat_kind,
-                class,
-                is_tandem,
-                brand_id: Some(rule.brand_id.clone()),
-                brand_text: None,
-                model_id: Some(rule.model_id.clone()),
-                model_text: None,
+                model_id: model_id.clone(),
+                propulsion,
                 note: None,
             });
         }
 
-        // Brand resolved, model didn't (either no alias hit or no models
-        // catalogued for `(brand, cat_kind)`). Pilot picked the brand — respect
-        // it; we don't guess the model. PG flights still get a class hint from
-        // `gliderCertCategory` and a tandem hint from `category=3`; HG/SP have
-        // no per-flight cert signal so those columns stay NULL until the model
-        // resolves.
+        // Canonical: direct slug hit.
+        if let Some(model) = self
+            .models_by_brand_kind
+            .get(&(brand_id.clone(), cat_kind))
+            .and_then(|models| models.iter().find(|m| m.id == raw_slug))
+        {
+            let model_id = model.id.clone();
+            self.cache.insert(cache_key, model_id.clone());
+            return Ok(Resolved {
+                brand_id,
+                kind: cat_kind,
+                model_id,
+                propulsion,
+                note: None,
+            });
+        }
+
+        // Canonical: alias regex within the resolved brand.
+        if let Some(rule) = self.match_alias_in_brand(cat_kind, &brand_id, raw) {
+            let model_id = rule.model_id.clone();
+            self.cache.insert(cache_key, model_id.clone());
+            return Ok(Resolved {
+                brand_id,
+                kind: cat_kind,
+                model_id,
+                propulsion,
+                note: None,
+            });
+        }
+
+        // Custom path. The id is deterministic (`<user>:<slug(raw)>`), so ON
+        // CONFLICT DO NOTHING handles cross-run idempotency without a RETURNING
+        // dance.
         let brand_display = self
             .brand_names
-            .get(&brand_id_candidate)
+            .get(&brand_id)
             .cloned()
             .unwrap_or_else(|| leo_name.clone());
-        let class = if cat_kind == "pg" {
-            pg_class_from_cert(input.glider_cert_category)
-        } else {
-            None
-        };
-        let is_tandem = (cat_kind == "pg" && input.category == 3).then_some(true);
-        Ok(Classified {
-            kind: cat_kind,
+        let class = custom_class_for(
+            cat_kind,
+            input.cat,
+            input.glider_cert_category,
+            input.category,
+        );
+        let is_tandem = cat_kind == "pg" && input.category == 3;
+        let custom_id = format!("{}:{}", input.user_id, raw_slug);
+        insert_custom_model(
+            pool,
+            input.leo_flight_id,
+            &brand_id,
+            cat_kind,
+            &custom_id,
+            raw,
             class,
             is_tandem,
-            brand_id: Some(brand_id_candidate),
-            brand_text: None,
-            model_id: None,
-            model_text: Some(raw.to_string()),
-            note: Some(ResolveNote::ModelUnresolved {
+            input.user_id,
+        )
+        .await
+        .map_err(|e| SkipReason(format!("inserting custom model: {e:#}")))?;
+        self.cache.insert(cache_key, custom_id.clone());
+
+        Ok(Resolved {
+            brand_id,
+            kind: cat_kind,
+            model_id: custom_id,
+            propulsion,
+            note: Some(ResolveNote::CustomModelCreated {
                 brand: brand_display,
                 raw: raw.to_string(),
                 kind: cat_kind,
+                class,
             }),
         })
     }
@@ -396,19 +371,6 @@ impl GliderResolver {
             .get(kind)?
             .iter()
             .find(|r| r.brand_id == brand_id && r.pattern.is_match(raw))
-    }
-
-    fn class_tandem_for(
-        &self,
-        brand_id: &str,
-        kind: &'static str,
-        model_id: &str,
-    ) -> (Option<&'static str>, Option<bool>) {
-        self.models_by_brand_kind
-            .get(&(brand_id.to_string(), kind))
-            .and_then(|ms| ms.iter().find(|m| m.id == model_id))
-            .map(|m| (Some(m.class), Some(m.is_tandem)))
-            .unwrap_or((None, None))
     }
 }
 
@@ -436,11 +398,35 @@ fn propulsion_for(cat: u32) -> &'static str {
     }
 }
 
-/// PG cert bitmask → our `glider_class`. Highest bit wins (a glider with both
-/// EN-A and EN-B set was certified for both, but the higher class is the
-/// meaningful one for filtering). DHV / AFNOR / CCC bits we don't translate yet
-/// — none of those appear in the dump, and CCC is orthogonal to EN tiers
-/// anyway.
+/// `models.class` value for a custom row. PG: cert bits. HG: rigid bit on
+/// `cat`, then Leo's `category` enum disambiguates flex (`1`=kingpost,
+/// `2`=topless; `0`/anything else stays `'unknown'`, which also covers
+/// `single_surface` — Leo's form doesn't offer it). SP: `'unknown'` outright —
+/// Leo records `cat=8` with no FAI-class signal.
+fn custom_class_for(cat_kind: &'static str, cat: u32, cert: u32, category: u32) -> &'static str {
+    match cat_kind {
+        "pg" => pg_class_from_cert(cert).unwrap_or("unknown"),
+        "hg" => {
+            if cat & CAT_HG_RIGID != 0 {
+                "rigid"
+            } else {
+                match category {
+                    1 => "kingpost",
+                    2 => "topless",
+                    _ => "unknown",
+                }
+            }
+        }
+        "sp" => "unknown",
+        // Filtered out earlier by `airframe_kind(...) == "other"` returning a
+        // SkipReason; never reaches the custom path.
+        _ => unreachable!("custom_class_for called with cat_kind='{cat_kind}'"),
+    }
+}
+
+/// PG cert bitmask → our `glider_class`. Highest bit wins. DHV / AFNOR /
+/// CCC bits we don't translate yet — none of those appear in the dump, and
+/// CCC is orthogonal to EN tiers anyway.
 fn pg_class_from_cert(cert: u32) -> Option<&'static str> {
     if cert & 256 != 0 {
         Some("en_d")
@@ -456,13 +442,11 @@ fn pg_class_from_cert(cert: u32) -> Option<&'static str> {
 }
 
 /// Translate Leo's `startType` enum to our `launch_method`. Leo offers four
-/// values in the upload form: `1`=foot, `2`=winch, `4`=microlight aircraft
-/// tow (their "Сверхлёгкий самолёт/ДП"), `8`=E-motor (powered self-launch).
-/// Only three of those are launch axes — `8` is propulsion, the pilot still
-/// foot-launches a powered wing — so we collapse it to `foot` and let
-/// `flights.propulsion` carry the engine info. NULL and any unexpected value
-/// also default to `foot` (the field is nullable in MySQL; we don't want to
-/// skip rows over a stray surprise value).
+/// values in the upload form: `1`=foot, `2`=winch, `4`=microlight aircraft tow,
+/// `8`=E-motor (powered self-launch). Only three of those are launch axes — `8`
+/// is propulsion, the pilot still foot-launches a powered wing — so we collapse
+/// it to `foot` and let `flights.propulsion` carry the engine info. NULL and
+/// any unexpected value default to `foot`.
 pub fn launch_method_for(start_type: Option<u8>) -> &'static str {
     match start_type.unwrap_or(1) {
         2 => "winch",
@@ -479,34 +463,6 @@ fn kind_str_to_static(s: &str) -> Option<&'static str> {
         "other" => Some("other"),
         _ => None,
     }
-}
-
-/// Pin the variants we expect off `glider_models.class::text` to `&'static str`
-/// so the resolver can keep them on `ModelEntry`. Mirrors the enum in migration
-/// `0010_gliders_user_id_and_sp_classes.sql`; any drift returns `None` and
-/// surfaces at construction.
-fn canonical_class_str(s: &str) -> Option<&'static str> {
-    Some(match s {
-        "en_a" => "en_a",
-        "en_b" => "en_b",
-        "en_c" => "en_c",
-        "en_d" => "en_d",
-        "ccc" => "ccc",
-        "single_surface" => "single_surface",
-        "kingpost" => "kingpost",
-        "topless" => "topless",
-        "rigid" => "rigid",
-        "thirteen_point_five_metre" => "thirteen_point_five_metre",
-        "standard" => "standard",
-        "fifteen_metre" => "fifteen_metre",
-        "eighteen_metre" => "eighteen_metre",
-        "twenty_metre_two_seater" => "twenty_metre_two_seater",
-        "open" => "open",
-        "club" => "club",
-        "microlift" => "microlift",
-        "ultralight" => "ultralight",
-        _ => return None,
-    })
 }
 
 /// Load `leo.brands.json`. The master `gliderBrandID` → display-name map;
@@ -544,8 +500,8 @@ fn compile_alias_rules(
 
 /// Read and parse `data/<kind>.aliases.json` into compiled regex rules. Missing
 /// file → empty (no aliases for this kind this run); brand/model references
-/// that don't exist in `brands` / `glider_models` are a hard error so a typo in
-/// the JSON doesn't silently drop rules.
+/// that don't exist in `brands` / `models` are a hard error so a typo in the
+/// JSON doesn't silently drop rules.
 fn compile_aliases_for_kind(
     kind: &'static str,
     brand_names: &HashMap<String, String>,
@@ -606,62 +562,35 @@ fn compile_aliases_for_kind(
     Ok(out)
 }
 
-/// Look up an existing `gliders` row matching the resolution columns, or insert
-/// a fresh one. Per-pilot dedupe lives in the in-memory `cache`; this function
-/// handles cross-run idempotency (a previous `leonardo migrate` run inserted
-/// the same wing).
-async fn upsert_glider(
+/// Insert a per-pilot custom model. The PK on `(brand_id, kind, id)` makes this
+/// idempotent across runs *and* dedupes cosmetic variants from the same pilot
+/// within a run (same raw text → same slug → same `id`).
+#[allow(clippy::too_many_arguments)]
+async fn insert_custom_model(
     pool: &PgPool,
     leo_flight_id: u64,
+    brand_id: &str,
+    kind: &'static str,
+    id: &str,
+    name: &str,
+    class: &'static str,
+    is_tandem: bool,
     user_id: i32,
-    c: &Classified,
-) -> anyhow::Result<i32> {
-    static FIND_SQL: OnceLock<String> = OnceLock::new();
-    let find_sql = FIND_SQL.get_or_init(|| {
-        "SELECT id FROM gliders \
-         WHERE user_id = $1 \
-           AND kind = $2::glider_kind \
-           AND class IS NOT DISTINCT FROM $3::glider_class \
-           AND is_tandem IS NOT DISTINCT FROM $4 \
-           AND brand_id IS NOT DISTINCT FROM $5 \
-           AND brand_text IS NOT DISTINCT FROM $6 \
-           AND model_id IS NOT DISTINCT FROM $7 \
-           AND model_text IS NOT DISTINCT FROM $8 \
-         LIMIT 1"
-            .to_string()
-    });
-    let existing: Option<i32> = sqlx::query_scalar(find_sql)
-        .bind(user_id)
-        .bind(c.kind)
-        .bind(c.class)
-        .bind(c.is_tandem)
-        .bind(c.brand_id.as_deref())
-        .bind(c.brand_text.as_deref())
-        .bind(c.model_id.as_deref())
-        .bind(c.model_text.as_deref())
-        .fetch_optional(pool)
-        .await
-        .with_context(|| format!("looking up existing glider for leo flight {leo_flight_id}"))?;
-    if let Some(id) = existing {
-        return Ok(id);
-    }
-
-    let id: i32 = sqlx::query_scalar(
-        "INSERT INTO gliders (user_id, kind, class, is_tandem, brand_id, brand_text, \
-                              model_id, model_text) \
-         VALUES ($1, $2::glider_kind, $3::glider_class, $4, $5, $6, $7, $8) \
-         RETURNING id",
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO models (brand_id, kind, id, name, class, is_tandem, user_id) \
+         VALUES ($1, $2::glider_kind, $3, $4, $5::glider_class, $6, $7) \
+         ON CONFLICT (brand_id, kind, id) DO NOTHING",
     )
+    .bind(brand_id)
+    .bind(kind)
+    .bind(id)
+    .bind(name)
+    .bind(class)
+    .bind(is_tandem)
     .bind(user_id)
-    .bind(c.kind)
-    .bind(c.class)
-    .bind(c.is_tandem)
-    .bind(c.brand_id.as_deref())
-    .bind(c.brand_text.as_deref())
-    .bind(c.model_id.as_deref())
-    .bind(c.model_text.as_deref())
-    .fetch_one(pool)
+    .execute(pool)
     .await
-    .with_context(|| format!("inserting glider for leo flight {leo_flight_id}"))?;
-    Ok(id)
+    .with_context(|| format!("inserting custom model for leo flight {leo_flight_id}"))?;
+    Ok(())
 }
