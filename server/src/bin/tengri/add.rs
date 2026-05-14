@@ -42,6 +42,11 @@ pub async fn run(input: PathBuf, user_id: i32) -> anyhow::Result<()> {
             takeoff_lon: p.takeoff_lon,
             landing_lat: p.landing_lat,
             landing_lon: p.landing_lon,
+            // `tengri add` ingests IGCs that carry no glider metadata; the
+            // pilot picks a wing later in the UI (or leaves it unassigned).
+            glider_id: None,
+            propulsion: "free",
+            launch_method: "foot",
         },
     )
     .await

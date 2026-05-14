@@ -2549,6 +2549,7 @@ dependencies = [
  "jsonwebtoken",
  "md-5 0.11.0",
  "rand 0.9.4",
+ "regex",
  "roxmltree",
  "serde",
  "serde_json",

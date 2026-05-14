@@ -145,13 +145,15 @@ fn canonical_class(kind: &str, key: &str) -> Option<&'static str> {
         ("hg", "kingpost") => Some("kingpost"),
         ("hg", "topless") => Some("topless"),
         ("hg", "rigid") => Some("rigid"),
+        ("sp", "thirteen_point_five_metre") => Some("thirteen_point_five_metre"),
         ("sp", "standard") => Some("standard"),
         ("sp", "fifteen_metre") => Some("fifteen_metre"),
         ("sp", "eighteen_metre") => Some("eighteen_metre"),
         ("sp", "twenty_metre_two_seater") => Some("twenty_metre_two_seater"),
         ("sp", "open") => Some("open"),
         ("sp", "club") => Some("club"),
-        ("sp", "motorglider") => Some("motorglider"),
+        ("sp", "microlift") => Some("microlift"),
+        ("sp", "ultralight") => Some("ultralight"),
         _ => None,
     }
 }
@@ -169,7 +171,7 @@ fn strip_tandem(name: &str) -> (&str, bool) {
 /// other non-Latin letters fall through the run-collapsing branch — fine for
 /// our data where canonical names that pass through here are predominantly
 /// Latin with the odd diacritic.
-fn slugify(s: &str) -> String {
+pub fn slugify(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut last_was_dash = true;
     for c in s.nfd() {

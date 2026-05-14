@@ -33,6 +33,7 @@
 //!    their parents) and push its report onto `reports`.
 
 mod flights;
+mod gliders;
 mod profiles;
 mod progress;
 mod users;

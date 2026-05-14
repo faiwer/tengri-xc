@@ -13,9 +13,11 @@
       "Stealth KPL": ["StelthKPL"],
       "Target": ["Target ?(13|16|19|132|162|192)"]
     },
-    "Homebuilt": {
-      "X-13": ["[xх] ?13"],
-      "X-14": ["[xх] ?14"],
+    "Sutyagin": {
+      "X-13": ["[xх] ?-? ?13"],
+      "X-14": ["[xх] ?-? ?14"]
+    },
+    "Matvienko": {
       "Dedal": ["Дедал"]
     },
     "Icaro": {

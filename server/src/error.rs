@@ -31,6 +31,13 @@ pub enum AppError {
     #[error("forbidden")]
     Forbidden,
 
+    /// Request can't be satisfied in the current resource state — e.g. deleting
+    /// a row that other rows still reference. Distinct from `BadRequest` (which
+    /// is "your input is malformed") so the FE can distinguish "you sent
+    /// garbage" from "the world isn't ready".
+    #[error("{0}")]
+    Conflict(String),
+
     /// Per-field input errors. Status 422 with a `{ fields: { … } }`
     /// body the FE can feed straight into AntD `Form.setFields`.
     #[error("validation failed")]
@@ -59,6 +66,7 @@ impl AppError {
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Forbidden => StatusCode::FORBIDDEN,
+            AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -70,6 +78,7 @@ impl AppError {
             AppError::NotFound => "not_found",
             AppError::Unauthorized => "unauthorized",
             AppError::Forbidden => "forbidden",
+            AppError::Conflict(_) => "conflict",
             AppError::Validation(_) => "validation",
             AppError::Internal(_) => "internal_error",
         }

@@ -28,6 +28,13 @@ use sqlx::{Postgres, Transaction};
 /// Coordinates are E5 micro-degrees; the SQL converts to degrees at the bind
 /// site (`coord as f64 / 1e5`) and wraps in `ST_SetSRID(ST_MakePoint(lon, lat),
 /// 4326)::geography`.
+///
+/// `propulsion` and `launch_method` are bound as text and cast at the SQL layer
+/// (`$N::propulsion`, `$N::launch_method`); the caller passes the enum variant
+/// verbatim ("free" / "self_launch" / "powered" and "foot" / "winch" /
+/// "aerotow"). `glider_id` references the (deduped) `gliders` row this flight
+/// belongs to, or `None` when the ingest path doesn't carry glider metadata
+/// (e.g. `tengri add`) — the FK column is nullable.
 pub struct FlightRow<'a> {
     pub flight_id: &'a str,
     pub user_id: i32,
@@ -39,6 +46,9 @@ pub struct FlightRow<'a> {
     pub takeoff_lon: i32,
     pub landing_lat: i32,
     pub landing_lon: i32,
+    pub glider_id: Option<i32>,
+    pub propulsion: &'a str,
+    pub launch_method: &'a str,
 }
 
 /// What can go wrong inserting into `flights`. The other two writers
@@ -61,11 +71,12 @@ pub enum InsertFlightError {
 /// the placeholder numbering below matches the bind order in both writers.
 const INSERT_FLIGHT_SQL: &str = "INSERT INTO flights \
     (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
-     takeoff_point, landing_point) \
+     takeoff_point, landing_point, glider_id, propulsion, launch_method) \
     VALUES \
     ($1, $2, to_timestamp($3), to_timestamp($4), $5, $6, \
      ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography, \
-     ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography)";
+     ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography, \
+     $11, $12::propulsion, $13::launch_method)";
 
 /// Insert one `flights` row. Errors out on every conflict — use
 /// [`insert_flight_idempotent`] if the caller needs to skip rows it
@@ -85,6 +96,9 @@ pub async fn insert_flight(
         .bind(row.takeoff_lat as f64 / 1e5)
         .bind(row.landing_lon as f64 / 1e5)
         .bind(row.landing_lat as f64 / 1e5)
+        .bind(row.glider_id)
+        .bind(row.propulsion)
+        .bind(row.launch_method)
         .execute(&mut **tx)
         .await
         .map_err(|e| map_flight_error(e, row.user_id))?;
@@ -115,6 +129,9 @@ pub async fn insert_flight_idempotent(
         .bind(row.takeoff_lat as f64 / 1e5)
         .bind(row.landing_lon as f64 / 1e5)
         .bind(row.landing_lat as f64 / 1e5)
+        .bind(row.glider_id)
+        .bind(row.propulsion)
+        .bind(row.launch_method)
         .fetch_optional(&mut **tx)
         .await
         .map_err(|e| map_flight_error(e, row.user_id))?;

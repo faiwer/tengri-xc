@@ -27,6 +27,9 @@ use tengri_server::flight::{
 };
 
 use super::super::shared::tracks_root;
+use super::gliders::{
+    GliderInput, GliderResolver, ResolveNote, Resolved, SkipReason, launch_method_for,
+};
 use super::progress::Progress;
 use super::{Failure, Report};
 
@@ -44,12 +47,15 @@ pub async fn run(mysql: &MySqlPool, pg: &PgPool) -> anyhow::Result<Report> {
         .notes
         .push(format!("source flights scanned: {}", flights.len()));
 
+    let mut resolver = GliderResolver::build(pg)
+        .await
+        .context("building glider resolver")?;
     let mut tally = Tally::default();
     let mut progress = Progress::new("flights", flights.len());
     for src in &flights {
         let path = expected_path(&root, src);
         let outcome = if path.exists() {
-            process(pg, src, &path).await
+            process(pg, &mut resolver, src, &path).await
         } else {
             Err(ProcessError::MissingFile)
         };
@@ -67,6 +73,11 @@ struct Tally {
     missing: usize,
     broken: usize,
     no_window: usize,
+    /// Brand resolved but model didn't — no alias hit, possibly no models
+    /// catalogued for `(brand, cat_kind)` at all. Imported with `model_id =
+    /// NULL`, raw text preserved. Operator action: extend `*.aliases.json` or
+    /// `<kind>.json` if the raw is a real model.
+    model_unresolved: Vec<String>,
 }
 
 impl Tally {
@@ -86,6 +97,16 @@ impl Tally {
                 .notes
                 .push(format!("no takeoff/landing detected: {}", self.no_window));
         }
+
+        if !self.model_unresolved.is_empty() {
+            report.notes.push(format!(
+                "model unresolved (brand only): {} flights",
+                self.model_unresolved.len()
+            ));
+            for line in &self.model_unresolved {
+                report.notes.push(format!("  {line}"));
+            }
+        }
     }
 }
 
@@ -102,7 +123,10 @@ fn record(
 ) {
     let key_with_path = || format!("ID={} path={}", src.id, path.display());
     match outcome {
-        Ok(Inserted::New) => report.inserted += 1,
+        Ok(Inserted::New(note)) => {
+            report.inserted += 1;
+            tally_note(tally, src, note);
+        }
         Ok(Inserted::AlreadyPresent) => report.skipped += 1,
         Err(ProcessError::MissingFile) => {
             tally.missing += 1;
@@ -131,6 +155,15 @@ fn record(
                 reason: format!("no users row for userID={uid} (run leonardo migrate first)"),
             });
         }
+        Err(ProcessError::GliderUnresolved(reason)) => {
+            report.failures.push(Failure {
+                key: format!(
+                    "ID={} userID={} cat={} brand={} glider={:?}",
+                    src.id, src.user_id, src.cat, src.glider_brand_id, src.glider
+                ),
+                reason: format!("glider unresolved: {reason}"),
+            });
+        }
         Err(ProcessError::Db(e)) => {
             report.failures.push(Failure {
                 key: key_with_path(),
@@ -143,6 +176,15 @@ fn record(
                 reason: format!("{e:#}"),
             });
         }
+    }
+}
+
+fn tally_note(tally: &mut Tally, src: &SourceFlight, note: Option<ResolveNote>) {
+    let Some(note) = note else { return };
+    match note {
+        ResolveNote::ModelUnresolved { brand, raw, kind } => tally
+            .model_unresolved
+            .push(format!("ID={} {brand} ({kind}) / '{raw}'", src.id)),
     }
 }
 
@@ -162,15 +204,48 @@ struct SourceFlight {
     /// would refuse to decode under default settings.
     year_dir: String,
     filename: String,
+    /// Airframe + propulsion bitmask. Split into `kind` (airframe bit;
+    /// paramotor falls back to PG; everything else → `other` and the row skips)
+    /// and `flights.propulsion` (engine bits: 16=paramotor, 64=powered) inside
+    /// the resolver. Stored as `smallint unsigned` in Leo (`u16` over the
+    /// wire); we widen to `u32` for arithmetic.
+    #[sqlx(try_from = "u16")]
+    cat: u32,
+    /// Pilot's brand pick from Leo's `gliderBrandID` enum. `0` means the pilot
+    /// didn't pick anything; the resolver skips those. Wire type is `smallint
+    /// unsigned` so we decode as `u16` and widen.
+    #[sqlx(try_from = "u16")]
+    glider_brand_id: i32,
+    /// Free-form model string the pilot typed. `varchar(50)` NOT NULL.
+    glider: String,
+    /// EN/DHV/AFNOR cert bitmask, populated only for PG and only when pilots
+    /// filled it in. Drives the class fallback when the model arm misses
+    /// (`gliderCertCategory & 64 → en_b`, etc).
+    #[sqlx(try_from = "u16")]
+    glider_cert_category: u32,
+    /// In-class subtype, polymorphic on `cat`. Mostly noise (Leo lets pilots
+    /// re-pick per flight), but `category=3` on a PG flight implies tandem on
+    /// the rare model-unresolved case.
+    #[sqlx(try_from = "u16")]
+    category: u32,
+    /// Launch method bitmask: `1=foot, 2=winch, 8=aerotow`. Nullable
+    /// in MySQL (`tinyint unsigned`); `None` defaults to `foot`.
+    start_type: Option<u8>,
 }
 
 async fn fetch(mysql: &MySqlPool) -> anyhow::Result<Vec<SourceFlight>> {
     sqlx::query_as::<_, SourceFlight>(
         "SELECT \
-             ID            AS id, \
-             userID        AS user_id, \
+             ID                    AS id, \
+             userID                AS user_id, \
              IF(YEAR(DATE)=0, '0000', DATE_FORMAT(DATE, '%Y')) AS year_dir, \
-             filename \
+             filename, \
+             cat                   AS cat, \
+             gliderBrandID         AS glider_brand_id, \
+             glider                AS glider, \
+             gliderCertCategory    AS glider_cert_category, \
+             category              AS category, \
+             startType             AS start_type \
          FROM leonardo_flights \
          WHERE serverID = 0 \
            AND userID > 0 \
@@ -189,7 +264,7 @@ fn expected_path(root: &Path, src: &SourceFlight) -> PathBuf {
 }
 
 enum Inserted {
-    New,
+    New(Option<ResolveNote>),
     AlreadyPresent,
 }
 
@@ -198,6 +273,7 @@ enum ProcessError {
     Parse(anyhow::Error),
     NoWindow,
     MissingUser(i64),
+    GliderUnresolved(SkipReason),
     Db(sqlx::Error),
     Other(anyhow::Error),
 }
@@ -246,6 +322,7 @@ async fn is_already_present(pg: &PgPool, flight_id: &str) -> Result<bool, sqlx::
 
 async fn process(
     pg: &PgPool,
+    resolver: &mut GliderResolver,
     src: &SourceFlight,
     path: &std::path::Path,
 ) -> Result<Inserted, ProcessError> {
@@ -255,8 +332,24 @@ async fn process(
     }
     let user_id = i32::try_from(src.user_id)
         .map_err(|_| ProcessError::Other(anyhow!("userID {} doesn't fit in i32", src.user_id)))?;
+    let resolved = resolver
+        .resolve(
+            pg,
+            &GliderInput {
+                leo_flight_id: src.id,
+                user_id,
+                cat: src.cat,
+                glider_brand_id: src.glider_brand_id,
+                glider_text: &src.glider,
+                glider_cert_category: src.glider_cert_category,
+                category: src.category,
+            },
+        )
+        .await
+        .map_err(ProcessError::GliderUnresolved)?;
+    let launch_method = launch_method_for(src.start_type);
     let prepared = prepare_path_for_storage(path)?;
-    insert_rows(pg, &flight_id, user_id, &prepared).await
+    insert_rows(pg, &flight_id, user_id, &prepared, resolved, launch_method).await
 }
 
 /// Write all three rows in a single transaction. Returns
@@ -268,6 +361,8 @@ async fn insert_rows(
     flight_id: &str,
     user_id: i32,
     p: &Prepared,
+    resolved: Resolved,
+    launch_method: &str,
 ) -> Result<Inserted, ProcessError> {
     let mut tx = pg.begin().await?;
 
@@ -284,6 +379,9 @@ async fn insert_rows(
             takeoff_lon: p.takeoff_lon,
             landing_lat: p.landing_lat,
             landing_lon: p.landing_lon,
+            glider_id: Some(resolved.glider_id),
+            propulsion: resolved.propulsion,
+            launch_method,
         },
     )
     .await?;
@@ -304,5 +402,5 @@ async fn insert_rows(
     .await?;
 
     tx.commit().await?;
-    Ok(Inserted::New)
+    Ok(Inserted::New(resolved.note))
 }

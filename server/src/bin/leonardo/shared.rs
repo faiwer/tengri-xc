@@ -58,6 +58,27 @@ pub fn tracks_root() -> anyhow::Result<PathBuf> {
     Ok(PathBuf::from(root))
 }
 
+/// Path to one of the curated JSON inputs under `data/`. The dir is anchored at
+/// compile time via `CARGO_MANIFEST_DIR` (same pattern as `.env` loading
+/// above); the *contents* load at runtime so operators can edit a file and
+/// re-run the migrator without rebuilding.
+pub fn data_path(name: &str) -> PathBuf {
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/data")).join(name)
+}
+
+/// Read one of the `data/` JSON files. Returns `None` when the file doesn't
+/// exist — every input here is "best effort" data the operator curates
+/// incrementally, so a missing file is the same as "no entries this run". Other
+/// read errors (permissions, I/O) bubble as `Err`.
+pub fn read_data_file(name: &str) -> anyhow::Result<Option<String>> {
+    let path = data_path(name);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => Ok(Some(s)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(anyhow::Error::new(e).context(format!("reading {}", path.display()))),
+    }
+}
+
 /// Spin up a single-threaded Tokio runtime on demand. The CLI is
 /// otherwise fully synchronous; we don't want every subcommand paying
 /// for a runtime. Mirrors the helper in the `tengri` binary so the two

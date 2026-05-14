@@ -86,9 +86,19 @@ async fn seed_login_user(
     email: Option<&str>,
     password_hash: &str,
 ) {
+    // The shared fixture pre-seeds `id=1` (the owner of the default glider) so
+    // this raw INSERT collides on the same id. UPSERT to make the seed
+    // idempotent — the same shape `seed_user` uses.
     sqlx::query(
         "INSERT INTO users (id, name, login, email, password_hash, source, permissions) \
-         VALUES ($1, $2, $3, $4, $5, 'leo', 1)",
+         VALUES ($1, $2, $3, $4, $5, 'leo', 1) \
+         ON CONFLICT (id) DO UPDATE SET \
+             name          = EXCLUDED.name, \
+             login         = EXCLUDED.login, \
+             email         = EXCLUDED.email, \
+             password_hash = EXCLUDED.password_hash, \
+             source        = EXCLUDED.source, \
+             permissions   = EXCLUDED.permissions",
     )
     .bind(id)
     .bind(name)
