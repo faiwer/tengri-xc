@@ -7,13 +7,15 @@ import type { TrackWindow } from '../../track/toPaths';
 import { altitudeLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
-import { useAltitudeSeries } from './useAltitudeSeries';
 import { useUPlot } from './useUPlot';
+import type { HoverFractionHandler } from './useUPlot';
+import { useAltitudeSeries } from './useAltitudeSeries';
 
 interface AltitudeChartProps {
   track: Track;
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
+  onHoverFractionChange?: HoverFractionHandler;
 }
 
 /**
@@ -32,7 +34,11 @@ interface AltitudeChartProps {
  * {@link useUPlot}; this component is just a config picker and a
  * container.
  */
-export function AltitudeChart({ track, window }: AltitudeChartProps) {
+export function AltitudeChart({
+  track,
+  window,
+  onHoverFractionChange,
+}: AltitudeChartProps) {
   const prefs = usePreferences();
   const { data, hasBaro } = useAltitudeSeries(track, window, prefs);
   const opts = useMemo(
@@ -42,7 +48,7 @@ export function AltitudeChart({ track, window }: AltitudeChartProps) {
     }),
     [hasBaro, prefs.units],
   );
-  const ref = useUPlot(data, opts);
+  const ref = useUPlot(data, opts, onHoverFractionChange);
 
   return <div ref={ref} className={styles.chart} />;
 }

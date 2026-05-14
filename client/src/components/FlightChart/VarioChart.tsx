@@ -9,12 +9,14 @@ import { varioLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
 import { useUPlot } from './useUPlot';
+import type { HoverFractionHandler } from './useUPlot';
 import { useVarioSeries } from './useVarioSeries';
 
 interface VarioChartProps {
   track: Track;
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
+  onHoverFractionChange?: HoverFractionHandler;
 }
 
 /**
@@ -32,7 +34,11 @@ interface VarioChartProps {
  * sign of the signal is legible at a glance; uPlot has no first-class
  * "rule" primitive.
  */
-export function VarioChart({ track, window }: VarioChartProps) {
+export function VarioChart({
+  track,
+  window,
+  onHoverFractionChange,
+}: VarioChartProps) {
   const prefs = usePreferences();
   const { data } = useVarioSeries(track, window, prefs);
   const opts = useMemo(
@@ -43,7 +49,7 @@ export function VarioChart({ track, window }: VarioChartProps) {
     }),
     [prefs.varioUnit],
   );
-  const ref = useUPlot(data, opts);
+  const ref = useUPlot(data, opts, onHoverFractionChange);
   return <div ref={ref} className={styles.chart} />;
 }
 

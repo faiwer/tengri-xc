@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { getTrack, getTrackMetadata } from '../api/tracks';
 import type { TrackMetadata } from '../api/tracks.io';
-import { FitBounds, MapView, TrackPolyline } from '../components/MapView';
+import {
+  FitBounds,
+  MapView,
+  TrackHoverMarker,
+  TrackPolyline,
+} from '../components/MapView';
 import { FlightChart } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
@@ -12,6 +17,7 @@ import { pathsBounds, trackToPaths, type TrackWindow } from '../track/toPaths';
 import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
 import type { Track } from '../track';
 import styles from './TrackPage.module.scss';
+import { useTrackHoverPoint } from './useTrackHoverPoint';
 
 type LoadState =
   | { status: 'loading' }
@@ -86,6 +92,10 @@ export function TrackPage() {
     [track, window, insights],
   );
   const bounds = useMemo(() => (paths ? pathsBounds(paths) : null), [paths]);
+  const { point: hoverPoint, setHoverFraction } = useTrackHoverPoint(
+    track,
+    window,
+  );
 
   return (
     <PageLayout>
@@ -109,10 +119,17 @@ export function TrackPage() {
           <div className={styles.mapSlot}>
             <MapView>
               {paths && <TrackPolyline paths={paths} />}
+              <TrackHoverMarker point={hoverPoint} />
               <FitBounds bounds={bounds} />
             </MapView>
           </div>
-          {track && window && <FlightChart track={track} window={window} />}
+          {track && window && (
+            <FlightChart
+              track={track}
+              window={window}
+              onHoverFractionChange={setHoverFraction}
+            />
+          )}
         </div>
       </div>
     </PageLayout>

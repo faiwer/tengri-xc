@@ -9,11 +9,13 @@ import { formatHourMinute } from './formatHourMinute';
 import styles from './SpeedChart.module.scss';
 import { useSpeedSeries } from './useSpeedSeries';
 import { useUPlot } from './useUPlot';
+import type { HoverFractionHandler } from './useUPlot';
 
 interface SpeedChartProps {
   track: Track;
   /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
   window: TrackWindow;
+  onHoverFractionChange?: HoverFractionHandler;
 }
 
 /**
@@ -41,7 +43,11 @@ interface SpeedChartProps {
  * {@link useUPlot}; this component is just a config picker and a
  * container.
  */
-export function SpeedChart({ track, window }: SpeedChartProps) {
+export function SpeedChart({
+  track,
+  window,
+  onHoverFractionChange,
+}: SpeedChartProps) {
   const prefs = usePreferences();
   const { data } = useSpeedSeries(track, window, prefs);
   const hasTas = !!track.tas;
@@ -54,7 +60,7 @@ export function SpeedChart({ track, window }: SpeedChartProps) {
     }),
     [hasTas, prefs.speedUnit],
   );
-  const ref = useUPlot(data, opts);
+  const ref = useUPlot(data, opts, onHoverFractionChange);
 
   return <div ref={ref} className={styles.chart} />;
 }

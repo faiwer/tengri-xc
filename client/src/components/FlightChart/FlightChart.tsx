@@ -7,10 +7,12 @@ import { AltitudeChart } from './AltitudeChart';
 import styles from './FlightChart.module.scss';
 import { SpeedChart } from './SpeedChart';
 import { VarioChart } from './VarioChart';
+import type { HoverFractionHandler } from './useUPlot';
 
 interface FlightChartProps {
   track: Track;
   window: TrackWindow;
+  onHoverFractionChange?: HoverFractionHandler;
 }
 
 type ChartKind = 'altitude' | 'speed' | 'vario';
@@ -26,7 +28,11 @@ type ChartKind = 'altitude' | 'speed' | 'vario';
  * session, so we honour the last choice and skip the friction of
  * re-selecting it on every page load.
  */
-export function FlightChart({ track, window }: FlightChartProps) {
+export function FlightChart({
+  track,
+  window,
+  onHoverFractionChange,
+}: FlightChartProps) {
   const [activeKind, setActiveKind] = useLocalStorageValue(
     'flight-chart-tab',
     ACTIVE_KIND_STORAGE_OPTIONS,
@@ -42,10 +48,26 @@ export function FlightChart({ track, window }: FlightChartProps) {
       />
       <div className={styles.body}>
         {activeKind === 'altitude' && (
-          <AltitudeChart track={track} window={window} />
+          <AltitudeChart
+            track={track}
+            window={window}
+            onHoverFractionChange={onHoverFractionChange}
+          />
         )}
-        {activeKind === 'speed' && <SpeedChart track={track} window={window} />}
-        {activeKind === 'vario' && <VarioChart track={track} window={window} />}
+        {activeKind === 'speed' && (
+          <SpeedChart
+            track={track}
+            window={window}
+            onHoverFractionChange={onHoverFractionChange}
+          />
+        )}
+        {activeKind === 'vario' && (
+          <VarioChart
+            track={track}
+            window={window}
+            onHoverFractionChange={onHoverFractionChange}
+          />
+        )}
       </div>
     </section>
   );

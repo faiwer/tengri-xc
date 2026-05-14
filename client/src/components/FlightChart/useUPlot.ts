@@ -1,6 +1,8 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import uPlot, { type AlignedData, type Options } from 'uplot';
 
+export type HoverFractionHandler = (fraction: number | null) => void;
+
 /**
  * Mount and manage a uPlot instance against a container div.
  *
@@ -10,7 +12,7 @@ import uPlot, { type AlignedData, type Options } from 'uplot';
  * or before each rebuild.
  *
  * The hook supplies the chart conventions shared across the FlightChart
- * panel — non-zooming cursor, time x-scale, auto y-scale, hidden legend
+ * panel — hover-only cursor, time x-scale, auto y-scale, hidden legend
  * — and shallow-merges `opts` over them, so callers only specify what
  * varies (axes, series, and whatever else they want to override).
  *
@@ -27,6 +29,7 @@ import uPlot, { type AlignedData, type Options } from 'uplot';
 export const useUPlot = (
   data: AlignedData,
   opts: Pick<Options, 'axes' | 'series'> & Partial<Options>,
+  onHoverFractionChange?: HoverFractionHandler,
 ): RefObject<HTMLDivElement | null> => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -35,6 +38,19 @@ export const useUPlot = (
     if (!container) {
       return;
     }
+
+    const setCursorHooks = opts.hooks?.setCursor ?? [];
+    const hooks: Options['hooks'] = {
+      ...opts.hooks,
+      setCursor: onHoverFractionChange
+        ? [
+            ...setCursorHooks,
+            (chart) => {
+              onHoverFractionChange(geChartHoverFraction(chart, data));
+            },
+          ]
+        : setCursorHooks,
+    };
 
     const merged: Options = {
       width: container.clientWidth,
@@ -51,9 +67,14 @@ export const useUPlot = (
       },
       legend: { show: false },
       ...opts,
+      hooks,
     };
 
     const chart = new uPlot(merged, data, container);
+    const clearHover = () => {
+      onHoverFractionChange?.(null);
+    };
+    container.addEventListener('mouseleave', clearHover);
 
     const resize = new ResizeObserver(() => {
       chart.setSize({
@@ -64,10 +85,42 @@ export const useUPlot = (
     resize.observe(container);
 
     return () => {
+      clearHover();
+      container.removeEventListener('mouseleave', clearHover);
       resize.disconnect();
       chart.destroy();
     };
-  }, [data, opts]);
+  }, [data, opts, onHoverFractionChange]);
 
   return containerRef;
 };
+
+const geChartHoverFraction = (
+  chart: uPlot,
+  data: AlignedData,
+): number | null => {
+  const hoverIdx = chart.cursor.idx;
+  const timeSeries = data[0];
+
+  if (hoverIdx == null || hoverIdx < 0 || hoverIdx >= timeSeries.length) {
+    return null;
+  }
+
+  if (timeSeries.length < 2) {
+    return null;
+  }
+
+  const first = Number(timeSeries[0]);
+  const last = Number(timeSeries[timeSeries.length - 1]);
+  const current = Number(timeSeries[hoverIdx]);
+  const span = last - first;
+
+  if (span <= 0) {
+    return null;
+  }
+
+  return clamp((current - first) / span, 0, 1);
+};
+
+const clamp = (value: number, min: number, max: number): number =>
+  value < min ? min : value > max ? max : value;
