@@ -1,9 +1,6 @@
 .panel {
   position: relative;
   background: #ffffff;
-  border: 1px solid #e3e3e7;
-  border-radius: 8px;
-  // Clips uPlot's rectangular canvas to the rounded corners.
   overflow: hidden;
   box-sizing: border-box;
 }

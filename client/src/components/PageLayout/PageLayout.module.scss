@@ -36,6 +36,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  // Cut the corners of the content card (in favor of the page border-radius)
+  overflow: hidden;
 }
 
 // Opt-in via the `fit` prop. Cancels the `flex: 1` stretch so the card sits at
