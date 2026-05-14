@@ -1,3 +1,5 @@
+@use "../../core/mixins";
+
 // PageLayout is rendered with `fit`, so the white card sizes to its
 // content. The grid row matches the content column's height and the
 // sidebar (a grid item, default `align-items: stretch`) follows.
@@ -7,33 +9,20 @@
 }
 
 // Break out of the PageLayout content card's 1rem padding on three sides so the
-// panel hugs the card's inner edges (top, left, bottom). Left corners round
-// with 7px to match the card's inner curve (outer 8px minus its 1px border);
+// panel hugs the card's inner edges (top, left, bottom). Left corners round to
+// match the card's inner curve (outer 8px minus its 1px border);
 // right corners stay square so the panel reads as a clean vertical strip rather
 // than a card.
 .nav {
-  position: relative;
+  @include mixins.sidebar-logo-beams;
+
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   padding: 1rem 0.75rem 10rem;
-  background: #0f172a;
-  border-radius: 7px 0 0 7px;
-  color: #cbd5e1;
-
-  &::after {
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    bottom: -23px;
-    inset-inline: 0;
-    margin-inline: auto;
-    width: 11rem;
-    aspect-ratio: 1;
-    background-color: rgba(255, 255, 255, 0.15);
-    mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
-    -webkit-mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
-  }
+  background: var(--sidebag-bg);
+  border-radius: var(--page-border-rad) 0 0 var(--page-border-rad);
+  color: var(--sidebar-text);
 }
 
 .group {
@@ -47,7 +36,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: var(--sidebar-text-tertiary);
   padding: 0 0.75rem 0.4rem;
 }
 
@@ -57,7 +46,7 @@
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  color: #cbd5e1;
+  color: var(--sidebar-text);
   text-decoration: none;
   font-size: 0.95rem;
   transition:

@@ -7,6 +7,7 @@
   gap: 0.85rem;
   font-size: 0.9rem;
   line-height: 1.2;
+  color: inherit;
 }
 
 .cell {
@@ -20,16 +21,16 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6b6b73;
+  color: var(--sidebar-text-tertiary);
 }
 
 .value {
   font-weight: 500;
-  color: #1a1a1f;
+  color: inherit;
 }
 
 .id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
-  color: #1a1a1f;
+  color: inherit;
 }

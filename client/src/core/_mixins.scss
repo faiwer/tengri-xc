@@ -1,0 +1,20 @@
+// Leading `_` marks a Sass partial: imported via `@use "core/mixins"` and not
+// emitted directly.
+
+@mixin sidebar-logo-beams {
+  position: relative;
+
+  &::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    bottom: -23px;
+    inset-inline: 0;
+    margin-inline: auto;
+    width: 11rem;
+    aspect-ratio: 1;
+    background-color: rgba(255, 255, 255, 0.15);
+    mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
+    -webkit-mask: url("/images/logoBeamsSmall.svg") no-repeat center / contain;
+  }
+}
