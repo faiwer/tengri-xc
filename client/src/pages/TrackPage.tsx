@@ -10,7 +10,7 @@ import { FlightChart } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { debounce } from '../utils/debounce';
-import { CursorReadout } from './CursorReadout';
+import { CursorReadout } from './CursorReadout/index';
 import styles from './TrackPage.module.scss';
 import { useFlightAnalysis } from './useFlightAnalysis';
 import { useTrackHoverPoint } from './useTrackHoverPoint';

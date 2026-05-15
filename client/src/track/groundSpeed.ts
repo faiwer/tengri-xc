@@ -15,7 +15,7 @@ const MS_TO_KMH = 3.6;
  * thermal entry/exit transitions more visibly in the chart. ±30 s is
  * the sweet spot for the free-flight tracks this app targets.
  */
-const WINDOW_HALF_SECONDS = 30;
+export const GROUND_SPEED_WINDOW_HALF_SECONDS = 30;
 
 /**
  * Per-fix ground speed in km/h, computed as straight-line displacement
@@ -52,8 +52,8 @@ export const computeGroundSpeed = (track: Track): Float32Array => {
   let hi = 0;
   for (let i = 0; i < fixCount; i++) {
     const tCenter = times[i]!;
-    const tLo = tCenter - WINDOW_HALF_SECONDS;
-    const tHi = tCenter + WINDOW_HALF_SECONDS;
+    const tLo = tCenter - GROUND_SPEED_WINDOW_HALF_SECONDS;
+    const tHi = tCenter + GROUND_SPEED_WINDOW_HALF_SECONDS;
 
     while (lo < i && times[lo]! < tLo) {
       lo++;

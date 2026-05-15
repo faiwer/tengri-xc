@@ -8,8 +8,10 @@ import type { Track } from '../../track';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
 import { AltitudeChart } from './AltitudeChart';
+import { ChartHelpButton } from './ChartHelp';
 import styles from './FlightChart.module.scss';
 import { SpeedChart } from './SpeedChart';
+import { CHART_LABELS, type ChartKind } from './types';
 import { VarioChart } from './VarioChart';
 import type { HoverFractionHandler } from './useUPlot';
 
@@ -20,8 +22,6 @@ interface FlightChartProps {
   /** External map hover progress; drives the chart cursor line. */
   hoverFraction?: number | null;
 }
-
-type ChartKind = 'altitude' | 'speed' | 'vario';
 
 /**
  * Frame around the per-flight charts. Owns the segmented control that
@@ -47,12 +47,19 @@ export function FlightChart({
 
   return (
     <section className={styles.panel} aria-label="Flight charts">
-      <Segmented<ChartKind>
-        className={styles.switcher}
-        options={SEGMENTED_OPTIONS}
-        value={activeKind}
-        onChange={setActiveKind}
-      />
+      <div className={styles.controls}>
+        <ChartHelpButton
+          kind={activeKind}
+          hasBaro={!!track.baroAlt}
+          hasTas={!!track.tas}
+        />
+        <Segmented<ChartKind>
+          className={styles.switcher}
+          options={SEGMENTED_OPTIONS}
+          value={activeKind}
+          onChange={setActiveKind}
+        />
+      </div>
       <div className={styles.body}>
         {activeKind === 'altitude' && (
           <AltitudeChart
@@ -84,15 +91,15 @@ export function FlightChart({
 
 const SEGMENTED_OPTIONS: { label: ReactNode; value: ChartKind }[] = [
   {
-    label: <AltitudeIcon aria-label="Altitude" />,
+    label: <AltitudeIcon aria-label={CHART_LABELS.altitude} />,
     value: 'altitude',
   },
   {
-    label: <SpeedIcon aria-label="Speed" />,
+    label: <SpeedIcon aria-label={CHART_LABELS.speed} />,
     value: 'speed',
   },
   {
-    label: <VarioIcon aria-label="Vario" />,
+    label: <VarioIcon aria-label={CHART_LABELS.vario} />,
     value: 'vario',
   },
 ];

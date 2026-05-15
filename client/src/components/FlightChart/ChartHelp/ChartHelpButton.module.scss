@@ -1,0 +1,51 @@
+.help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+  background: var(--tooltip-trigger-bg);
+  color: var(--tooltip-trigger-text);
+  cursor: help;
+}
+
+.content {
+  max-width: 280px;
+  padding: 0.5rem;
+}
+
+.title {
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.description {
+  margin: 0 0 0.55rem;
+  color: var(--tooltip-description-text);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.item + .item {
+  margin-top: 0.35rem;
+}
+
+.bullet {
+  flex: 0 0 auto;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.3em;
+  border-radius: 50%;
+  background: currentColor;
+}

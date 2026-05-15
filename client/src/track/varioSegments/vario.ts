@@ -1,6 +1,6 @@
 import type { Track } from '../types';
 
-const WINDOW_HALF_SECONDS = 5;
+export const VARIO_WINDOW_HALF_SECONDS = 5;
 
 /**
  * Per-fix vertical velocity in m/s, computed over a centred ±5 s window.
@@ -23,8 +23,8 @@ export const computeVario = (track: Track): Float32Array => {
   let rightIdx = 0;
 
   for (let i = 0; i < fixCount; i++) {
-    const tLeft = times[i]! - WINDOW_HALF_SECONDS;
-    const tRight = times[i]! + WINDOW_HALF_SECONDS;
+    const tLeft = times[i]! - VARIO_WINDOW_HALF_SECONDS;
+    const tRight = times[i]! + VARIO_WINDOW_HALF_SECONDS;
 
     while (leftIdx < fixCount - 1 && times[leftIdx]! < tLeft) {
       leftIdx++;

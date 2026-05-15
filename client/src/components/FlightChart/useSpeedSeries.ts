@@ -25,7 +25,7 @@ const SPEED_CHART_TARGET_POINTS = 1500;
  * each ~5 s bucket carrying ¼-turn of thermal-circle wobble and the
  * raw-per-leg lines read as noise next to the smooth ground line.
  */
-const AIRSPEED_SMOOTHING_HALF_SECONDS = 30;
+export const AIRSPEED_SMOOTHING_HALF_SECONDS = 30;
 
 /**
  * Index pad applied around the flight window before running the speed

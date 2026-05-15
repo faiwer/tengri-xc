@@ -5,11 +5,14 @@
   box-sizing: border-box;
 }
 
-.switcher {
+.controls {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 // Fixed height so swapping charts doesn't shift surrounding layout.

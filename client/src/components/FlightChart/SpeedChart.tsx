@@ -5,6 +5,7 @@ import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { speedLabel } from '../../utils/formatUnits';
+import { CHART_COLORS } from './chartColors';
 import { formatHourMinute } from './formatHourMinute';
 import styles from './SpeedChart.module.scss';
 import { useSpeedSeries } from './useSpeedSeries';
@@ -66,15 +67,6 @@ export function SpeedChart({
   return <div ref={ref} className={styles.chart} />;
 }
 
-// Visual tokens kept in sync with AltitudeChart so the two charts read
-// as siblings — same blue / orange palette and same axis greys.
-const GPS_STROKE = '#3b82f6';
-const GPS_FILL = 'rgba(59, 130, 246, 0.12)';
-const TAS_STROKE = '#f97316';
-// Tailwind violet-400. Light enough to read as "softer / derived" next
-// to the saturated blue and orange, distinct enough not to be confused
-// with either at chart density.
-const PATH_STROKE = '#a78bfa';
 const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
@@ -100,22 +92,22 @@ const buildYAxis = (speedUnit: 'kmh' | 'mph'): Axis => {
 
 const GPS_SERIES: Series = {
   label: 'GPS',
-  stroke: GPS_STROKE,
+  stroke: CHART_COLORS.speedGps,
   width: SERIES_WIDTH,
-  fill: GPS_FILL,
+  fill: CHART_COLORS.speedGpsFill,
   points: { show: false },
 };
 
 const PATH_SERIES: Series = {
   label: 'Path',
-  stroke: PATH_STROKE,
+  stroke: CHART_COLORS.speedPath,
   width: SERIES_WIDTH,
   points: { show: false },
 };
 
 const TAS_SERIES: Series = {
   label: 'TAS',
-  stroke: TAS_STROKE,
+  stroke: CHART_COLORS.speedTas,
   width: SERIES_WIDTH,
   points: { show: false },
 };

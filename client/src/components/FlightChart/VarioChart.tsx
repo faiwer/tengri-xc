@@ -6,6 +6,7 @@ import { usePreferences } from '../../core/preferences';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { varioLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
+import { CHART_COLORS } from './chartColors';
 import { formatHourMinute } from './formatHourMinute';
 import { useUPlot } from './useUPlot';
 import type { HoverFractionHandler } from './useUPlot';
@@ -51,15 +52,6 @@ export function VarioChart({
   return <div ref={ref} className={styles.chart} />;
 }
 
-// Picked from the map's VARIO_COLOR_RAMP so the chart and polyline share
-// a vocabulary: orange-600 ≈ +3 m/s climb, blue-500 ≈ -3 m/s sink. We use
-// solid versions on the line and a 25%-alpha companion on the fill so
-// the area read stays soft against the line read.
-const CLIMB_STROKE = '#dc2626'; // red-600
-const SINK_STROKE = '#3b82f6'; // blue-500
-const CLIMB_FILL = 'rgba(220, 38, 38, 0.18)';
-const SINK_FILL = 'rgba(59, 130, 246, 0.18)';
-const ZERO_RULE = '#9ca3af'; // gray-400, matches the pre/post polyline tone
 const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
@@ -125,9 +117,9 @@ const splitAtZero =
 
 const VARIO_SERIES: Series = {
   label: 'Vario',
-  stroke: splitAtZero(CLIMB_STROKE, SINK_STROKE),
+  stroke: splitAtZero(CHART_COLORS.varioClimb, CHART_COLORS.varioSink),
   width: SERIES_WIDTH,
-  fill: splitAtZero(CLIMB_FILL, SINK_FILL),
+  fill: splitAtZero(CHART_COLORS.varioClimbFill, CHART_COLORS.varioSinkFill),
   points: { show: false },
 };
 
@@ -149,7 +141,7 @@ const drawZeroRule = (u: uPlot): void => {
   ctx.beginPath();
   ctx.rect(left, top, width, height);
   ctx.clip();
-  ctx.strokeStyle = ZERO_RULE;
+  ctx.strokeStyle = CHART_COLORS.zeroRule;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(left, yPx + 0.5);

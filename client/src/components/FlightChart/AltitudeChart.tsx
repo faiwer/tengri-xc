@@ -5,6 +5,7 @@ import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { TrackWindow } from '../../track/toPaths';
 import { altitudeLabel } from '../../utils/formatUnits';
+import { CHART_COLORS } from './chartColors';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
 import { useUPlot } from './useUPlot';
@@ -55,13 +56,6 @@ export function AltitudeChart({
   return <div ref={ref} className={styles.chart} />;
 }
 
-// Visual tokens. Kept here rather than in SCSS because uPlot draws to a
-// canvas and reads them as JS values; mirroring them in CSS would risk
-// drift. The blue and orange match the Tailwind 500-tier palette so the
-// chart reads as a sibling of the metadata panel and the map polylines.
-const PRIMARY_STROKE = '#3b82f6';
-const PRIMARY_FILL = 'rgba(59, 130, 246, 0.12)';
-const OVERLAY_STROKE = '#f97316';
 const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
@@ -103,14 +97,14 @@ const SERIES_WITH_BARO: Series[] = [
   {},
   {
     label: 'Baro',
-    stroke: PRIMARY_STROKE,
+    stroke: CHART_COLORS.altitudePrimary,
     width: SERIES_WIDTH,
-    fill: PRIMARY_FILL,
+    fill: CHART_COLORS.altitudePrimaryFill,
     points: { show: false },
   },
   {
     label: 'GPS',
-    stroke: OVERLAY_STROKE,
+    stroke: CHART_COLORS.altitudeOverlay,
     width: SERIES_WIDTH,
     points: { show: false },
   },
@@ -120,9 +114,9 @@ const SERIES_GPS_ONLY: Series[] = [
   {},
   {
     label: 'Altitude',
-    stroke: PRIMARY_STROKE,
+    stroke: CHART_COLORS.altitudePrimary,
     width: SERIES_WIDTH,
-    fill: PRIMARY_FILL,
+    fill: CHART_COLORS.altitudePrimaryFill,
     points: { show: false },
   },
 ];
