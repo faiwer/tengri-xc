@@ -17,7 +17,7 @@
 
 // Fixed height so swapping charts doesn't shift surrounding layout.
 .body {
-  height: 220px;
+  height: var(--chart-height, 220px);
 }
 
 .body :global(.u-cursor-x) {

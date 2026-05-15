@@ -21,12 +21,21 @@
   background: var(--sidebag-bg);
   border-radius: var(--page-border-rad) 0 0 var(--page-border-rad);
   color: var(--sidebar-text);
+
+  .loading {
+    padding: 3rem 0;
+    display: flex;
+    justify-content: center;
+    font-size: 3rem;
+  }
 }
 
 // `min-height: 0` is the trick that lets `.map { flex: 1 }` actually
 // shrink/grow inside this column. Without it, the column refuses to
 // go below the map's intrinsic 400px floor and the chart spills out.
 .right {
+  --chart-height: 220px;
+
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -37,6 +46,24 @@
 .mapSlot {
   flex: 1;
   min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .loading {
+    font-size: 5rem;
+  }
+}
+
+.chartLoadingSlot {
+  height: var(--chart-height);
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+
+  .loading {
+    font-size: 3rem;
+  }
 }
 
 .mapError {
@@ -80,10 +107,4 @@
     monospace;
   font-variant-numeric: tabular-nums;
   font-size: 0.9em;
-}
-
-.statusMessage {
-  margin: 0;
-  color: var(--sidebar-text);
-  font-size: 0.9rem;
 }

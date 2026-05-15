@@ -5,6 +5,7 @@ import type { GliderKindStaticIconProps } from './GliderKindIcon';
 import { iconSvgStyle } from './gliderKindIconStyles';
 import { useEffect } from 'react';
 import { nullthrows } from '../../utils/nullthrows';
+import { useState } from 'react';
 
 const svg = (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 62">
@@ -27,8 +28,24 @@ const svg = (
   </svg>
 ) as ElementNode;
 
-export function LoadingIcon({ className, style }: GliderKindStaticIconProps) {
+interface LoadingIconProps extends GliderKindStaticIconProps {
+  // Set true when the icon is used on something dark.
+  inverseTheme?: boolean;
+}
+
+export function LoadingIcon({
+  className,
+  style,
+  inverseTheme = false,
+}: LoadingIconProps) {
   const ref = useRef<SVGSVGElement>(null);
+  const [visible, setVisible] = useState(false);
+  const theme = inverseTheme ? INVERSE_THEME : DEFAULT_THEME;
+
+  useEffect(() => {
+    const timer = setTimeout(setVisible.bind(null, true), VISIBILITY_DELAY);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const svgElement = nullthrows(ref.current);
@@ -44,30 +61,48 @@ export function LoadingIcon({ className, style }: GliderKindStaticIconProps) {
       const activeStart = Math.max(0, stage - count);
       const activeEnd = Math.min(stage, count);
       const activeCount = activeEnd - activeStart;
-      const brightness = 1 - (activeCount / count) * BRIGHTNESS_RANGE;
+      const brightness =
+        1 + (theme.activeBrightness - 1) * (activeCount / count);
 
       middle.style.filter = `brightness(${brightness})`;
 
       for (const [idx, circle] of circles.entries()) {
         const active = activeStart <= idx && idx < activeEnd;
-        circle.style.color = active ? ACTIVE_COLOR : '';
+        circle.style.color = active ? theme.activeColor : '';
       }
     }, INTERVAL);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [theme]);
 
   return cloneElement(svg, {
     className,
     style: {
       ...iconSvgStyle(style),
-      color: INACTIVE_COLOR,
+      color: theme.inactiveColor,
+      visibility: visible ? '' : 'hidden',
     },
     ref,
   });
 }
 
-const INACTIVE_COLOR = 'silver';
-const ACTIVE_COLOR = '#0f172a';
-const BRIGHTNESS_RANGE = 0.75;
+interface LoadingIconTheme {
+  inactiveColor: string;
+  activeColor: string;
+  activeBrightness: number;
+}
+
+const DEFAULT_THEME: LoadingIconTheme = {
+  inactiveColor: 'silver',
+  activeColor: '#0f172a',
+  activeBrightness: 0.25,
+};
+
+const INVERSE_THEME: LoadingIconTheme = {
+  inactiveColor: '#333a4a',
+  activeColor: '#7b8293',
+  activeBrightness: 1.7,
+};
+
 const INTERVAL = 200;
+const VISIBILITY_DELAY = 300;

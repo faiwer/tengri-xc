@@ -15,6 +15,7 @@ import styles from './TrackPage.module.scss';
 import { useFlightAnalysis } from './useFlightAnalysis';
 import { useTrackHoverPoint } from './useTrackHoverPoint';
 import { useTrackPageData } from './useTrackPageData';
+import { LoadingIcon } from '../components/icons/LoadingIcon';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
@@ -28,6 +29,10 @@ export function TrackPage() {
     track,
     state.status === 'ok' ? state.data : undefined,
   );
+  const chartLoading =
+    (state.status === 'loading' || trackState.status === 'loading') &&
+    state.status !== 'error' &&
+    trackState.status !== 'error';
   const {
     point: hoverPoint,
     trackIndex: hoverTrackIndex,
@@ -41,9 +46,7 @@ export function TrackPage() {
     <PageLayout>
       <div className={styles.layout}>
         <aside className={styles.left}>
-          {state.status === 'loading' && (
-            <p className={styles.statusMessage}>Loading…</p>
-          )}
+          {state.status === 'loading' && <Loading inverseTheme />}
           {state.status === 'ok' && (
             <TrackMetaPanel
               data={state.data}
@@ -67,6 +70,8 @@ export function TrackPage() {
                 error={trackState.error}
                 className={styles.mapError}
               />
+            ) : trackState.status === 'loading' ? (
+              <Loading />
             ) : (
               <MapView
                 onCenterLatLng={setMapCenterDebounced}
@@ -84,7 +89,7 @@ export function TrackPage() {
             mapCenter={mapCenter}
             trackIndex={hoverTrackIndex}
           />
-          {track && analysis && (
+          {track && analysis ? (
             <FlightChart
               activeKind={activeChartKind}
               track={track}
@@ -93,7 +98,11 @@ export function TrackPage() {
               onHoverFractionChange={setHoverFraction}
               hoverFraction={chartHoverFraction}
             />
-          )}
+          ) : chartLoading ? (
+            <div className={styles.chartLoadingSlot}>
+              <Loading />
+            </div>
+          ) : null}
         </div>
       </div>
     </PageLayout>
@@ -118,3 +127,9 @@ const ErrorMessage = ({
     </div>
   );
 };
+
+const Loading = ({ inverseTheme = false }: { inverseTheme?: boolean }) => (
+  <div className={styles.loading}>
+    <LoadingIcon inverseTheme={inverseTheme} />
+  </div>
+);
