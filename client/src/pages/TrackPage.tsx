@@ -6,7 +6,7 @@ import {
   TrackHoverMarker,
   TrackPolyline,
 } from '../components/MapView';
-import { FlightChart } from '../components/FlightChart';
+import { FlightChart, useChartKind } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
 import { debounce } from '../utils/debounce';
@@ -21,6 +21,7 @@ export function TrackPage() {
   const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(
     null,
   );
+  const [activeChartKind, setActiveChartKind] = useChartKind();
   const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
   const { state, trackState, track } = useTrackPageData(id);
   const analysis = useFlightAnalysis(
@@ -78,14 +79,17 @@ export function TrackPage() {
             )}
           </div>
           <CursorReadout
+            activeChartKind={activeChartKind}
             analysis={analysis}
             mapCenter={mapCenter}
             trackIndex={hoverTrackIndex}
           />
           {track && analysis && (
             <FlightChart
+              activeKind={activeChartKind}
               track={track}
               analysis={analysis}
+              onActiveKindChange={setActiveChartKind}
               onHoverFractionChange={setHoverFraction}
               hoverFraction={chartHoverFraction}
             />

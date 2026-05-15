@@ -4,9 +4,9 @@ import type { ResolvedPreferences } from '../../core/preferences';
 import type { Track } from '../../track';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { computePathSpeed } from '../../track/pathSpeed';
+import { smoothTas, smoothTrackSpeed } from '../../track/smoothedSpeed';
 import { bucketMean } from '../../utils/bucketMean';
 import { KMH_TO_MPH } from '../../utils/formatUnits';
-import { movingAverage } from '../../utils/movingAverage';
 
 /**
  * Target chart resolution after mean-bucketing. Roughly 1.5× the
@@ -16,16 +16,6 @@ import { movingAverage } from '../../utils/movingAverage';
  * single trend line.
  */
 const SPEED_CHART_TARGET_POINTS = 1500;
-
-/**
- * Half-width of the smoothing window applied to the path-speed and TAS
- * series before bucketing. Same ±30 s window the ground-speed pass
- * already uses internally, so all three lines reach the chart with
- * matching smoothing budgets — without it, mean-bucketing alone leaves
- * each ~5 s bucket carrying ¼-turn of thermal-circle wobble and the
- * raw-per-leg lines read as noise next to the smooth ground line.
- */
-export const AIRSPEED_SMOOTHING_HALF_SECONDS = 30;
 
 /**
  * Index pad applied around the flight window before running the speed
@@ -97,11 +87,7 @@ export const useSpeedSeries = (
 
     const gs = analysis.metrics.speed.slice(fromIdx, toIdx);
     const pathPadded = computePathSpeed(track);
-    const pathSmoothedPadded = movingAverage(
-      paddedXs,
-      pathPadded,
-      AIRSPEED_SMOOTHING_HALF_SECONDS,
-    );
+    const pathSmoothedPadded = smoothTrackSpeed(paddedXs, pathPadded);
     const path = pathSmoothedPadded.slice(flightStart, flightEnd);
 
     const gsBucketed = bucketMean(xs, gs, SPEED_CHART_TARGET_POINTS);
@@ -121,12 +107,7 @@ export const useSpeedSeries = (
       return { data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys] };
     }
 
-    const tasPadded = tasAsFloat32(track.tas);
-    const tasSmoothedPadded = movingAverage(
-      paddedXs,
-      tasPadded,
-      AIRSPEED_SMOOTHING_HALF_SECONDS,
-    );
+    const tasSmoothedPadded = smoothTas(paddedXs, track.tas);
     const tas = tasSmoothedPadded.slice(flightStart, flightEnd);
     const tasBucketed = bucketMean(xs, tas, SPEED_CHART_TARGET_POINTS);
     if (prefs.speedUnit === 'mph') {
@@ -160,13 +141,3 @@ const sliceTrack = (track: Track, from: number, to: number): Track => ({
   baroAlt: track.baroAlt ? track.baroAlt.slice(from, to) : null,
   tas: track.tas ? track.tas.slice(from, to) : null,
 });
-
-const tasAsFloat32 = (tas: Uint16Array): Float32Array => {
-  // uPlot wants homogeneous numeric arrays; convert the integer TAS
-  // channel to f32 to match the GPS / Path series.
-  const out = new Float32Array(tas.length);
-  for (let i = 0; i < tas.length; i++) {
-    out[i] = tas[i]!;
-  }
-  return out;
-};

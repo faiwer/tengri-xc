@@ -56,13 +56,23 @@ function ChartHelp({ kind, hasBaro, hasTas }: ChartHelpButtonProps) {
   );
 }
 
-interface ChartHelpItem {
+export interface ChartHelpItem {
   color: string;
+  kind: ChartHelpItemKind;
   label: string;
   text: string;
 }
 
-const chartHelpItems = (
+export type ChartHelpItemKind =
+  | 'altitude'
+  | 'baro'
+  | 'gps'
+  | 'path'
+  | 'tas'
+  | 'climb'
+  | 'sink';
+
+export const chartHelpItems = (
   kind: ChartKind,
   hasBaro: boolean,
   hasTas: boolean,
@@ -72,11 +82,13 @@ const chartHelpItems = (
       return hasBaro
         ? [
             {
+              kind: 'baro',
               color: CHART_COLORS.altitudePrimary,
               label: 'Baro',
               text: 'pressure altitude from the recorder, smoothest for climb and gain',
             },
             {
+              kind: 'gps',
               color: CHART_COLORS.altitudeOverlay,
               label: 'GPS',
               text: 'better for absolute height, noisier for altitude differences',
@@ -84,6 +96,7 @@ const chartHelpItems = (
           ]
         : [
             {
+              kind: 'altitude',
               color: CHART_COLORS.altitudePrimary,
               label: 'Altitude',
               text: 'GPS altitude over the flight window',
@@ -91,36 +104,40 @@ const chartHelpItems = (
           ];
 
     case 'speed':
-      return [
+      const items: ChartHelpItem[] = [
         {
+          kind: 'gps',
           color: CHART_COLORS.speedGps,
           label: 'GPS',
           text: 'cross-country ground speed',
         },
         {
+          kind: 'path',
           color: CHART_COLORS.speedPath,
           label: 'Path',
           text: 'turn-aware speed along the trace',
         },
-        ...(hasTas
-          ? [
-              {
-                color: CHART_COLORS.speedTas,
-                label: 'TAS',
-                text: 'recorded true airspeed',
-              },
-            ]
-          : []),
       ];
+      if (hasTas) {
+        items.push({
+          color: CHART_COLORS.speedTas,
+          kind: 'tas',
+          label: 'TAS',
+          text: 'recorded true airspeed',
+        });
+      }
+      return items;
 
     case 'vario':
       return [
         {
+          kind: 'climb',
           color: CHART_COLORS.varioClimb,
           label: 'Climb',
           text: `positive vertical speed`,
         },
         {
+          kind: 'sink',
           color: CHART_COLORS.varioSink,
           label: 'Sink',
           text: `negative vertical speed`,

@@ -1,12 +1,10 @@
 import { Segmented } from 'antd';
 import type { ReactNode } from 'react';
-import { z } from 'zod';
 import { AltitudeIcon } from '../icons/AltitudeIcon';
 import { SpeedIcon } from '../icons/SpeedIcon';
 import { VarioIcon } from '../icons/VarioIcon';
 import type { Track } from '../../track';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
-import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
 import { AltitudeChart } from './AltitudeChart';
 import { ChartHelpButton } from './ChartHelp';
 import styles from './FlightChart.module.scss';
@@ -18,6 +16,8 @@ import type { HoverFractionHandler } from './useUPlot';
 interface FlightChartProps {
   track: Track;
   analysis: FlightAnalysis;
+  activeKind: ChartKind;
+  onActiveKindChange: (kind: ChartKind) => void;
   onHoverFractionChange?: HoverFractionHandler;
   /** External map hover progress; drives the chart cursor line. */
   hoverFraction?: number | null;
@@ -37,14 +37,11 @@ interface FlightChartProps {
 export function FlightChart({
   track,
   analysis,
+  activeKind,
+  onActiveKindChange,
   onHoverFractionChange,
   hoverFraction,
 }: FlightChartProps) {
-  const [activeKind, setActiveKind] = useLocalStorageValue(
-    'flight-chart-tab',
-    ACTIVE_KIND_STORAGE_OPTIONS,
-  );
-
   return (
     <section className={styles.panel} aria-label="Flight charts">
       <div className={styles.controls}>
@@ -57,7 +54,7 @@ export function FlightChart({
           className={styles.switcher}
           options={SEGMENTED_OPTIONS}
           value={activeKind}
-          onChange={setActiveKind}
+          onChange={onActiveKindChange}
         />
       </div>
       <div className={styles.body}>
@@ -103,10 +100,3 @@ const SEGMENTED_OPTIONS: { label: ReactNode; value: ChartKind }[] = [
     value: 'vario',
   },
 ];
-
-const ACTIVE_KIND_SCHEMA = z.enum(['altitude', 'speed', 'vario']);
-const ACTIVE_KIND_STORAGE_OPTIONS = {
-  schema: ACTIVE_KIND_SCHEMA,
-  defaultValue: 'altitude' as ChartKind,
-  strategy: 'initOnly' as const,
-};

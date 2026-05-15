@@ -1,19 +1,24 @@
 import { Tooltip } from 'antd';
 import { useMemo, type CSSProperties } from 'react';
+import { chartHelpItems } from '../../components/FlightChart/ChartHelp';
+import type { ChartKind } from '../../components/FlightChart';
 import { usePreferences } from '../../core/preferences';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { formatCoordinates } from '../../utils/formatGeo';
 import styles from '../TrackPage.module.scss';
+import { buildFields } from './buildFields';
 import { field } from './fields';
 import { buildCursorReadout, buildCursorReadoutWidths } from './readout';
 
 interface CursorReadoutProps {
+  activeChartKind: ChartKind;
   analysis: FlightAnalysis | null;
   mapCenter: google.maps.LatLngLiteral | null;
   trackIndex: number | null;
 }
 
 export function CursorReadout({
+  activeChartKind,
   analysis,
   mapCenter,
   trackIndex,
@@ -30,24 +35,16 @@ export function CursorReadout({
     () => (analysis ? buildCursorReadoutWidths(analysis, prefs) : null),
     [analysis, prefs],
   );
+  const helpItems = analysis
+    ? chartHelpItems(
+        activeChartKind,
+        !!analysis.track.baroAlt,
+        !!analysis.track.tas,
+      )
+    : [];
   const fields =
     readout && fieldWidths
-      ? [
-          field('time', 'Time', readout.time, fieldWidths.time),
-          field('gps', 'GPS altitude', readout.gps, fieldWidths.gps),
-          ...(readout.baroAlt
-            ? [
-                field(
-                  'baroAlt',
-                  'Barometric altitude',
-                  readout.baroAlt,
-                  fieldWidths.baroAlt,
-                ),
-              ]
-            : []),
-          field('vario', 'Vertical speed', readout.vario, fieldWidths.vario),
-          field('speed', 'Ground speed', readout.speed, fieldWidths.speed),
-        ]
+      ? buildFields(activeChartKind, readout, fieldWidths, helpItems)
       : [
           field(
             'mapCenter',
@@ -59,14 +56,18 @@ export function CursorReadout({
 
   return (
     <div className={styles.cursorReadout}>
-      {fields.map(({ icon, key, tooltip, value, width }) => (
+      {fields.map(({ color, icon, key, tooltip, value, width }) => (
         <Tooltip key={key} title={tooltip}>
           <span
             className={styles.cursorReadoutSegment}
             style={segmentWidthStyle(width)}
-            aria-label={tooltip}
           >
-            <span className={styles.cursorReadoutIcon}>{icon}</span>
+            <span
+              className={styles.cursorReadoutIcon}
+              style={iconColorStyle(color)}
+            >
+              {icon}
+            </span>
             <span className={styles.cursorReadoutValue}>{value}</span>
           </span>
         </Tooltip>
@@ -82,3 +83,6 @@ const segmentWidthStyle = (
 ): CSSProperties | undefined =>
   // 1ch = the "0" character width. We use monospace font, so this is accurate.
   width === undefined ? undefined : { width: `calc(${width}ch + 1.35rem)` };
+
+const iconColorStyle = (color: string | undefined): CSSProperties | undefined =>
+  color === undefined ? undefined : { color };

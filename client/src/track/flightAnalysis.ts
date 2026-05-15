@@ -2,6 +2,8 @@ import type { TrackMetadata } from '../api/tracks.io';
 import { altitudeRange, type AltitudeRange } from './altitudeRange';
 import { findIndexAt } from './findIndexAt';
 import { computeGroundSpeed } from './groundSpeed';
+import { computePathSpeed } from './pathSpeed';
+import { smoothTas, smoothTrackSpeed } from './smoothedSpeed';
 import type { Track } from './types';
 import { trackToPaths, type TrackPath, type TrackWindow } from './toPaths';
 import { classifyBuckets } from './varioSegments/classify';
@@ -34,6 +36,10 @@ export interface FlightMetrics {
    * centered +/-30 s window, so turning noise is smoothed out.
    */
   speed: Float32Array;
+  /** Per-fix path speed in km/h, smoothed to match the speed chart. */
+  pathSpeed: Float32Array;
+  /** Per-fix TAS in km/h, smoothed to match the speed chart when present. */
+  tas: Float32Array | null;
   /**
    * Per-fix vertical velocity in m/s. Uses centered +/-5 s altitude slope,
    * preferring baro altitude when present and GPS altitude otherwise.
@@ -61,6 +67,8 @@ export const buildFlightAnalysis = (
   const toIdx = window.landingIdx + 1;
   const metrics: FlightMetrics = {
     speed: computeGroundSpeed(track),
+    pathSpeed: smoothTrackSpeed(track.t, computePathSpeed(track)),
+    tas: track.tas ? smoothTas(track.t, track.tas) : null,
     vario: computeVario(track),
   };
   const vario: FlightVarioAnalysis = buildFlightVarioAnalysis(

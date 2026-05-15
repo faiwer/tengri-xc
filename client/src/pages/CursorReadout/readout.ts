@@ -25,6 +25,8 @@ export const buildCursorReadout = (
     baroAlt: track.baroAlt
       ? formatAltitude(track.baroAlt[idx] / 10, prefs)
       : null,
+    pathSpeed: formatSpeed(metrics.pathSpeed[idx] / MPS_TO_KMH, prefs),
+    tas: metrics.tas ? formatSpeed(metrics.tas[idx] / MPS_TO_KMH, prefs) : null,
     vario: formatVario(metrics.vario[idx], prefs),
     speed: formatSpeed(metrics.speed[idx] / MPS_TO_KMH, prefs),
   };
@@ -41,6 +43,8 @@ export const buildCursorReadoutWidths = (
     ? range(track.baroAlt, fromIdx, toIdx, (dm) => dm / 10)
     : null;
   const maxSpeed = max(metrics.speed, fromIdx, toIdx);
+  const maxPathSpeed = max(metrics.pathSpeed, fromIdx, toIdx);
+  const maxTas = metrics.tas ? max(metrics.tas, fromIdx, toIdx) : null;
 
   return {
     time: Math.max(
@@ -71,6 +75,11 @@ export const buildCursorReadoutWidths = (
     ),
     // Ground-speed metrics are stored as km/h; formatSpeed takes m/s.
     speed: formatSpeed(maxSpeed / MPS_TO_KMH, prefs).length,
+    pathSpeed: formatSpeed(maxPathSpeed / MPS_TO_KMH, prefs).length,
+    tas:
+      maxTas === null
+        ? undefined
+        : formatSpeed(maxTas / MPS_TO_KMH, prefs).length,
   };
 };
 
