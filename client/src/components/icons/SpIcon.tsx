@@ -1,7 +1,6 @@
 import { cloneElement, type ElementNode } from 'react';
 
-import type { GliderKindStaticIconProps } from './GliderKindIcon';
-import { iconSvgStyle } from './gliderKindIconStyles';
+import { iconSvgStyle, type IconProps } from './icon';
 
 const svg = (
   <svg
@@ -17,6 +16,6 @@ const svg = (
   </svg>
 ) as ElementNode;
 
-export function SpIcon({ className, style }: GliderKindStaticIconProps) {
+export function SpIcon({ className, style }: IconProps) {
   return cloneElement(svg, { className, style: iconSvgStyle(style) });
 }

@@ -1,8 +1,7 @@
 // oxlint-disable react/style-prop-object -- SVG
 import { cloneElement, type ElementNode } from 'react';
 
-import type { GliderKindStaticIconProps } from './GliderKindIcon';
-import { iconSvgStyle } from './gliderKindIconStyles';
+import { iconSvgStyle, type IconProps } from './icon';
 
 // prettier-ignore
 const svg = (
@@ -22,6 +21,6 @@ const svg = (
   </svg>
 ) as ElementNode;
 
-export function VarioIcon({ className, style }: GliderKindStaticIconProps) {
+export function VarioIcon({ className, style }: IconProps) {
   return cloneElement(svg, { className, style: iconSvgStyle(style) });
 }

@@ -1,17 +1,12 @@
 import { DingdingOutlined } from '@ant-design/icons';
-import type { CSSProperties } from 'react';
 
 import type { Sport } from '../../core/sport';
 import { HgIcon } from './HgIcon';
+import type { IconProps } from './icon';
 import { PgIcon } from './PgIcon';
 import { SpIcon } from './SpIcon';
 
-export interface GliderKindStaticIconProps {
-  className?: string;
-  style?: CSSProperties;
-}
-
-export interface GliderKindIconProps extends GliderKindStaticIconProps {
+export interface GliderKindIconProps extends IconProps {
   kind: Sport;
 }
 

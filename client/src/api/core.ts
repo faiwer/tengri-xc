@@ -3,6 +3,7 @@ import snakecaseKeys from 'snakecase-keys';
 import type { z } from 'zod';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL;
+const DEV_DELAY_MAX_MS = 400;
 
 /** Base class so callers can `catch (e) { if (e instanceof ApiError) ... }`. */
 export class ApiError extends Error {
@@ -106,6 +107,10 @@ async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
 
   let response: Response;
   try {
+    if (import.meta.env.DEV) {
+      await new Promise((resolve) => setTimeout(resolve, DEV_DELAY_MAX_MS));
+    }
+
     response = await fetch(url, init);
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') {

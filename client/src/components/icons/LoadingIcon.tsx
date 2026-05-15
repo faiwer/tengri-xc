@@ -1,8 +1,7 @@
 // oxlint-disable react/style-prop-object -- SVG
 import { cloneElement, type ElementNode, useRef } from 'react';
 
-import type { GliderKindStaticIconProps } from './GliderKindIcon';
-import { iconSvgStyle } from './gliderKindIconStyles';
+import { iconSvgStyle, type IconProps } from './icon';
 import { useEffect } from 'react';
 import { nullthrows } from '../../utils/nullthrows';
 import { useState } from 'react';
@@ -28,7 +27,7 @@ const svg = (
   </svg>
 ) as ElementNode;
 
-interface LoadingIconProps extends GliderKindStaticIconProps {
+interface LoadingIconProps extends IconProps {
   // Set true when the icon is used on something dark.
   inverseTheme?: boolean;
 }
