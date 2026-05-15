@@ -7,23 +7,25 @@ use thiserror::Error;
 pub struct Config {
     pub server_addr: SocketAddr,
     pub database_url: String,
-    /// HS256 signing key for session JWTs. Base64-decoded on
-    /// startup so token signing/verification doesn't have to
-    /// re-decode per request. Sized to the HS256 minimum (32
-    /// bytes) so a short value can't slip through and weaken
+    /// HS256 signing key for session JWTs. Base64-decoded on startup so token
+    /// signing/verification doesn't have to re-decode per request. Sized to the
+    /// HS256 minimum (32 bytes) so a short value can't slip through and weaken
     /// the signature.
     pub jwt_secret: Vec<u8>,
-    /// `true` when the server is reachable over TLS (directly or
-    /// behind a terminating proxy). Drives the `Secure` flag on
-    /// session cookies and any future https-aware behavior. Read
-    /// from the `HTTPS` env var; defaults to `false` so local dev
-    /// over plain HTTP just works.
+    /// `true` when the server is reachable over TLS (directly or behind a
+    /// terminating proxy). Drives the `Secure` flag on session cookies and any
+    /// future https-aware behavior. Read from the `HTTPS` env var; defaults to
+    /// `false` so local dev over plain HTTP just works.
     pub https: bool,
-    /// Browser origins allowed to call us with credentials (the
-    /// session cookie). Comma-separated `CLIENT_ORIGINS` env var,
-    /// e.g. `http://localhost:5173,https://app.tengri.xc`. Empty
-    /// list locks the API down to same-origin clients only.
+    /// Browser origins allowed to call us with credentials (the session
+    /// cookie). Comma-separated `CLIENT_ORIGINS` env var, e.g.
+    /// `http://localhost:5173,https://app.tengri.xc`. Empty list locks the API
+    /// down to same-origin clients only.
     pub client_origins: Vec<String>,
+    /// Domain to set on the Leonardo cookie. Read from the
+    /// `LEONARDO_COOKIE_DOMAIN` env var. Used to clear the cookie once we've
+    /// detected a Leonardo autologin.
+    pub leonardo_cookie_domain: Option<String>,
 }
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
@@ -63,12 +65,14 @@ impl Config {
         let jwt_secret = load_jwt_secret()?;
         let https = parse_bool_env("HTTPS", false)?;
         let client_origins = parse_origins("CLIENT_ORIGINS");
+        let leonardo_cookie_domain = parse_optional_string("LEONARDO_COOKIE_DOMAIN");
         Ok(Self {
             server_addr,
             database_url,
             jwt_secret,
             https,
             client_origins,
+            leonardo_cookie_domain,
         })
     }
 }
@@ -85,6 +89,13 @@ fn parse_origins(var: &'static str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+fn parse_optional_string(var: &'static str) -> Option<String> {
+    env::var(var)
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
 }
 
 /// Parse a boolean env var. Accepts the same values `serde-toml` and

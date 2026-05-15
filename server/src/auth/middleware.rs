@@ -4,7 +4,7 @@
 //! Per request:
 //!
 //! ```text
-//!   no cookie / decode fails       → no identity, response untouched
+//!   no cookie / decode fails       → try Leonardo autologin, else anonymous
 //!   age < SLIDE_INTERVAL           → identity from JWT, response untouched
 //!   age ≥ SLIDE_INTERVAL           → DB lookup by sub:
 //!     row gone OR !CAN_AUTHORIZE   → no identity, clear cookie
@@ -31,39 +31,52 @@ use crate::{AppState, user::Permissions};
 use super::{
     cookie::{SESSION_COOKIE_NAME, SLIDE_INTERVAL, clear_session, set_session},
     extractor::Identity,
+    legacy_leonardo,
     token::{Claims, decode_jwt, encode_jwt},
 };
 
-/// Per-request outcome: identity to inject (or not), cookie to set
+/// Per-request outcome: identity to inject (or not), cookies to set
 /// on the response (or not).
 struct Decision {
     identity: Option<Identity>,
-    cookie: Option<String>,
+    cookies: Vec<String>,
 }
 
 impl Decision {
     fn passthrough() -> Self {
         Self {
             identity: None,
-            cookie: None,
+            cookies: Vec::new(),
         }
     }
     fn keep(claims: Claims) -> Self {
         Self {
             identity: Some(Identity::from_claims(claims)),
-            cookie: None,
+            cookies: Vec::new(),
         }
     }
     fn renewed(identity: Identity, set_cookie: String) -> Self {
         Self {
             identity: Some(identity),
-            cookie: Some(set_cookie),
+            cookies: vec![set_cookie],
+        }
+    }
+    fn handoff(identity: Identity, cookies: Vec<String>) -> Self {
+        Self {
+            identity: Some(identity),
+            cookies,
         }
     }
     fn revoked(clear_cookie: String) -> Self {
         Self {
             identity: None,
-            cookie: Some(clear_cookie),
+            cookies: vec![clear_cookie],
+        }
+    }
+    fn failed_handoff(cookies: Vec<String>) -> Self {
+        Self {
+            identity: None,
+            cookies,
         }
     }
 }
@@ -79,7 +92,7 @@ pub async fn session_layer(
         .and_then(|jwt| decode_jwt(jwt, state.jwt_decoding_key()).ok());
 
     let decision = match claims {
-        None => Decision::passthrough(),
+        None => decide_legacy(&state, request.headers()).await,
         Some(c) => decide(&state, c).await,
     };
 
@@ -89,12 +102,24 @@ pub async fn session_layer(
 
     let mut response = next.run(request).await;
 
-    if let Some(cookie) = decision.cookie
-        && let Ok(v) = HeaderValue::from_str(&cookie)
-    {
-        response.headers_mut().insert(SET_COOKIE, v);
+    for cookie in decision.cookies {
+        if let Ok(v) = HeaderValue::from_str(&cookie) {
+            // Both set & remove cookies use the same header name.
+            response.headers_mut().append(SET_COOKIE, v);
+        }
     }
     response
+}
+
+async fn decide_legacy(state: &AppState, headers: &HeaderMap) -> Decision {
+    let now = Utc::now().timestamp();
+    match legacy_leonardo::attempt(headers, state, now).await {
+        legacy_leonardo::Attempt::NoCookie => Decision::passthrough(),
+        legacy_leonardo::Attempt::Failed(cookies) => Decision::failed_handoff(cookies),
+        legacy_leonardo::Attempt::Authorized(handoff) => {
+            Decision::handoff(handoff.identity, handoff.cookies)
+        }
+    }
 }
 
 async fn decide(state: &AppState, claims: Claims) -> Decision {

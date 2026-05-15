@@ -10,6 +10,7 @@
 
 pub mod cookie;
 pub mod extractor;
+pub mod legacy_leonardo;
 pub mod middleware;
 pub mod password;
 pub mod token;

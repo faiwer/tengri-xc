@@ -23,6 +23,7 @@ use super::token::JWT_LIFETIME;
 pub const SLIDE_INTERVAL: Duration = Duration::from_secs(15 * 60);
 
 pub const SESSION_COOKIE_NAME: &str = "tengri-jwt";
+const LEGACY_LEONARDO_COOKIE_NAMES: [&str; 2] = ["leonardo_sid", "leonardo_data"];
 
 /// `Set-Cookie` value for storing `jwt`. `https=true` adds the
 /// `Secure` flag.
@@ -52,4 +53,27 @@ pub fn clear_session(https: bool) -> String {
         .max_age(cookie::time::Duration::seconds(0))
         .build()
         .to_string()
+}
+
+pub fn clear_legacy_leonardo(domain: Option<&str>, https: bool) -> Vec<String> {
+    let mut cookies = Vec::with_capacity(LEGACY_LEONARDO_COOKIE_NAMES.len() * 2);
+    for name in LEGACY_LEONARDO_COOKIE_NAMES {
+        cookies.push(clear_cookie(name, None, https));
+        if let Some(domain) = domain {
+            cookies.push(clear_cookie(name, Some(domain), https));
+        }
+    }
+    cookies
+}
+
+fn clear_cookie(name: &str, domain: Option<&str>, https: bool) -> String {
+    let mut builder = Cookie::build((name.to_owned(), ""))
+        .secure(https)
+        .same_site(SameSite::Lax)
+        .path("/")
+        .max_age(cookie::time::Duration::seconds(0));
+    if let Some(domain) = domain {
+        builder = builder.domain(domain.to_owned());
+    }
+    builder.build().to_string()
 }

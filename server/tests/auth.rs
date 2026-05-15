@@ -145,6 +145,38 @@ fn cookie_pair_from_set_cookie(set_cookie: &str) -> &str {
         .expect("set-cookie always has at least the name=value part")
 }
 
+fn set_cookies(resp: &axum::response::Response) -> Vec<String> {
+    resp.headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn legacy_leonardo_cookie(user_id: i32, password_hash: &str) -> String {
+    let raw = format!(
+        "a:2:{{s:6:\"userid\";i:{user_id};s:11:\"autologinid\";s:{}:\"{password_hash}\";}}",
+        password_hash.len()
+    );
+    format!("leonardo_data={}", percent_encode(&raw))
+}
+
+fn percent_encode(raw: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut out = String::with_capacity(raw.len() * 3);
+    for b in raw.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') {
+            out.push(b as char);
+        } else {
+            out.push('%');
+            out.push(HEX[(b >> 4) as usize] as char);
+            out.push(HEX[(b & 0x0f) as usize] as char);
+        }
+    }
+    out
+}
+
 #[tokio::test]
 #[serial]
 async fn login_with_bad_credentials_returns_401() {
@@ -159,6 +191,167 @@ async fn login_with_bad_credentials_returns_401() {
         .unwrap();
 
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn me_with_valid_leonardo_autologin_cookie_mints_tengri_cookie_and_clears_legacy() {
+    let (app, pool) = common::test_app().await;
+
+    let stored = phpass_hash("hunter2", b"legacy01", 8);
+    seed_login_user(
+        &pool,
+        11,
+        "Legacy Pilot",
+        "legacy",
+        Some("legacy@example.com"),
+        &stored,
+    )
+    .await;
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(
+                    header::COOKIE,
+                    format!(
+                        "leonardo_sid=abc123; {}",
+                        legacy_leonardo_cookie(11, &stored)
+                    ),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookies = set_cookies(&resp);
+    assert!(cookies.iter().any(|s| s.starts_with("tengri-jwt=")));
+    assert!(
+        cookies
+            .iter()
+            .any(|s| s.starts_with("leonardo_data=") && s.contains("Max-Age=0")),
+        "expected leonardo_data clearing cookie, got {cookies:?}"
+    );
+    assert!(
+        cookies
+            .iter()
+            .any(|s| s.starts_with("leonardo_sid=") && s.contains("Max-Age=0")),
+        "expected leonardo_sid clearing cookie, got {cookies:?}"
+    );
+
+    let body = body_json(resp).await;
+    assert_eq!(body["id"], 11);
+    assert_eq!(body["login"], "legacy");
+}
+
+#[tokio::test]
+#[serial]
+async fn me_with_mismatched_leonardo_autologin_hash_clears_legacy_and_returns_null() {
+    let (app, pool) = common::test_app().await;
+
+    let stored = phpass_hash("hunter2", b"legacy02", 8);
+    seed_login_user(&pool, 12, "Mismatch Pilot", "mismatch", None, &stored).await;
+    let stale_hash = phpass_hash("other", b"legacy03", 8);
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(header::COOKIE, legacy_leonardo_cookie(12, &stale_hash))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookies = set_cookies(&resp);
+    assert!(
+        !cookies.iter().any(|s| s.starts_with("tengri-jwt=")),
+        "hash mismatch must not mint a Tengri cookie, got {cookies:?}"
+    );
+    assert!(
+        cookies
+            .iter()
+            .any(|s| s.starts_with("leonardo_data=") && s.contains("Max-Age=0")),
+        "hash mismatch should clear legacy cookie, got {cookies:?}"
+    );
+    let body = body_json(resp).await;
+    assert!(body.is_null(), "expected anonymous /me, got {body}");
+}
+
+#[tokio::test]
+#[serial]
+async fn me_with_argon2_user_and_old_leonardo_autologin_cookie_returns_null() {
+    let (app, pool) = common::test_app().await;
+
+    let old_hash = phpass_hash("hunter2", b"legacy04", 8);
+    seed_login_user(&pool, 13, "Rehashed Pilot", "rehashed", None, &old_hash).await;
+    sqlx::query(
+        "UPDATE users \
+         SET password_hash = '$argon2id$v=19$m=19456,t=2,p=1$aaaaaaaaaaaaaaaaaaaaaa$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' \
+         WHERE id = 13",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(header::COOKIE, legacy_leonardo_cookie(13, &old_hash))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookies = set_cookies(&resp);
+    assert!(!cookies.iter().any(|s| s.starts_with("tengri-jwt=")));
+    assert!(
+        cookies
+            .iter()
+            .any(|s| s.starts_with("leonardo_data=") && s.contains("Max-Age=0"))
+    );
+    let body = body_json(resp).await;
+    assert!(body.is_null(), "expected anonymous /me, got {body}");
+}
+
+#[tokio::test]
+#[serial]
+async fn me_with_malformed_leonardo_data_clears_legacy_and_returns_null() {
+    let (app, _pool) = common::test_app().await;
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(header::COOKIE, "leonardo_data=a%3A1%3A%7Bbad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookies = set_cookies(&resp);
+    assert!(!cookies.iter().any(|s| s.starts_with("tengri-jwt=")));
+    assert!(
+        cookies
+            .iter()
+            .any(|s| s.starts_with("leonardo_data=") && s.contains("Max-Age=0"))
+    );
+    let body = body_json(resp).await;
+    assert!(body.is_null(), "expected anonymous /me, got {body}");
 }
 
 #[tokio::test]
