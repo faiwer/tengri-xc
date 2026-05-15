@@ -32,11 +32,11 @@ export const field = (
     typeof tooltip === 'string' ? (
       tooltip
     ) : (
-      <>
+      <div>
         <strong style={{ color: tooltip.color }}>{tooltip.label}</strong>
         <br />
         {tooltip.text}
-      </>
+      </div>
     ),
   value,
   width,
