@@ -7,9 +7,9 @@
 //! 1. Per-fix ground-speed emissions (`1` if gsp > 15 km/h, else `0`).
 //! 2. Viterbi smoothing with sticky transitions (handles GPS noise + lone
 //!    outliers).
-//! 3. `min_landing_time` re-merge: a `0` segment shorter than 300 s is
-//!    folded back into the surrounding `1` (handles low-speed scratching,
-//!    near-ground thermalling, brief touch-and-relaunch).
+//! 3. `min_landing_time` re-merge: an interior `0` segment shorter than
+//!    300 s is folded back into the surrounding `1` (handles low-speed
+//!    scratching, near-ground thermalling, brief touch-and-relaunch).
 //! 4. Boundary scan: `takeoff_idx` is the first flying fix; `landing_idx`
 //!    is the first non-flying fix after the last flying one (or the very
 //!    last fix if the log ended mid-flight).
@@ -36,14 +36,6 @@ pub struct FlightWindow {
 
 /// Detect the takeoff/landing window for `track`. Returns `None` when no
 /// flying segment is found (track too short, all stationary, etc.).
-///
-/// Reference-algorithm quirk worth knowing about: a non-flying run shorter
-/// than `MIN_LANDING_TIME_S` gets reabsorbed into the surrounding flight,
-/// including a *leading* run. So a track that opens with 60 s of standing
-/// fixes immediately followed by takeoff yields `takeoff_idx == 0`, not
-/// the index where movement actually starts. This matches `igc_lib` and is
-/// usually what callers want (the few seconds of fumbling at launch are
-/// part of "the flight" for most purposes).
 pub fn find_flight_window(track: &Track) -> Option<FlightWindow> {
     let n = track.points.len();
     if n < 2 {
@@ -95,49 +87,33 @@ fn build_emissions(points: &[TrackPoint]) -> Vec<u8> {
     out
 }
 
-/// Pass 2: only emit landings (`0`) if the contiguous low-speed run lasts
-/// at least `MIN_LANDING_TIME_S`, measured by `point.time` deltas. Mirrors
-/// the lookahead-then-decide loop in `igc_lib._compute_flight`.
+/// Pass 2: only keep an interior low-speed run as flying when it is shorter
+/// than `MIN_LANDING_TIME_S`, measured by `point.time` deltas. Leading ground
+/// time is not part of the flight.
 fn apply_min_landing_time(smoothed: &[u8], points: &[TrackPoint]) -> Vec<bool> {
     let n = smoothed.len();
-    let mut flying = vec![false; n];
-    let mut ignore_next_downtime = false;
-    let mut apply_next_downtime = false;
+    let mut flying: Vec<bool> = smoothed.iter().map(|&state| state == 1).collect();
 
-    for i in 0..n {
-        if smoothed[i] == 1 {
-            flying[i] = true;
-            ignore_next_downtime = false;
-            apply_next_downtime = false;
+    let mut i = 0;
+    while i < n {
+        if smoothed[i] != 0 {
+            i += 1;
             continue;
         }
 
-        if apply_next_downtime {
-            flying[i] = false;
-            continue;
+        let start = i;
+        while i < n && smoothed[i] == 0 {
+            i += 1;
         }
-        if ignore_next_downtime {
-            flying[i] = true;
+        let end = i;
+
+        if start == 0 || end == n {
             continue;
         }
 
-        let mut j = i + 1;
-        while j < n && smoothed[j] != 1 {
-            j += 1;
-        }
-        if j == n {
-            apply_next_downtime = true;
-            flying[i] = false;
-            continue;
-        }
-
-        let dt = points[j].time.saturating_sub(points[i].time);
-        if dt >= MIN_LANDING_TIME_S {
-            apply_next_downtime = true;
-            flying[i] = false;
-        } else {
-            ignore_next_downtime = true;
-            flying[i] = true;
+        let dt = points[end].time.saturating_sub(points[start].time);
+        if dt < MIN_LANDING_TIME_S {
+            flying[start..end].fill(true);
         }
     }
     flying
@@ -245,21 +221,19 @@ mod tests {
         assert_eq!(w.landing_idx, 599, "track ended mid-flight");
     }
 
-    /// `igc_lib` semantics: a leading non-flying run shorter than
-    /// `MIN_LANDING_TIME_S` is reabsorbed into the upcoming flight, so
-    /// `takeoff_idx` ends up at fix 0 even though no real movement
-    /// happened yet. This is intentional in the reference algorithm
-    /// (the lookahead in `apply_min_landing_time` makes no exception
-    /// for the head of the track) and we match it.
     #[test]
-    fn short_lead_in_is_reabsorbed_into_flight() {
+    fn short_lead_in_is_excluded_from_flight() {
         let mut samples = stationary(0, 60, 47.0, 8.0);
         samples.extend(leg_eastbound(60, 600, 47.0, 8.0, 30.0));
         let last_lon = samples.last().unwrap().2;
         samples.extend(stationary(660, 600, 47.0, last_lon));
         let t = track(&samples);
         let w = find_flight_window(&t).expect("should detect flight");
-        assert_eq!(w.takeoff_idx, 0, "60 s lead-in < 300 s is reabsorbed");
+        assert!(
+            (55..=65).contains(&w.takeoff_idx),
+            "takeoff near the stand→fly edge, got {}",
+            w.takeoff_idx
+        );
         assert!(
             (655..=665).contains(&w.landing_idx),
             "landing near the fly→stand edge, got {}",
@@ -267,9 +241,6 @@ mod tests {
         );
     }
 
-    /// The complement of the previous test: a lead-in of ≥ 300 s is NOT
-    /// reabsorbed, so `takeoff_idx` snaps to the first actually flying
-    /// fix.
     #[test]
     fn long_lead_in_is_excluded_from_flight() {
         let mut samples = stationary(0, 600, 47.0, 8.0);
