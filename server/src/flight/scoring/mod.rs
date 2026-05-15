@@ -5,19 +5,29 @@ use crate::flight::types::{Track, TrackPoint};
 pub use types::{RouteEvaluation, RouteKind, RoutePoint, RouteResult};
 
 pub fn evaluate_routes(track: &Track) -> RouteEvaluation {
-    let endpoints = stub_endpoints(track);
-    let routes = RouteKind::ALL
-        .into_iter()
-        .map(|kind| RouteResult {
-            kind,
-            distance_m: 0,
-            points: 0.0,
-            turnpoints: endpoints.clone(),
-            optimal: false,
-        })
-        .collect();
+    let routes = std::thread::scope(|scope| {
+        let handles: Vec<_> = RouteKind::ALL
+            .into_iter()
+            .map(|kind| scope.spawn(move || evaluate_route(track, kind)))
+            .collect();
+
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("route evaluation thread panicked"))
+            .collect()
+    });
 
     RouteEvaluation { routes }
+}
+
+fn evaluate_route(track: &Track, kind: RouteKind) -> RouteResult {
+    RouteResult {
+        kind,
+        distance_m: 0,
+        points: 0.0,
+        turnpoints: stub_endpoints(track),
+        optimal: false,
+    }
 }
 
 fn stub_endpoints(track: &Track) -> Vec<RoutePoint> {

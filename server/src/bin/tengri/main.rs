@@ -30,6 +30,7 @@ mod import_gliders;
 mod inspect;
 mod migrate;
 mod prune;
+mod score;
 mod shared;
 
 use std::{path::PathBuf, process};
@@ -100,6 +101,12 @@ enum Cmd {
         flight_id: String,
     },
 
+    /// Evaluate route distances/points for a stored flight.
+    Score {
+        /// Flight id to evaluate (`flights.id`, e.g. `LEO-1350`).
+        flight_id: String,
+    },
+
     /// Apply outstanding SQL migrations from `server/migrations/`, then
     /// run any Rust-side data backfills that depend on those schema
     /// changes (e.g. re-encoding `.tengri` blobs after a `VERSION`
@@ -161,6 +168,7 @@ fn run() -> anyhow::Result<()> {
             model,
         } => run_async(add::run(input, user_id, brand, kind, model)),
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
+        Cmd::Score { flight_id } => run_async(score::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::Prune { yes } => run_async(prune::run(yes)),
         Cmd::Db { args } => db::run(args),
