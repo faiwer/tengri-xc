@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { getTrack, getTrackMetadata } from '../api/tracks';
-import type { TrackMetadata } from '../api/tracks.io';
 import {
   FitBounds,
   MapView,
@@ -11,94 +8,27 @@ import {
 import { FlightChart } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
-import { altitudeRange } from '../track/altitudeRange';
-import { findIndexAt } from '../track/findIndexAt';
-import { trackToPaths, type TrackWindow } from '../track/toPaths';
-import { computeVarioInsights, type VarioPeaks } from '../track/varioSegments';
-import type { Track } from '../track';
+import { CursorReadout } from './CursorReadout';
 import styles from './TrackPage.module.scss';
-import { useTrackBounds } from './useTrackBounds';
+import { useFlightAnalysis } from './useFlightAnalysis';
 import { useTrackHoverPoint } from './useTrackHoverPoint';
-
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'ok'; data: TrackMetadata }
-  | { status: 'error'; message: string };
+import { useTrackPageData } from './useTrackPageData';
 
 export function TrackPage() {
-  const { id } = useParams<{ id: string }>();
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [track, setTrack] = useState<Track | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    const ctrl = new AbortController();
-    setState({ status: 'loading' });
-    setTrack(null);
-
-    getTrackMetadata(id)
-      .then((data) => {
-        if (!ctrl.signal.aborted) {
-          setState({ status: 'ok', data });
-        }
-      })
-      .catch((err: unknown) => {
-        if (ctrl.signal.aborted) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setState({ status: 'error', message });
-      });
-
-    getTrack(id, 'full', { signal: ctrl.signal })
-      .then((decoded) => {
-        if (!ctrl.signal.aborted) setTrack(decoded);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        console.error('track decode failed', err);
-      });
-
-    return () => {
-      ctrl.abort();
-    };
-  }, [id]);
-
-  const window = useMemo<TrackWindow | undefined>(() => {
-    if (!track || state.status !== 'ok') return undefined;
-    return {
-      takeoffIdx: findIndexAt(track, state.data.takeoffAt),
-      landingIdx: findIndexAt(track, state.data.landingAt),
-    };
-  }, [track, state]);
-
-  const insights = useMemo(() => {
-    if (!track || !window) return undefined;
-    return computeVarioInsights(
-      track,
-      window.takeoffIdx,
-      window.landingIdx + 1,
-    );
-  }, [track, window]);
-
-  const peaks: VarioPeaks | undefined = insights
-    ? { peakClimb: insights.peakClimb, peakSink: insights.peakSink }
-    : undefined;
-
-  const altitudes = useMemo(() => {
-    if (!track || !window) return undefined;
-    return altitudeRange(track, window.takeoffIdx, window.landingIdx + 1);
-  }, [track, window]);
-
-  const paths = useMemo(
-    () => (track ? trackToPaths(track, window, insights?.segments) : null),
-    [track, window, insights],
+  const { id } = useParams() as { id: string };
+  const { state, trackState, track } = useTrackPageData(id);
+  const analysis = useFlightAnalysis(
+    track,
+    state.status === 'ok' ? state.data : undefined,
   );
-  const bounds = useTrackBounds(track, window);
   const {
     point: hoverPoint,
-    mapHoverFraction,
+    trackIndex: hoverTrackIndex,
+    chartHoverFraction,
+    clearHover,
     setHoverFraction,
     setHoverLatLng,
-  } = useTrackHoverPoint(track, window, bounds);
+  } = useTrackHoverPoint(track, analysis?.window, analysis?.bounds);
 
   return (
     <PageLayout>
@@ -110,28 +40,41 @@ export function TrackPage() {
           {state.status === 'ok' && (
             <TrackMetaPanel
               data={state.data}
-              peaks={peaks}
-              altitudes={altitudes}
+              peaks={analysis?.vario}
+              altitudes={analysis?.altitudes}
             />
           )}
           {state.status === 'error' && (
-            <p className={styles.statusMessage}>Error: {state.message}</p>
+            <ErrorMessage
+              title="Could not download flight metadata"
+              error={state.error}
+              className={styles.statusMessage}
+            />
           )}
         </aside>
-        <div className={styles.right}>
+        <div className={styles.right} onPointerLeave={clearHover}>
           <div className={styles.mapSlot}>
-            <MapView onHoverLatLng={setHoverLatLng}>
-              {paths && <TrackPolyline paths={paths} />}
-              <TrackHoverMarker point={hoverPoint} />
-              <FitBounds bounds={bounds} />
-            </MapView>
+            {trackState.status === 'error' ? (
+              <ErrorMessage
+                title="Couldn't load flight track"
+                error={trackState.error}
+                className={styles.mapError}
+              />
+            ) : (
+              <MapView onHoverLatLng={setHoverLatLng}>
+                {analysis && <TrackPolyline paths={analysis.paths} />}
+                <TrackHoverMarker point={hoverPoint} />
+                <FitBounds bounds={analysis?.bounds ?? null} />
+              </MapView>
+            )}
           </div>
-          {track && window && (
+          <CursorReadout analysis={analysis} trackIndex={hoverTrackIndex} />
+          {track && analysis && (
             <FlightChart
               track={track}
-              window={window}
+              analysis={analysis}
               onHoverFractionChange={setHoverFraction}
-              hoverFraction={mapHoverFraction}
+              hoverFraction={chartHoverFraction}
             />
           )}
         </div>
@@ -139,3 +82,22 @@ export function TrackPage() {
     </PageLayout>
   );
 }
+
+const ErrorMessage = ({
+  error,
+  className,
+  title,
+}: {
+  error: unknown;
+  className: string;
+  title: string;
+}) => {
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    <div className={className}>
+      {title}:
+      <br />
+      {msg}
+    </div>
+  );
+};

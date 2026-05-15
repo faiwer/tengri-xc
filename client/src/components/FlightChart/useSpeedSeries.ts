@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import type { AlignedData } from 'uplot';
 import type { ResolvedPreferences } from '../../core/preferences';
 import type { Track } from '../../track';
-import { computeGroundSpeed } from '../../track/groundSpeed';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { computePathSpeed } from '../../track/pathSpeed';
-import type { TrackWindow } from '../../track/toPaths';
 import { bucketMean } from '../../utils/bucketMean';
 import { KMH_TO_MPH } from '../../utils/formatUnits';
 import { movingAverage } from '../../utils/movingAverage';
@@ -79,11 +78,11 @@ export interface SpeedSeries {
  * instrument's calibration.
  */
 export const useSpeedSeries = (
-  rawTrack: Track,
-  window: TrackWindow,
+  analysis: FlightAnalysis,
   prefs: Pick<ResolvedPreferences, 'speedUnit'>,
 ): SpeedSeries => {
   return useMemo((): SpeedSeries => {
+    const { track: rawTrack, window } = analysis;
     const fromIdx = window.takeoffIdx;
     const toIdx = window.landingIdx + 1;
 
@@ -96,7 +95,7 @@ export const useSpeedSeries = (
     const paddedXs = track.t;
     const xs = paddedXs.slice(flightStart, flightEnd);
 
-    const gs = computeGroundSpeed(track).slice(flightStart, flightEnd);
+    const gs = analysis.metrics.speed.slice(fromIdx, toIdx);
     const pathPadded = computePathSpeed(track);
     const pathSmoothedPadded = movingAverage(
       paddedXs,
@@ -137,7 +136,7 @@ export const useSpeedSeries = (
     return {
       data: [gsBucketed.xs, gsBucketed.ys, pathBucketed.ys, tasBucketed.ys],
     };
-  }, [rawTrack, window, prefs.speedUnit]);
+  }, [analysis, prefs.speedUnit]);
 };
 
 const multiplyInPlace = (arr: Float32Array, factor: number): void => {

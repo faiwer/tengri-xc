@@ -39,6 +39,30 @@
   min-height: 0;
 }
 
+.mapError {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--page-content-pad);
+}
+
+.cursorReadout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 1em;
+  padding: 0.8rem;
+  background: #40527b;
+  color: var(--sidebar-text);
+  font-size: 0.85rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cursorReadoutLabel {
+  color: #9fafc8;
+}
+
 .statusMessage {
   margin: 0;
   color: var(--sidebar-text);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import uPlot, { type AlignedData, type Options } from 'uplot';
+import { useAsyncEffect } from '../../core/hooks';
 
 export type HoverFractionHandler = (fraction: number | null) => void;
 
@@ -34,8 +35,9 @@ export const useUPlot = (
 ): RefObject<HTMLDivElement | null> => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<uPlot | null>(null);
+  const suppressHoverRef = useRef(false);
 
-  useExternalCursor(chartRef, data, hoverFraction);
+  useExternalCursor(chartRef, data, hoverFraction, suppressHoverRef);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -50,7 +52,9 @@ export const useUPlot = (
         ? [
             ...setCursorHooks,
             (chart) => {
-              onHoverFractionChange(getChartHoverFraction(chart, data));
+              if (!suppressHoverRef.current) {
+                onHoverFractionChange(getChartHoverFraction(chart, data));
+              }
             },
           ]
         : setCursorHooks,
@@ -76,10 +80,6 @@ export const useUPlot = (
 
     const chart = new uPlot(merged, data, container);
     chartRef.current = chart;
-    const clearHover = () => {
-      onHoverFractionChange?.(null);
-    };
-    container.addEventListener('mouseleave', clearHover);
 
     const resize = new ResizeObserver(() => {
       chart.setSize({
@@ -90,8 +90,6 @@ export const useUPlot = (
     resize.observe(container);
 
     return () => {
-      clearHover();
-      container.removeEventListener('mouseleave', clearHover);
       resize.disconnect();
       chart.destroy();
       chartRef.current = null;
@@ -104,17 +102,27 @@ export const useUPlot = (
 const useExternalCursor = (
   chartRef: RefObject<uPlot | null>,
   data: AlignedData,
-  hoverFraction?: number | null,
+  hoverFraction: number | null | undefined,
+  suppressHoverRef: RefObject<boolean>,
 ): void => {
-  useEffect(() => {
+  useAsyncEffect(() => {
     const chart = chartRef.current;
     if (!chart) {
       return;
     }
 
-    if (hoverFraction === null || hoverFraction === undefined) {
-      // Move off-plot to clear the cursor when map hover leaves the track.
-      chart.setCursor({ left: -10, top: -10 });
+    if (hoverFraction === undefined) {
+      // Chart hover is the active source; let uPlot keep its native cursor.
+      return;
+    }
+
+    if (hoverFraction === null) {
+      // Move off-plot to clear the cursor when the whole hover region is left.
+      setCursorFromExternalHover(
+        chart,
+        { left: -10, top: -10 },
+        suppressHoverRef,
+      );
       return;
     }
 
@@ -128,11 +136,28 @@ const useExternalCursor = (
     const target = first + clamp(hoverFraction, 0, 1) * (last - first);
     const left = chart.valToPos(target, 'x', true);
 
-    chart.setCursor({
-      left,
-      top: chart.bbox.top + chart.bbox.height / 2,
-    });
-  }, [chartRef, data, hoverFraction]);
+    setCursorFromExternalHover(
+      chart,
+      {
+        left,
+        top: chart.bbox.top + chart.bbox.height / 2,
+      },
+      suppressHoverRef,
+    );
+  }, [data, hoverFraction]);
+};
+
+const setCursorFromExternalHover = (
+  chart: uPlot,
+  cursor: { left: number; top: number },
+  suppressHoverRef: RefObject<boolean>,
+): void => {
+  suppressHoverRef.current = true;
+  try {
+    chart.setCursor(cursor);
+  } finally {
+    suppressHoverRef.current = false;
+  }
 };
 
 const getChartHoverFraction = (

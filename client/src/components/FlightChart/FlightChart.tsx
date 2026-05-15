@@ -1,7 +1,7 @@
 import { Segmented } from 'antd';
 import { z } from 'zod';
 import type { Track } from '../../track';
-import type { TrackWindow } from '../../track/toPaths';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
 import { AltitudeChart } from './AltitudeChart';
 import styles from './FlightChart.module.scss';
@@ -11,7 +11,7 @@ import type { HoverFractionHandler } from './useUPlot';
 
 interface FlightChartProps {
   track: Track;
-  window: TrackWindow;
+  analysis: FlightAnalysis;
   onHoverFractionChange?: HoverFractionHandler;
   /** External map hover progress; drives the chart cursor line. */
   hoverFraction?: number | null;
@@ -32,7 +32,7 @@ type ChartKind = 'altitude' | 'speed' | 'vario';
  */
 export function FlightChart({
   track,
-  window,
+  analysis,
   onHoverFractionChange,
   hoverFraction,
 }: FlightChartProps) {
@@ -53,7 +53,7 @@ export function FlightChart({
         {activeKind === 'altitude' && (
           <AltitudeChart
             track={track}
-            window={window}
+            window={analysis.window}
             onHoverFractionChange={onHoverFractionChange}
             hoverFraction={hoverFraction}
           />
@@ -61,15 +61,14 @@ export function FlightChart({
         {activeKind === 'speed' && (
           <SpeedChart
             track={track}
-            window={window}
+            analysis={analysis}
             onHoverFractionChange={onHoverFractionChange}
             hoverFraction={hoverFraction}
           />
         )}
         {activeKind === 'vario' && (
           <VarioChart
-            track={track}
-            window={window}
+            analysis={analysis}
             onHoverFractionChange={onHoverFractionChange}
             hoverFraction={hoverFraction}
           />

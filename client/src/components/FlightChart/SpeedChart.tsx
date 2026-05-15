@@ -3,7 +3,7 @@ import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
-import type { TrackWindow } from '../../track/toPaths';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { speedLabel } from '../../utils/formatUnits';
 import { formatHourMinute } from './formatHourMinute';
 import styles from './SpeedChart.module.scss';
@@ -13,8 +13,7 @@ import type { HoverFractionHandler } from './useUPlot';
 
 interface SpeedChartProps {
   track: Track;
-  /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
-  window: TrackWindow;
+  analysis: FlightAnalysis;
   onHoverFractionChange?: HoverFractionHandler;
   hoverFraction?: number | null;
 }
@@ -46,12 +45,12 @@ interface SpeedChartProps {
  */
 export function SpeedChart({
   track,
-  window,
+  analysis,
   onHoverFractionChange,
   hoverFraction,
 }: SpeedChartProps) {
   const prefs = usePreferences();
-  const { data } = useSpeedSeries(track, window, prefs);
+  const { data } = useSpeedSeries(analysis, prefs);
   const hasTas = !!track.tas;
   const opts = useMemo(
     () => ({

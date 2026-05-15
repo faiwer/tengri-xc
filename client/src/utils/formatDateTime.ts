@@ -67,6 +67,36 @@ const TIME_FMT_H12_UTC = new Intl.DateTimeFormat(undefined, {
   timeZone: 'UTC',
 });
 
+const TIME_SECONDS_FMT_H24_VIEWER = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+});
+
+const TIME_SECONDS_FMT_H24_UTC = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+});
+
+const TIME_SECONDS_FMT_H12_VIEWER = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+});
+
+const TIME_SECONDS_FMT_H12_UTC = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+  timeZone: 'UTC',
+});
+
 const VERBOSE_DATE_FMT_VIEWER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
   month: 'short',
@@ -141,6 +171,25 @@ export const formatShortTime = (
       : offsetSeconds === undefined
         ? TIME_FMT_H12_VIEWER
         : TIME_FMT_H12_UTC;
+  return fmt.format(at(epochSeconds, offsetSeconds));
+};
+
+/**
+ * {@link formatShortTime}, but includes seconds for cursor/readout precision.
+ */
+export const formatShortTimeWithSeconds = (
+  epochSeconds: number,
+  prefs: Pick<ResolvedPreferences, 'timeFormat'>,
+  offsetSeconds?: number,
+): string => {
+  const fmt =
+    prefs.timeFormat === 'h24'
+      ? offsetSeconds === undefined
+        ? TIME_SECONDS_FMT_H24_VIEWER
+        : TIME_SECONDS_FMT_H24_UTC
+      : offsetSeconds === undefined
+        ? TIME_SECONDS_FMT_H12_VIEWER
+        : TIME_SECONDS_FMT_H12_UTC;
   return fmt.format(at(epochSeconds, offsetSeconds));
 };
 

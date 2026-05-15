@@ -1,14 +1,26 @@
 import { useMemo, useState } from 'react';
+import { useEventHandler } from '../core/hooks';
 import type { Track } from '../track';
 import type { TrackWindow } from '../track/toPaths';
 import { buildSpatialIndex, nearestTrackIndex } from './trackHoverSpatialIndex';
 
 interface HoverPointState {
   point: google.maps.LatLngLiteral | null;
-  mapHoverFraction: number | null;
+  trackIndex: number | null;
+  /**
+   * External chart cursor control: number = map drives the chart cursor,
+   * null = clear the chart cursor, undefined = chart owns its native hover.
+   */
+  chartHoverFraction: number | null | undefined;
+  clearHover: () => void;
   setHoverFraction: (fraction: number | null) => void;
   setHoverLatLng: (point: google.maps.LatLngLiteral | null) => void;
 }
+
+type HoverSource =
+  | { kind: 'none' }
+  | { kind: 'chart'; fraction: number }
+  | { kind: 'map'; point: google.maps.LatLngLiteral };
 
 /**
  * Convert chart and map hover state into one marker point. Chart data may be
@@ -20,9 +32,10 @@ export function useTrackHoverPoint(
   window?: TrackWindow,
   bounds?: google.maps.LatLngBoundsLiteral | null,
 ): HoverPointState {
-  const [hoverFraction, setHoverFraction] = useState<number | null>(null);
-  const [hoverLatLng, setHoverLatLng] =
-    useState<google.maps.LatLngLiteral | null>(null);
+  const [hoverSource, setHoverSource] = useState<HoverSource>({ kind: 'none' });
+  const hoverLatLng = hoverSource.kind === 'map' ? hoverSource.point : null;
+  const hoverFraction =
+    hoverSource.kind === 'chart' ? hoverSource.fraction : null;
 
   const spatialIndex = useMemo(
     () =>
@@ -45,14 +58,7 @@ export function useTrackHoverPoint(
       return null;
     }
 
-    const idx =
-      hoverTrackIndex ??
-      (window && hoverFraction !== null
-        ? Math.round(
-            window.takeoffIdx +
-              hoverFraction * (window.landingIdx - window.takeoffIdx),
-          )
-        : null);
+    const idx = hoverTrackIndex ?? fractionToTrackIndex(window, hoverFraction);
 
     if (idx === null) {
       return null;
@@ -77,8 +83,51 @@ export function useTrackHoverPoint(
     return clamp((hoverTrackIndex - window.takeoffIdx) / span, 0, 1);
   }, [window, hoverTrackIndex]);
 
-  return { point, mapHoverFraction, setHoverFraction, setHoverLatLng };
+  const trackIndex =
+    hoverSource.kind === 'map'
+      ? hoverTrackIndex
+      : fractionToTrackIndex(window, hoverFraction);
+  const chartHoverFraction =
+    hoverSource.kind === 'map'
+      ? mapHoverFraction
+      : hoverSource.kind === 'none'
+        ? null
+        : undefined;
+  const clearHover = useEventHandler(() => {
+    setHoverSource({ kind: 'none' });
+  });
+  const setHoverFraction = useEventHandler((fraction: number | null) => {
+    if (fraction !== null) {
+      setHoverSource({ kind: 'chart', fraction });
+    }
+  });
+  const setHoverLatLng = useEventHandler(
+    (latLng: google.maps.LatLngLiteral | null) => {
+      if (latLng !== null) {
+        setHoverSource({ kind: 'map', point: latLng });
+      }
+    },
+  );
+
+  return {
+    point,
+    trackIndex,
+    chartHoverFraction,
+    clearHover,
+    setHoverFraction,
+    setHoverLatLng,
+  };
 }
+
+const fractionToTrackIndex = (
+  window: TrackWindow | undefined,
+  fraction: number | null,
+): number | null =>
+  window && fraction !== null
+    ? Math.round(
+        window.takeoffIdx + fraction * (window.landingIdx - window.takeoffIdx),
+      )
+    : null;
 
 const clamp = (value: number, min: number, max: number): number =>
   value < min ? min : value > max ? max : value;

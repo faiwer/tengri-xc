@@ -20,7 +20,7 @@ interface MapViewProps {
 }
 
 export function MapView({ children, onHoverLatLng }: MapViewProps) {
-  const { onMousemove, onMouseout } = useMapHoverHandlers(onHoverLatLng);
+  const { onMousemove } = useMapHoverHandlers(onHoverLatLng);
 
   return (
     <div className={styles.container}>
@@ -34,7 +34,6 @@ export function MapView({ children, onHoverLatLng }: MapViewProps) {
           fullscreenControl
           mapTypeControl
           onMousemove={onMousemove}
-          onMouseout={onMouseout}
         >
           {children}
         </Map>
@@ -79,13 +78,5 @@ function useMapHoverHandlers(
     });
   });
 
-  const onMouseout = useEventHandler(() => {
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-    emitHover(null);
-  });
-
-  return { onMousemove, onMouseout };
+  return { onMousemove };
 }

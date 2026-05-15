@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import type { AlignedData } from 'uplot';
 import type { ResolvedPreferences } from '../../core/preferences';
-import type { Track } from '../../track';
-import type { TrackWindow } from '../../track/toPaths';
-import { computeVario } from '../../track/varioSegments/vario';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { bucketMean } from '../../utils/bucketMean';
 import { MPS_TO_FPM } from '../../utils/formatUnits';
 
@@ -39,15 +37,15 @@ export interface VarioSeries {
  * to print the suffix.
  */
 export const useVarioSeries = (
-  track: Track,
-  window: TrackWindow,
+  analysis: FlightAnalysis,
   prefs: Pick<ResolvedPreferences, 'varioUnit'>,
 ): VarioSeries => {
   return useMemo((): VarioSeries => {
+    const { track, window, metrics } = analysis;
     const fromIdx = window.takeoffIdx;
     const toIdx = window.landingIdx + 1;
     const xs = track.t.slice(fromIdx, toIdx);
-    const vario = computeVario(track).slice(fromIdx, toIdx);
+    const vario = metrics.vario.slice(fromIdx, toIdx);
     if (prefs.varioUnit === 'fpm') {
       for (let i = 0; i < vario.length; i++) {
         vario[i] *= MPS_TO_FPM;
@@ -55,5 +53,5 @@ export const useVarioSeries = (
     }
     const bucketed = bucketMean(xs, vario, VARIO_CHART_TARGET_POINTS);
     return { data: [bucketed.xs, bucketed.ys] };
-  }, [track, window, prefs.varioUnit]);
+  }, [analysis, prefs.varioUnit]);
 };

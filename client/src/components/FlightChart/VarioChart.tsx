@@ -3,8 +3,7 @@ import type uPlot from 'uplot';
 import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { usePreferences } from '../../core/preferences';
-import type { Track } from '../../track';
-import type { TrackWindow } from '../../track/toPaths';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { varioLabel } from '../../utils/formatUnits';
 import styles from './AltitudeChart.module.scss';
 import { formatHourMinute } from './formatHourMinute';
@@ -13,9 +12,7 @@ import type { HoverFractionHandler } from './useUPlot';
 import { useVarioSeries } from './useVarioSeries';
 
 interface VarioChartProps {
-  track: Track;
-  /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
-  window: TrackWindow;
+  analysis: FlightAnalysis;
   onHoverFractionChange?: HoverFractionHandler;
   hoverFraction?: number | null;
 }
@@ -36,13 +33,12 @@ interface VarioChartProps {
  * "rule" primitive.
  */
 export function VarioChart({
-  track,
-  window,
+  analysis,
   onHoverFractionChange,
   hoverFraction,
 }: VarioChartProps) {
   const prefs = usePreferences();
-  const { data } = useVarioSeries(track, window, prefs);
+  const { data } = useVarioSeries(analysis, prefs);
   const opts = useMemo(
     () => ({
       axes: [X_AXIS, buildYAxis(prefs.varioUnit)],
