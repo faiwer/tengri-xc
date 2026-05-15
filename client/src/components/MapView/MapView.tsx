@@ -9,16 +9,19 @@ const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 // Greifenburg, Carinthia (Drautal). Zoom 10 fits the surrounding region.
 const DEFAULT_CENTER = { lat: 46.751, lng: 13.1786 };
 const DEFAULT_ZOOM = 10;
+const PADDING = 32;
 
 interface MapViewProps {
   /** Overlays rendered inside <Map>; they may use `useMap()` to attach. */
   children?: ReactNode;
+  initialBounds?: google.maps.LatLngBoundsLiteral | null;
   onCenterLatLng?: (point: google.maps.LatLngLiteral) => void;
   onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void;
 }
 
 export function MapView({
   children,
+  initialBounds,
   onCenterLatLng,
   onHoverLatLng,
 }: MapViewProps) {
@@ -31,6 +34,9 @@ export function MapView({
           className={styles.map}
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={DEFAULT_ZOOM}
+          defaultBounds={
+            initialBounds ? { ...initialBounds, padding: PADDING } : undefined
+          }
           gestureHandling="greedy"
           disableDefaultUI
           fullscreenControl

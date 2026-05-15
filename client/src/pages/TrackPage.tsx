@@ -74,12 +74,16 @@ export function TrackPage() {
               <Loading />
             ) : (
               <MapView
+                initialBounds={analysis?.bounds ?? null}
                 onCenterLatLng={setMapCenterDebounced}
                 onHoverLatLng={setHoverLatLng}
               >
                 {analysis && <TrackPolyline paths={analysis.paths} />}
                 <TrackHoverMarker point={hoverPoint} />
-                <FitBounds bounds={analysis?.bounds ?? null} />
+                <FitBounds
+                  bounds={analysis?.bounds ?? null}
+                  skipInitialFit={!!analysis?.bounds}
+                />
               </MapView>
             )}
           </div>
