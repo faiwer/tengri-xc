@@ -1,5 +1,9 @@
 import { Segmented } from 'antd';
+import type { ReactNode } from 'react';
 import { z } from 'zod';
+import { AltitudeIcon } from '../icons/AltitudeIcon';
+import { SpeedIcon } from '../icons/SpeedIcon';
+import { VarioIcon } from '../icons/VarioIcon';
 import type { Track } from '../../track';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
@@ -78,10 +82,19 @@ export function FlightChart({
   );
 }
 
-const SEGMENTED_OPTIONS: { label: string; value: ChartKind }[] = [
-  { label: 'Altitude', value: 'altitude' },
-  { label: 'Speed', value: 'speed' },
-  { label: 'Vario', value: 'vario' },
+const SEGMENTED_OPTIONS: { label: ReactNode; value: ChartKind }[] = [
+  {
+    label: <AltitudeIcon aria-label="Altitude" />,
+    value: 'altitude',
+  },
+  {
+    label: <SpeedIcon aria-label="Speed" />,
+    value: 'speed',
+  },
+  {
+    label: <VarioIcon aria-label="Vario" />,
+    value: 'vario',
+  },
 ];
 
 const ACTIVE_KIND_SCHEMA = z.enum(['altitude', 'speed', 'vario']);
