@@ -1,9 +1,10 @@
-import { ClockCircleOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { usePreferences } from '../core/preferences';
 import type { FlightAnalysis } from '../track/flightAnalysis';
 import { formatShortTimeWithSeconds } from '../utils/formatDateTime';
+import { formatCoordinates } from '../utils/formatGeo';
 import {
   formatAltitude,
   formatSpeed,
@@ -18,10 +19,15 @@ import { SpeedIcon } from '../components/icons/SpeedIcon';
 
 interface CursorReadoutProps {
   analysis: FlightAnalysis | null;
+  mapCenter: google.maps.LatLngLiteral | null;
   trackIndex: number | null;
 }
 
-export function CursorReadout({ analysis, trackIndex }: CursorReadoutProps) {
+export function CursorReadout({
+  analysis,
+  mapCenter,
+  trackIndex,
+}: CursorReadoutProps) {
   const prefs = usePreferences();
   const readout = useMemo(
     () =>
@@ -53,20 +59,12 @@ export function CursorReadout({ analysis, trackIndex }: CursorReadoutProps) {
           field('speed', 'Ground speed', readout.speed, fieldWidths.speed),
         ]
       : [
-          field('time', 'Time', '—', fieldWidths?.time),
-          field('gps', 'GPS altitude', '—', fieldWidths?.gps),
-          ...(analysis?.track.baroAlt
-            ? [
-                field(
-                  'baroAlt',
-                  'Barometric altitude',
-                  '—',
-                  fieldWidths?.baroAlt,
-                ),
-              ]
-            : []),
-          field('vario', 'Vertical speed', '—', fieldWidths?.vario),
-          field('speed', 'Ground speed', '—', fieldWidths?.speed),
+          field(
+            'mapCenter',
+            'Map center coordinates',
+            mapCenter ? formatCoordinates(mapCenter) : '—',
+            MAP_CENTER_WIDTH,
+          ),
         ];
 
   return (
@@ -95,7 +93,13 @@ interface CursorReadoutField {
   width: number | undefined;
 }
 
-type CursorReadoutKey = 'time' | 'gps' | 'baroAlt' | 'vario' | 'speed';
+type CursorReadoutKey =
+  | 'time'
+  | 'gps'
+  | 'baroAlt'
+  | 'vario'
+  | 'speed'
+  | 'mapCenter';
 
 interface CursorReadoutValue {
   time: string;
@@ -119,7 +123,10 @@ const FIELD_ICONS: Record<CursorReadoutKey, ReactNode> = {
   baroAlt: <BaroAltitudeIcon />,
   vario: <VarioIcon />,
   speed: <SpeedIcon />,
+  mapCenter: <EnvironmentOutlined />,
 };
+
+const MAP_CENTER_WIDTH = '46.75100, 13.17860'.length;
 
 const buildCursorReadout = (
   analysis: FlightAnalysis,

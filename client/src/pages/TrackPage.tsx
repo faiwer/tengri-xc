@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import {
   FitBounds,
@@ -8,6 +9,7 @@ import {
 import { FlightChart } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
+import { debounce } from '../utils/debounce';
 import { CursorReadout } from './CursorReadout';
 import styles from './TrackPage.module.scss';
 import { useFlightAnalysis } from './useFlightAnalysis';
@@ -16,6 +18,10 @@ import { useTrackPageData } from './useTrackPageData';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
+  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(
+    null,
+  );
+  const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
   const { state, trackState, track } = useTrackPageData(id);
   const analysis = useFlightAnalysis(
     track,
@@ -61,14 +67,21 @@ export function TrackPage() {
                 className={styles.mapError}
               />
             ) : (
-              <MapView onHoverLatLng={setHoverLatLng}>
+              <MapView
+                onCenterLatLng={setMapCenterDebounced}
+                onHoverLatLng={setHoverLatLng}
+              >
                 {analysis && <TrackPolyline paths={analysis.paths} />}
                 <TrackHoverMarker point={hoverPoint} />
                 <FitBounds bounds={analysis?.bounds ?? null} />
               </MapView>
             )}
           </div>
-          <CursorReadout analysis={analysis} trackIndex={hoverTrackIndex} />
+          <CursorReadout
+            analysis={analysis}
+            mapCenter={mapCenter}
+            trackIndex={hoverTrackIndex}
+          />
           {track && analysis && (
             <FlightChart
               track={track}

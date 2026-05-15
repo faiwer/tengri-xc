@@ -1,11 +1,8 @@
-import {
-  APIProvider,
-  Map,
-  type MapMouseEvent,
-} from '@vis.gl/react-google-maps';
-import { useEffect, useRef, type ReactNode } from 'react';
-import { useEventHandler } from '../../core/hooks';
+import { APIProvider, Map } from '@vis.gl/react-google-maps';
+import { type ReactNode } from 'react';
+import { MapCenterReporter } from './MapCenterReporter';
 import styles from './MapView.module.scss';
+import { useMapHoverHandlers } from './useMapHoverHandlers';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -16,10 +13,15 @@ const DEFAULT_ZOOM = 10;
 interface MapViewProps {
   /** Overlays rendered inside <Map>; they may use `useMap()` to attach. */
   children?: ReactNode;
+  onCenterLatLng?: (point: google.maps.LatLngLiteral) => void;
   onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void;
 }
 
-export function MapView({ children, onHoverLatLng }: MapViewProps) {
+export function MapView({
+  children,
+  onCenterLatLng,
+  onHoverLatLng,
+}: MapViewProps) {
   const { onMousemove } = useMapHoverHandlers(onHoverLatLng);
 
   return (
@@ -35,48 +37,12 @@ export function MapView({ children, onHoverLatLng }: MapViewProps) {
           mapTypeControl
           onMousemove={onMousemove}
         >
+          {onCenterLatLng && (
+            <MapCenterReporter onCenterLatLng={onCenterLatLng} />
+          )}
           {children}
         </Map>
       </APIProvider>
     </div>
   );
-}
-
-function useMapHoverHandlers(
-  onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void,
-) {
-  const frameRef = useRef<number | null>(null);
-  const emitHover = useEventHandler(
-    (point: google.maps.LatLngLiteral | null) => {
-      onHoverLatLng?.(point);
-    },
-  );
-
-  // Mousemove is RAF-throttled; cancel a queued hover emit if the map unmounts.
-  useEffect(
-    () => () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    },
-    [],
-  );
-
-  const onMousemove = useEventHandler((event: MapMouseEvent) => {
-    if (!onHoverLatLng) {
-      return;
-    }
-
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-    }
-
-    const point = event.detail.latLng ?? null;
-    frameRef.current = requestAnimationFrame(() => {
-      frameRef.current = null;
-      emitHover(point);
-    });
-  });
-
-  return { onMousemove };
 }
