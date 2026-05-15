@@ -59,8 +59,27 @@
   white-space: nowrap;
 }
 
-.cursorReadoutLabel {
+.cursorReadoutSegment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: flex-start;
+}
+
+.cursorReadoutIcon {
+  flex: 0 0 1rem;
   color: #9fafc8;
+  opacity: 0.8;
+}
+
+.cursorReadoutValue {
+  min-width: 0;
+  // monospace because we use "ch" units for width calculations
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
 }
 
 .statusMessage {
