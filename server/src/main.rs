@@ -38,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         &config.jwt_secret,
         config.https,
         config.client_origins.clone(),
+        config.leonardo_cookie_domain.clone(),
     );
     let app = build_app(state);
 

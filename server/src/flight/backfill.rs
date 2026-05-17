@@ -104,12 +104,16 @@ async fn upgrade_one(pool: &PgPool, row: &Pending) -> anyhow::Result<()> {
 
     sqlx::query(
         "UPDATE flights \
-         SET takeoff_offset = $1, \
-             landing_offset = $2, \
-             takeoff_point = ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, \
-             landing_point = ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography \
-         WHERE id = $7",
+         SET takeoff_at = to_timestamp($1), \
+             landing_at = to_timestamp($2), \
+             takeoff_offset = $3, \
+             landing_offset = $4, \
+             takeoff_point = ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, \
+             landing_point = ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography \
+         WHERE id = $9",
     )
+    .bind(prepared.takeoff_at)
+    .bind(prepared.landing_at)
     .bind(prepared.takeoff_offset)
     .bind(prepared.landing_offset)
     .bind(prepared.takeoff_lon as f64 / 1e5)

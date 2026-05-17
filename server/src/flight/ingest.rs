@@ -16,7 +16,8 @@ use crate::flight::{
 };
 use crate::geo::approximate_distance_m;
 
-const MAX_PLAUSIBLE_SPEED_MPS: f64 = 277.78;
+const MAX_PLAUSIBLE_SPEED_MPS: f64 = 277.78; // 1000 km/h
+const MAX_TRACK_GAP_SECONDS: u32 = 30 * 60; // 30 minutes
 
 /// Recognised input format. Wraps file-extension dispatch so the
 /// matching `flight_source_format` enum value and the parser stay in
@@ -82,6 +83,10 @@ pub fn parse_input(input: &Path) -> anyhow::Result<Track> {
 }
 
 fn clean_track_points(track: Track) -> Track {
+    select_longest_realistic_segment(drop_implausible_points(track))
+}
+
+fn drop_implausible_points(track: Track) -> Track {
     let mut previous = match track.points.first().copied() {
         Some(point) => point,
         None => return track,
@@ -115,6 +120,68 @@ fn clean_track_points_from(track: Track, first_bad_idx: usize) -> Track {
         start_time: track.start_time,
         points,
     }
+}
+
+fn select_longest_realistic_segment(track: Track) -> Track {
+    let Some((best_start, best_end)) = longest_realistic_segment_bounds(&track) else {
+        return track;
+    };
+
+    if best_start == 0 && best_end == track.points.len() {
+        return track;
+    }
+
+    // There were multiple chunks. Return the longest one as a new Track.
+    let points = track.points[best_start..best_end].to_vec();
+    let start_time = points[0].time;
+    Track { start_time, points }
+}
+
+/// Split on >30 min gaps, keep only chunks with a detected flight window,
+/// and return the `points[start..end]` bounds for the longest such window.
+fn longest_realistic_segment_bounds(track: &Track) -> Option<(usize, usize)> {
+    let mut best: Option<(usize, usize, u32)> = None;
+    let mut start = 0;
+
+    for idx in 1..=track.points.len() {
+        let should_split = idx == track.points.len()
+            || track.points[idx]
+                .time
+                .saturating_sub(track.points[idx - 1].time)
+                > MAX_TRACK_GAP_SECONDS;
+        if !should_split {
+            continue;
+        }
+
+        if let Some(duration) = realistic_segment_duration(track, start, idx)
+            && best
+                .as_ref()
+                .is_none_or(|&(_, _, best_duration)| duration > best_duration)
+        {
+            best = Some((start, idx, duration));
+        }
+        start = idx;
+    }
+
+    best.map(|(start, end, _)| (start, end))
+}
+
+fn realistic_segment_duration(track: &Track, start: usize, end: usize) -> Option<u32> {
+    if end <= start + 1 {
+        return None;
+    }
+
+    let points = track.points[start..end].to_vec();
+    let segment = Track {
+        start_time: points[0].time,
+        points,
+    };
+    let window = find_flight_window(&segment)?;
+    Some(
+        segment.points[window.landing_idx]
+            .time
+            .saturating_sub(segment.points[window.takeoff_idx].time),
+    )
 }
 
 /// Reject same-timestamp points and GPS jumps above 1000 km/h.
@@ -321,6 +388,16 @@ mod tests {
         }
     }
 
+    fn flying_leg(t0: u32, n: usize, lon0: i32) -> Vec<TrackPoint> {
+        (0..n)
+            .map(|idx| point(t0 + idx as u32, 4_700_000, lon0 + idx as i32 * 20))
+            .collect()
+    }
+
+    fn stationary(t0: u32, n: usize, lat: i32, lon: i32) -> Vec<TrackPoint> {
+        (0..n).map(|idx| point(t0 + idx as u32, lat, lon)).collect()
+    }
+
     #[test]
     fn drops_impossible_cluster_until_track_returns_to_normal() {
         let track = Track {
@@ -383,5 +460,35 @@ mod tests {
             cleaned.points,
             vec![point(0, 0, 0), point(60, 0, 1_000), point(120, 0, 2_000)]
         );
+    }
+
+    #[test]
+    fn ignores_stationary_segment_before_flight() {
+        let mut points = stationary(0, 600, 4_700_000, 800_000);
+        points.extend(flying_leg(3_000, 600, 800_000));
+        let track = Track {
+            start_time: 0,
+            points,
+        };
+
+        let cleaned = clean_track_points(track);
+
+        assert_eq!(cleaned.start_time, 3_000);
+        assert_eq!(cleaned.points.len(), 600);
+    }
+
+    #[test]
+    fn chooses_longest_realistic_segment() {
+        let mut points = flying_leg(0, 300, 800_000);
+        points.extend(flying_leg(3_000, 600, 900_000));
+        let track = Track {
+            start_time: 0,
+            points,
+        };
+
+        let cleaned = clean_track_points(track);
+
+        assert_eq!(cleaned.start_time, 3_000);
+        assert_eq!(cleaned.points.len(), 600);
     }
 }

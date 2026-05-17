@@ -17,11 +17,13 @@ struct AppStateInner {
     https: bool,
     /// Cross-origin browsers allowed to send the session cookie.
     client_origins: Vec<String>,
+    /// Keep to be able to clear the cookie.
+    leonardo_cookie_domain: Option<String>,
 }
 
 impl AppState {
     pub fn new(pool: PgPool, jwt_secret: &[u8], https: bool) -> Self {
-        Self::with_origins(pool, jwt_secret, https, Vec::new())
+        Self::with_origins(pool, jwt_secret, https, Vec::new(), None)
     }
 
     pub fn with_origins(
@@ -29,6 +31,7 @@ impl AppState {
         jwt_secret: &[u8],
         https: bool,
         client_origins: Vec<String>,
+        leonardo_cookie_domain: Option<String>,
     ) -> Self {
         Self {
             inner: Arc::new(AppStateInner {
@@ -37,6 +40,7 @@ impl AppState {
                 jwt_decoding_key: DecodingKey::from_secret(jwt_secret),
                 https,
                 client_origins,
+                leonardo_cookie_domain,
             }),
         }
     }
@@ -59,5 +63,9 @@ impl AppState {
 
     pub fn client_origins(&self) -> &[String] {
         &self.inner.client_origins
+    }
+
+    pub fn leonardo_cookie_domain(&self) -> Option<&str> {
+        self.inner.leonardo_cookie_domain.as_deref()
     }
 }
