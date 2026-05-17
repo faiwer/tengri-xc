@@ -30,6 +30,12 @@ export const TrackMetadataIo = z.object({
     /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
     country: z.string().nullable(),
   }),
+  glider: z.object({
+    brandId: z.string(),
+    brandName: z.string(),
+    modelId: z.string(),
+    modelName: z.string(),
+  }),
   /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
   takeoffAt: z.number().int(),
   /** Unix epoch seconds (UTC). */

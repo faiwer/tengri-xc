@@ -45,6 +45,9 @@ export function TrackMetaPanel({
         )}
         {data.pilot.name}
       </Cell>
+      <Cell label="Glider">
+        {data.glider.brandName} {data.glider.modelName}
+      </Cell>
       <Cell label="Date">
         {formatVerboseDate(data.takeoffAt, data.takeoffOffset)}
       </Cell>

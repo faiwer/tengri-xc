@@ -17,6 +17,7 @@ pub fn router() -> Router<AppState> {
 struct TrackMd {
     id: String,
     pilot: Pilot,
+    glider: Glider,
     /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we project it as
     /// `bigint` epoch so the wire format stays numeric and the client can do
     /// `new Date(seconds * 1000)` without parsing strings.
@@ -42,6 +43,14 @@ struct Pilot {
     country: Option<String>,
 }
 
+#[derive(Serialize)]
+struct Glider {
+    brand_id: String,
+    brand_name: String,
+    model_id: String,
+    model_name: String,
+}
+
 /// Decimal degrees on WGS-84. The DB carries the column as `geography(Point,
 /// 4326)`; we cast to `geometry` only to use `ST_X` / `ST_Y`, which
 /// spatial-types-wise is a no-op for points.
@@ -60,6 +69,7 @@ async fn get_track_md(
     // `null` country rather than dropping the flight to a 404.
     let row: Option<TrackMdRow> = sqlx::query_as(
         "SELECT f.id, u.name, p.country, \
+                f.brand_id, b.name, f.model_id, m.name, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
                 EXTRACT(EPOCH FROM f.landing_at)::bigint, \
                 f.takeoff_offset, \
@@ -72,6 +82,10 @@ async fn get_track_md(
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
          LEFT JOIN user_profiles p ON p.user_id = u.id \
+         JOIN brands b ON b.id = f.brand_id \
+         JOIN models m ON m.brand_id = f.brand_id \
+                      AND m.kind = f.kind \
+                      AND m.id = f.model_id \
          JOIN flight_tracks t ON t.flight_id = f.id AND t.kind = 'full' \
          WHERE f.id = $1",
     )
@@ -84,6 +98,10 @@ async fn get_track_md(
         flight_id,
         pilot_name,
         pilot_country,
+        brand_id,
+        brand_name,
+        model_id,
+        model_name,
         takeoff_at,
         landing_at,
         takeoff_offset,
@@ -104,6 +122,12 @@ async fn get_track_md(
             name: pilot_name,
             country: pilot_country,
         },
+        glider: Glider {
+            brand_id,
+            brand_name,
+            model_id,
+            model_name,
+        },
         takeoff_at,
         landing_at,
         takeoff_offset,
@@ -120,14 +144,16 @@ async fn get_track_md(
     }))
 }
 
-/// Concrete row tuple: `(flight_id, pilot_name, pilot_country, takeoff_at,
-/// landing_at, takeoff_offset, landing_offset, takeoff_lat, takeoff_lon,
-/// landing_lat, landing_lon, compression_ratio)`. Aliased because the literal
-/// tuple is too long to inline at the call site without harming readability.
+/// Concrete row tuple. Aliased because the literal tuple is too long to inline
+/// at the call site without harming readability.
 type TrackMdRow = (
     String,
     String,
     Option<String>,
+    String,
+    String,
+    String,
+    String,
     i64,
     i64,
     i32,
