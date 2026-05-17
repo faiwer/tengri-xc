@@ -8,6 +8,7 @@
 //!   source goes into `flight_sources`; the encoded `.tengri` HTTP wire form
 //!   goes into `flight_tracks` (kind = `full`).
 //! - `delete` — remove a flight by id (cascades to its track + source rows).
+//! - `export` — write the stored source flight file to a path or stdout.
 //! - `migrate` — apply outstanding SQL migrations to the configured DB, then
 //!   run any Rust-side data backfills that depend on those schema changes (e.g.
 //!   re-encoding `.tengri` blobs after a version bump).
@@ -26,6 +27,7 @@ mod add;
 mod convert;
 mod db;
 mod delete;
+mod export;
 mod import_gliders;
 mod inspect;
 mod migrate;
@@ -101,6 +103,21 @@ enum Cmd {
         flight_id: String,
     },
 
+    /// Export a stored source flight file.
+    Export {
+        /// Flight id to export (`flights.id`, e.g. `LEO-1350`).
+        #[arg(long = "flight-id")]
+        flight_id: String,
+
+        /// Source format to export. Currently only `igc` is supported.
+        #[arg(long)]
+        format: export::ExportFormat,
+
+        /// Output path. Omit to write the file bytes to stdout.
+        #[arg(short, long)]
+        destination: Option<PathBuf>,
+    },
+
     /// Evaluate route distances/points for a stored flight.
     Score {
         /// Flight id to evaluate (`flights.id`, e.g. `LEO-1350`).
@@ -168,6 +185,11 @@ fn run() -> anyhow::Result<()> {
             model,
         } => run_async(add::run(input, user_id, brand, kind, model)),
         Cmd::Delete { flight_id } => run_async(delete::run(flight_id)),
+        Cmd::Export {
+            flight_id,
+            format,
+            destination,
+        } => run_async(export::run(flight_id, format, destination)),
         Cmd::Score { flight_id } => run_async(score::run(flight_id)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::Prune { yes } => run_async(prune::run(yes)),

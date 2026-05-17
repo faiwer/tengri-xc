@@ -5,10 +5,13 @@
 //! add`, the leonardo importer, future HTTP uploads — uses the same
 //! contract.
 
-use std::{io::Write, path::Path};
+use std::{
+    io::{Read, Write},
+    path::Path,
+};
 
 use anyhow::{Context, anyhow};
-use flate2::{Compression, write::GzEncoder};
+use flate2::{Compression, read::GzDecoder, write::GzEncoder};
 
 use crate::flight::{
     FlightWindow, Metadata, TengriFile, Track, encode, etag_for, find_flight_window, gpx, igc, kml,
@@ -41,6 +44,15 @@ impl InputFormat {
             InputFormat::Igc => "igc",
             InputFormat::Kml | InputFormat::Kmz => "kml",
             InputFormat::Gpx => "gpx",
+        }
+    }
+
+    pub fn from_pg_enum_value(value: &str) -> anyhow::Result<Self> {
+        match value {
+            "igc" => Ok(InputFormat::Igc),
+            "kml" => Ok(InputFormat::Kml),
+            "gpx" => Ok(InputFormat::Gpx),
+            other => Err(anyhow!("unsupported source format `{other}`")),
         }
     }
 }
@@ -223,6 +235,12 @@ pub fn gzip_bytes(raw: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut gz = GzEncoder::new(Vec::new(), Compression::default());
     gz.write_all(raw)?;
     Ok(gz.finish()?)
+}
+
+pub fn gunzip_bytes(gz: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    GzDecoder::new(gz).read_to_end(&mut out)?;
+    Ok(out)
 }
 
 /// Everything an ingest path needs to write the three-row flight

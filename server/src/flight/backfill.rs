@@ -18,14 +18,11 @@
 //! DB before this code shipped), so a missing source mid-backfill points at
 //! corruption that needs operator attention rather than a silent skip.
 
-use std::io::Read;
-
 use anyhow::{Context, anyhow};
-use flate2::read::GzDecoder;
 use sqlx::PgPool;
 
 use super::{
-    ingest::{InputFormat, prepare_bytes_for_storage},
+    ingest::{InputFormat, gunzip_bytes, prepare_bytes_for_storage},
     tengri::VERSION,
 };
 
@@ -72,13 +69,8 @@ async fn fetch_pending(pool: &PgPool) -> anyhow::Result<Vec<Pending>> {
 }
 
 async fn upgrade_one(pool: &PgPool, row: &Pending) -> anyhow::Result<()> {
-    let raw = gunzip(&row.source_bytes).context("gunzipping source")?;
-    let format = match row.source_format.as_str() {
-        "igc" => InputFormat::Igc,
-        "kml" => InputFormat::Kml,
-        "gpx" => InputFormat::Gpx,
-        other => return Err(anyhow!("unsupported source format `{other}`")),
-    };
+    let raw = gunzip_bytes(&row.source_bytes).context("gunzipping source")?;
+    let format = InputFormat::from_pg_enum_value(&row.source_format)?;
 
     let prepared =
         prepare_bytes_for_storage(format, raw).map_err(|e| anyhow!("re-ingest failed: {e:#}"))?;
@@ -127,10 +119,4 @@ async fn upgrade_one(pool: &PgPool, row: &Pending) -> anyhow::Result<()> {
 
     tx.commit().await?;
     Ok(())
-}
-
-fn gunzip(gz: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut out = Vec::new();
-    GzDecoder::new(gz).read_to_end(&mut out)?;
-    Ok(out)
 }

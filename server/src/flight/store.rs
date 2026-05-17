@@ -19,7 +19,13 @@
 //! `TrackPoint`); the SQL converts to decimal degrees and wraps in
 //! `ST_SetSRID(ST_MakePoint(...), 4326)::geography` at the bind site.
 
-use sqlx::{Postgres, Transaction};
+use anyhow::Context;
+use sqlx::{PgPool, Postgres, Transaction};
+
+use super::{
+    Track,
+    ingest::{InputFormat, gunzip_bytes, parse_format},
+};
 
 /// Everything the `flights` writer needs to insert one row. Bundled so adding
 /// columns to `flights` doesn't keep growing the writer signatures past
@@ -162,6 +168,37 @@ pub async fn insert_source(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+pub struct StoredSource {
+    pub format: InputFormat,
+    pub bytes: Vec<u8>,
+}
+
+pub async fn fetch_source(pool: &PgPool, flight_id: &str) -> anyhow::Result<StoredSource> {
+    let row = sqlx::query_as::<_, SourceRow>(
+        "SELECT format::text AS format, bytes FROM flight_sources WHERE flight_id = $1",
+    )
+    .bind(flight_id)
+    .fetch_optional(pool)
+    .await
+    .with_context(|| format!("fetching source for flight {flight_id}"))?
+    .ok_or_else(|| anyhow::anyhow!("no source for flight id {flight_id}"))?;
+
+    let format = InputFormat::from_pg_enum_value(&row.format)?;
+    let bytes = gunzip_bytes(&row.bytes).context("gunzipping stored source")?;
+    Ok(StoredSource { format, bytes })
+}
+
+pub async fn fetch_source_track(pool: &PgPool, flight_id: &str) -> anyhow::Result<Track> {
+    let source = fetch_source(pool, flight_id).await?;
+    parse_format(source.format, &source.bytes)
+}
+
+#[derive(sqlx::FromRow)]
+struct SourceRow {
+    format: String,
+    bytes: Vec<u8>,
 }
 
 pub async fn insert_track(
