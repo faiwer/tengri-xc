@@ -14,6 +14,9 @@ use crate::flight::{
     FlightWindow, Metadata, TengriFile, Track, encode, etag_for, find_flight_window, gpx, igc, kml,
     kmz, timezone,
 };
+use crate::geo::approximate_distance_m;
+
+const MAX_PLAUSIBLE_SPEED_MPS: f64 = 277.78;
 
 /// Recognised input format. Wraps file-extension dispatch so the
 /// matching `flight_source_format` enum value and the parser stay in
@@ -60,7 +63,7 @@ pub fn detect_format(input: &Path) -> anyhow::Result<InputFormat> {
 }
 
 pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> {
-    match format {
+    let track = match format {
         InputFormat::Igc => {
             let raw = igc::decode_text(bytes);
             igc::parse_str(&raw).context("parsing IGC")
@@ -68,13 +71,64 @@ pub fn parse_format(format: InputFormat, bytes: &[u8]) -> anyhow::Result<Track> 
         InputFormat::Kml => kml::parse_bytes(bytes).context("parsing KML"),
         InputFormat::Kmz => kmz::parse_bytes(bytes).context("parsing KMZ"),
         InputFormat::Gpx => gpx::parse_bytes(bytes).context("parsing GPX"),
-    }
+    }?;
+    Ok(clean_track_points(track))
 }
 
 pub fn parse_input(input: &Path) -> anyhow::Result<Track> {
     let format = detect_format(input)?;
     let bytes = std::fs::read(input).with_context(|| format!("reading {}", input.display()))?;
     parse_format(format, &bytes)
+}
+
+fn clean_track_points(track: Track) -> Track {
+    let mut previous = match track.points.first().copied() {
+        Some(point) => point,
+        None => return track,
+    };
+    for (idx, point) in track.points.iter().copied().enumerate().skip(1) {
+        if plausible_step(previous, point) {
+            previous = point;
+            continue;
+        }
+        return clean_track_points_from(track, idx);
+    }
+
+    track
+}
+
+/// Return a track without duplicate timestamps or implausible-speed points.
+fn clean_track_points_from(track: Track, first_bad_idx: usize) -> Track {
+    let mut points = Vec::with_capacity(track.points.len() - 1);
+    points.extend_from_slice(&track.points[..first_bad_idx]);
+    for point in track.points[first_bad_idx..].iter().copied() {
+        let previous = points
+            .last()
+            .copied()
+            .expect("first filtered index is never the first point");
+        if plausible_step(previous, point) {
+            points.push(point);
+        }
+    }
+
+    Track {
+        start_time: track.start_time,
+        points,
+    }
+}
+
+/// Reject same-timestamp points and GPS jumps above 1000 km/h.
+fn plausible_step(
+    from: crate::flight::types::TrackPoint,
+    to: crate::flight::types::TrackPoint,
+) -> bool {
+    let dt = to.time.saturating_sub(from.time);
+    if dt == 0 {
+        return false;
+    }
+
+    let distance_m = approximate_distance_m(from.lat, from.lon, to.lat, to.lon);
+    distance_m / f64::from(dt) < MAX_PLAUSIBLE_SPEED_MPS
 }
 
 /// Translate the upload as it lives on disk into the bytes we store
@@ -248,4 +302,86 @@ pub fn prepare_path_for_storage(input: &Path) -> Result<Prepared, PrepareError> 
         .with_context(|| format!("reading {}", input.display()))
         .map_err(PrepareError::Io)?;
     prepare_bytes_for_storage(format, raw)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::flight::types::{Track, TrackPoint};
+
+    use super::clean_track_points;
+
+    fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
+        TrackPoint {
+            time,
+            lat,
+            lon,
+            geo_alt: 0,
+            pressure_alt: None,
+            tas: None,
+        }
+    }
+
+    #[test]
+    fn drops_impossible_cluster_until_track_returns_to_normal() {
+        let track = Track {
+            start_time: 0,
+            points: vec![
+                point(0, 0, 0),
+                point(60, 0, 1_000),
+                point(120, 0, 2_000),
+                point(180, 0, 999_999),
+                point(240, 0, 999_998),
+                point(300, 0, 4_000),
+            ],
+        };
+
+        let cleaned = clean_track_points(track);
+
+        assert_eq!(
+            cleaned
+                .points
+                .iter()
+                .map(|point| point.lon)
+                .collect::<Vec<_>>(),
+            vec![0, 1_000, 2_000, 4_000]
+        );
+    }
+
+    #[test]
+    fn drops_exact_duplicate_points() {
+        let duplicate = point(60, 0, 1_000);
+        let track = Track {
+            start_time: 0,
+            points: vec![point(0, 0, 0), duplicate, duplicate, point(120, 0, 2_000)],
+        };
+
+        let cleaned = clean_track_points(track);
+
+        assert_eq!(
+            cleaned.points,
+            vec![point(0, 0, 0), duplicate, point(120, 0, 2_000)]
+        );
+    }
+
+    #[test]
+    fn drops_same_timestamp_points() {
+        let mut same_time = point(60, 0, 1_000);
+        same_time.geo_alt = 10;
+        let track = Track {
+            start_time: 0,
+            points: vec![
+                point(0, 0, 0),
+                point(60, 0, 1_000),
+                same_time,
+                point(120, 0, 2_000),
+            ],
+        };
+
+        let cleaned = clean_track_points(track);
+
+        assert_eq!(
+            cleaned.points,
+            vec![point(0, 0, 0), point(60, 0, 1_000), point(120, 0, 2_000)]
+        );
+    }
 }
