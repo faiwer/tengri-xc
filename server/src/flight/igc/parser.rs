@@ -1,4 +1,4 @@
-//! Minimal IGC parser. Reads B-records, the HFDTE date header, and the
+//! Minimal IGC parser. Reads valid B-record fixes, the HFDTE date header, and the
 //! I-record (only the `TAS` extension is decoded; other extensions are
 //! ignored). Everything else (other H-records, L/J/E/F/K records, the
 //! G-record signature) is silently skipped — that data lives in the
@@ -83,7 +83,9 @@ pub fn parse_str(input: &str) -> Result<Track, IgcError> {
         }
 
         if line.starts_with('B') {
-            let point = parse_b_record(line, lineno, &mut time_acc, date_unix_days)?;
+            let Some(point) = parse_b_record(line, lineno, &mut time_acc, date_unix_days)? else {
+                continue;
+            };
             // Only attempt TAS extraction once we know the I-record
             // declared it. If the B-record is shorter than the declared
             // range or the bytes don't parse, store None — the channel
@@ -207,7 +209,7 @@ fn parse_b_record(
     lineno: usize,
     time_acc: &mut TimeAccumulator,
     date_unix_days: Option<u32>,
-) -> Result<TrackPoint, IgcError> {
+) -> Result<Option<TrackPoint>, IgcError> {
     if line.len() < B_MIN_LEN {
         return Err(IgcError::InvalidBRecord {
             line: lineno,
@@ -216,9 +218,24 @@ fn parse_b_record(
     }
 
     let total_seconds = parse_b_time(line, lineno, time_acc)?;
+    let is_valid = match line.as_bytes()[24] {
+        // A - means a valid point
+        b'A' => true,
+        // V - means an invalid point, not trustworthy
+        b'V' => false,
+        other => {
+            return Err(IgcError::InvalidBRecord {
+                line: lineno,
+                reason: format!("invalid fix validity {:?}", other as char),
+            });
+        }
+    };
+    if !is_valid {
+        return Ok(None);
+    }
+
     let lat = parse_lat(line, lineno)?;
     let lon = parse_lon(line, lineno)?;
-    // Validity A/V at byte 24 — accepted as-is. "V" is common before GPS lock.
     let pressure_alt_m = parse_alt5(&line[25..30], lineno)?;
     let geo_alt_m = parse_alt5(&line[30..35], lineno)?;
 
@@ -227,14 +244,14 @@ fn parse_b_record(
         None => total_seconds,
     };
 
-    Ok(TrackPoint {
+    Ok(Some(TrackPoint {
         time,
         lat,
         lon,
         geo_alt: geo_alt_m * 10,
         pressure_alt: Some(pressure_alt_m * 10),
         tas: None,
-    })
+    }))
 }
 
 fn parse_b_time(line: &str, lineno: usize, acc: &mut TimeAccumulator) -> Result<u32, IgcError> {
@@ -450,6 +467,34 @@ B1052034646349N01308989EA0166301734
         // 2026-05-03 10:52:02 UTC = 1_777_805_522
         assert_eq!(t.start_time, 1_777_805_522);
         assert_eq!(t.points[1].time, 1_777_805_523);
+    }
+
+    #[test]
+    fn skips_invalid_v_fixes() {
+        let input = "\
+HFDTEDATE:300717,01
+B0741434309327N07618419EV0195000000051
+B0741484309327N07618419EV0196000000052
+B0742244307675N07627938EA0197201807051
+B0742294307708N07627910EA0197901785052
+";
+        let t = parse_str(input).expect("parse");
+
+        assert_eq!(t.points.len(), 2);
+        assert_eq!(t.start_time, t.points[0].time);
+        assert_eq!(t.points[0].lat, 4_312_792);
+        assert_eq!(t.points[0].lon, 7_646_563);
+    }
+
+    #[test]
+    fn rejects_file_with_only_invalid_v_fixes() {
+        let input = "\
+HFDTEDATE:300717,01
+B0741434309327N07618419EV0195000000051
+B0741484309327N07618419EV0196000000052
+";
+
+        assert!(matches!(parse_str(input), Err(IgcError::NoFixes)));
     }
 
     #[test]
