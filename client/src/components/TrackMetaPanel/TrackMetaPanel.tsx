@@ -10,6 +10,7 @@ import {
 } from '../../utils/formatDateTime';
 import { formatAltitude, formatVario } from '../../utils/formatUnits';
 import { Flag } from '../Flag';
+import { LandingLabel } from './LandingLabel';
 import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
@@ -54,7 +55,7 @@ export function TrackMetaPanel({
       <Cell label="Takeoff">
         {formatShortTime(data.takeoffAt, prefs, data.takeoffOffset)}
       </Cell>
-      <Cell label="Landing">
+      <Cell label={<LandingLabel data={data} />}>
         {formatShortTime(data.landingAt, prefs, data.landingOffset)}
       </Cell>
       <Cell label="Duration">
@@ -80,7 +81,7 @@ export function TrackMetaPanel({
 }
 
 interface CellProps {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
   /** Render the value in a monospace face (used for ids/etags). */
   mono?: boolean;

@@ -24,6 +24,18 @@
   color: var(--sidebar-text-tertiary);
 }
 
+.labelWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.helpIcon {
+  display: inline-flex;
+  cursor: help;
+  color: inherit;
+}
+
 .value {
   font-weight: 500;
   color: inherit;
