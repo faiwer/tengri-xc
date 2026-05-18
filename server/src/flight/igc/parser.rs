@@ -66,6 +66,9 @@ pub fn parse_str(input: &str) -> Result<Track, IgcError> {
 
         if let Some(rest) = line.strip_prefix("HFDTE") {
             if let Some(days) = parse_hfdte(rest, lineno)? {
+                if date_unix_days.is_some_and(|previous| previous != days) {
+                    time_acc.reset();
+                }
                 date_unix_days = Some(days);
             }
             continue;
@@ -318,6 +321,11 @@ struct TimeAccumulator {
 const MIDNIGHT_ROLLOVER_WINDOW_S: u32 = 6 * 60 * 60;
 
 impl TimeAccumulator {
+    fn reset(&mut self) {
+        self.day_offset = 0;
+        self.prev = None;
+    }
+
     fn advance(&mut self, hh: u32, mm: u32, ss: u32) -> u32 {
         let seconds_today = hh * 3600 + mm * 60 + ss;
         let mut total = self.day_offset * 86_400 + seconds_today;
@@ -504,6 +512,32 @@ HFDTEDATE:030526,01
 B2359594600000N01300000EA0100001000
 B0000004600000N01300000EA0100001000
 ";
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2);
+        assert_eq!(t.points[1].time, t.points[0].time + 1);
+    }
+
+    #[test]
+    fn handles_midnight_rollover_with_changing_date_header() {
+        let input = "\
+HFDTE140715
+B2359525119752N06515439EA0000000235
+HFDTE150715
+B0000095119633N06515740EA0000000228
+:";
+        let t = parse_str(input).expect("parse");
+        assert_eq!(t.points.len(), 2);
+        assert_eq!(t.points[1].time, t.points[0].time + 17);
+    }
+
+    #[test]
+    fn keeps_rollover_state_for_repeated_same_date_header() {
+        let input = "\
+HFDTEDATE:030526,01
+B2359594600000N01300000EA0100001000
+HFDTEDATE:030526,01
+B0000004600000N01300000EA0100001000
+:";
         let t = parse_str(input).expect("parse");
         assert_eq!(t.points.len(), 2);
         assert_eq!(t.points[1].time, t.points[0].time + 1);

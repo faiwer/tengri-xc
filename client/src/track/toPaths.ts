@@ -23,6 +23,12 @@ export interface TrackWindow {
 }
 
 const COLOR_PRE_POST = '#9ca3af';
+export const COLOR_MISSING_ALTITUDE = '#3b82f6';
+
+interface TrackPathOptions {
+  segments?: VarioSegment[];
+  flightColor?: string;
+}
 
 /**
  * Bucket-indexed colour ramp. Index 0 = bucket `-5`, index 10 = bucket `+5`.
@@ -65,7 +71,7 @@ const VARIO_COLOR_RAMP = [
 export function trackToPaths(
   track: Track,
   window?: TrackWindow,
-  segments?: VarioSegment[],
+  { flightColor, segments }: TrackPathOptions = {},
 ): TrackPath[] {
   const fixCount = track.t.length;
   if (fixCount === 0) {
@@ -88,7 +94,7 @@ export function trackToPaths(
     if (segments && segments.length > 0) {
       pushVarioRuns(paths, track, segments, fixCount);
     } else {
-      paths.push(projectPath(track, takeoff, landing + 1));
+      paths.push(projectPath(track, takeoff, landing + 1, flightColor));
     }
   }
 

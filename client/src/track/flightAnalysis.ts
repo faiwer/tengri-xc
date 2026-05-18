@@ -5,7 +5,12 @@ import { computeGroundSpeed } from './groundSpeed';
 import { computePathSpeed } from './pathSpeed';
 import { smoothTas, smoothTrackSpeed } from './smoothedSpeed';
 import type { Track } from './types';
-import { trackToPaths, type TrackPath, type TrackWindow } from './toPaths';
+import {
+  COLOR_MISSING_ALTITUDE,
+  trackToPaths,
+  type TrackPath,
+  type TrackWindow,
+} from './toPaths';
 import { classifyBuckets } from './varioSegments/classify';
 import { peakVario, type VarioPeaks } from './varioSegments/peakVario';
 import { buildVarioSegments } from './varioSegments/segments';
@@ -22,8 +27,10 @@ export interface FlightAnalysis {
   metrics: FlightMetrics;
   /** Vario-derived peaks and colour segments over the flight window. */
   vario: FlightVarioAnalysis;
+  /** Whether the flight window carries usable altitude samples. */
+  hasAltitudeData: boolean;
   /** GPS altitude min/max over the flight window, in metres. */
-  altitudes: AltitudeRange;
+  altitudes: AltitudeRange | null;
   /** Map polylines for pre-flight, flight, and post-flight runs. */
   paths: TrackPath[];
   /** Bounding box of the flight window, used for map fit and hover indexing. */
@@ -71,12 +78,19 @@ export const buildFlightAnalysis = (
     tas: track.tas ? smoothTas(track.t, track.tas) : null,
     vario: computeVario(track),
   };
+  const hasAltitudeData = trackHasAltitudeData(track, window);
   const vario: FlightVarioAnalysis = buildFlightVarioAnalysis(
     track,
     metrics.vario,
     window,
   );
-  const paths: TrackPath[] = trackToPaths(track, window, vario.segments);
+  const paths: TrackPath[] = trackToPaths(
+    track,
+    window,
+    hasAltitudeData
+      ? { segments: vario.segments }
+      : { flightColor: COLOR_MISSING_ALTITUDE },
+  );
 
   return {
     track,
@@ -84,7 +98,10 @@ export const buildFlightAnalysis = (
     window,
     metrics,
     vario,
-    altitudes: altitudeRange(track, window.takeoffIdx, toIdx),
+    hasAltitudeData,
+    altitudes: hasAltitudeData
+      ? altitudeRange(track, window.takeoffIdx, toIdx)
+      : null,
     paths,
     bounds: trackBounds(track, window),
   };
@@ -102,6 +119,20 @@ const buildFlightVarioAnalysis = (
   const { peakClimb, peakSink } = peakVario(vario, fromIdx, toIdx);
 
   return { segments, peakClimb, peakSink };
+};
+
+const trackHasAltitudeData = (track: Track, window: TrackWindow): boolean => {
+  const fromIdx = window.takeoffIdx;
+  const toIdx = window.landingIdx + 1;
+  for (let idx = fromIdx; idx < toIdx; idx++) {
+    if (track.alt[idx] !== 0) {
+      return true;
+    }
+    if (track.baroAlt && track.baroAlt[idx] !== 0) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const trackBounds = (

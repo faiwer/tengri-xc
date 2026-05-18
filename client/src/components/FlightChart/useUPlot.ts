@@ -42,6 +42,9 @@ export const useUPlot = (
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
+      // container must be not null at this point if we have data to show. It
+      // is not always the case. When the track doesn't have altitude data, we
+      // don't show the graph.
       return;
     }
 

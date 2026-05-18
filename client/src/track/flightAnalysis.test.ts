@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TrackMetadata } from '../api/tracks.io';
 import { buildFlightAnalysis } from './flightAnalysis';
+import { COLOR_MISSING_ALTITUDE } from './toPaths';
 import type { Track } from './types';
 
 const buildTrack = (input: {
@@ -52,6 +53,7 @@ describe('buildFlightAnalysis', () => {
     expect(analysis.track).toBe(track);
     expect(analysis.takeoffOffset).toBe(0);
     expect(analysis.window).toEqual({ takeoffIdx: 1, landingIdx: 2 });
+    expect(analysis.hasAltitudeData).toBe(true);
     expect(analysis.altitudes).toEqual({ minAlt: 900, maxAlt: 1200 });
     expect(analysis.bounds).toEqual({ south: 46, west: 8, north: 47, east: 9 });
     expect(analysis.metrics.speed).toHaveLength(track.t.length);
@@ -72,5 +74,24 @@ describe('buildFlightAnalysis', () => {
 
     expect(analysis.vario.peakClimb).toBeCloseTo(2, 4);
     expect(analysis.vario.peakSink).toBe(0);
+  });
+
+  it('marks all-zero flight-window altitudes as missing altitude data', () => {
+    const track = buildTrack({
+      times: [0, 10, 20, 30, 40],
+      lat: [45, 46, 47, 48, 49],
+      lng: [7, 8, 9, 10, 11],
+      altMetres: [1000, 0, 0, 0, 1100],
+    });
+
+    const analysis = buildFlightAnalysis(track, metadata(10, 20));
+
+    expect(analysis.hasAltitudeData).toBe(false);
+    expect(analysis.altitudes).toBeNull();
+    expect(analysis.paths.map((path) => path.color)).toEqual([
+      '#9ca3af',
+      COLOR_MISSING_ALTITUDE,
+      '#9ca3af',
+    ]);
   });
 });

@@ -15,6 +15,8 @@ import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
+  /** `undefined` until track analysis has loaded. */
+  hasAltitudeData?: boolean;
   /**
    * Smoothed-vario extremes over the flight window. Computed client-side
    * from the decoded track; absent until the track has loaded, so the
@@ -25,15 +27,17 @@ interface TrackMetaPanelProps {
    * Min and max altitude over the flight window, in metres. Same lifecycle
    * as `peaks` — absent until the track has loaded.
    */
-  altitudes?: AltitudeRange;
+  altitudes?: AltitudeRange | null;
 }
 
 export function TrackMetaPanel({
   data,
+  hasAltitudeData,
   peaks,
   altitudes,
 }: TrackMetaPanelProps) {
   const prefs = usePreferences();
+  const showAltitudeFields = hasAltitudeData !== false;
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
@@ -61,18 +65,22 @@ export function TrackMetaPanel({
       <Cell label="Duration">
         {formatDuration(data.landingAt - data.takeoffAt)}
       </Cell>
-      <Cell label="Best climb">
-        {peaks ? formatVario(peaks.peakClimb, prefs) : '—'}
-      </Cell>
-      <Cell label="Best sink">
-        {peaks ? formatVario(peaks.peakSink, prefs) : '—'}
-      </Cell>
-      <Cell label="Max alt">
-        {altitudes ? formatAltitude(altitudes.maxAlt, prefs) : '—'}
-      </Cell>
-      <Cell label="Min alt">
-        {altitudes ? formatAltitude(altitudes.minAlt, prefs) : '—'}
-      </Cell>
+      {showAltitudeFields && (
+        <>
+          <Cell label="Best climb">
+            {peaks ? formatVario(peaks.peakClimb, prefs) : '—'}
+          </Cell>
+          <Cell label="Best sink">
+            {peaks ? formatVario(peaks.peakSink, prefs) : '—'}
+          </Cell>
+          <Cell label="Max alt">
+            {altitudes ? formatAltitude(altitudes.maxAlt, prefs) : '—'}
+          </Cell>
+          <Cell label="Min alt">
+            {altitudes ? formatAltitude(altitudes.minAlt, prefs) : '—'}
+          </Cell>
+        </>
+      )}
       <Cell label="Flight" title={data.id} mono>
         {data.id}
       </Cell>

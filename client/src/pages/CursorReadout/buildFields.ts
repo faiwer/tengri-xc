@@ -1,5 +1,5 @@
-import { chartHelpItems } from '../../components/FlightChart/ChartHelp';
 import type { ChartKind } from '../../components/FlightChart';
+import type { ChartHelpItem } from '../../components/FlightChart/ChartHelp';
 import { keyByField } from '../../utils/keyBy';
 import { field } from './fields';
 import type { buildCursorReadout, buildCursorReadoutWidths } from './readout';
@@ -9,44 +9,50 @@ export const buildFields = (
   activeChartKind: ChartKind,
   readout: ReturnType<typeof buildCursorReadout>,
   widths: ReturnType<typeof buildCursorReadoutWidths>,
-  helpItems: ReturnType<typeof chartHelpItems>,
+  helpItems: ChartHelpItem[],
 ): CursorReadoutField[] => {
   const help = keyByField(helpItems, 'kind');
 
   const fields: {
     time: CursorReadoutField;
-    altitude: CursorReadoutField | CursorReadoutField[];
-    vario: CursorReadoutField | CursorReadoutField[];
+    altitude: CursorReadoutField[];
+    vario: CursorReadoutField[];
     speed: CursorReadoutField | CursorReadoutField[];
   } = {
     time: field('time', 'Time', readout.time, widths.time),
-    altitude: field('gps', 'GPS altitude', readout.gps, widths.gps),
-    vario: field('vario', 'Vertical speed', readout.vario, widths.vario),
+    altitude: readout.gps
+      ? [field('gps', 'GPS altitude', readout.gps, widths.gps)]
+      : [],
+    vario: readout.vario
+      ? [field('vario', 'Vertical speed', readout.vario, widths.vario)]
+      : [],
     speed: field('speed', 'Ground speed', readout.speed, widths.speed),
   };
 
   switch (activeChartKind) {
     case 'altitude':
-      fields.altitude = [
-        field(
-          'gps',
-          help[readout.baroAlt ? 'gps' : 'altitude'],
-          readout.gps,
-          widths.gps,
-          help[readout.baroAlt ? 'gps' : 'altitude'].color,
-        ),
-      ];
-
-      if (readout.baroAlt) {
-        fields.altitude.push(
+      if (readout.gps) {
+        fields.altitude = [
           field(
-            'baroAlt',
-            help.baro,
-            readout.baroAlt,
-            widths.baroAlt,
-            help.baro.color,
+            'gps',
+            help[readout.baroAlt ? 'gps' : 'altitude'],
+            readout.gps,
+            widths.gps,
+            help[readout.baroAlt ? 'gps' : 'altitude'].color,
           ),
-        );
+        ];
+
+        if (readout.baroAlt) {
+          fields.altitude.push(
+            field(
+              'baroAlt',
+              help.baro,
+              readout.baroAlt,
+              widths.baroAlt,
+              help.baro.color,
+            ),
+          );
+        }
       }
       break;
 
@@ -66,8 +72,8 @@ export const buildFields = (
 
   return [
     fields.time,
-    ...(Array.isArray(fields.altitude) ? fields.altitude : [fields.altitude]),
-    ...(Array.isArray(fields.vario) ? fields.vario : [fields.vario]),
+    ...fields.altitude,
+    ...fields.vario,
     ...(Array.isArray(fields.speed) ? fields.speed : [fields.speed]),
   ];
 };

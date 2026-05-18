@@ -15,19 +15,22 @@ export const buildCursorReadout = (
   prefs: ReturnType<typeof usePreferences>,
 ): CursorReadoutValue => {
   const { track, metrics } = analysis;
+  const hasAltitudeData = analysis.hasAltitudeData;
+
   return {
     time: formatShortTimeWithSeconds(
       track.t[idx]!,
       prefs,
       analysis.takeoffOffset,
     ),
-    gps: formatAltitude(track.alt[idx] / 10, prefs),
-    baroAlt: track.baroAlt
-      ? formatAltitude(track.baroAlt[idx] / 10, prefs)
-      : null,
+    gps: hasAltitudeData ? formatAltitude(track.alt[idx] / 10, prefs) : null,
+    baroAlt:
+      hasAltitudeData && track.baroAlt
+        ? formatAltitude(track.baroAlt[idx] / 10, prefs)
+        : null,
     pathSpeed: formatSpeed(metrics.pathSpeed[idx] / MPS_TO_KMH, prefs),
     tas: metrics.tas ? formatSpeed(metrics.tas[idx] / MPS_TO_KMH, prefs) : null,
-    vario: formatVario(metrics.vario[idx], prefs),
+    vario: hasAltitudeData ? formatVario(metrics.vario[idx], prefs) : null,
     speed: formatSpeed(metrics.speed[idx] / MPS_TO_KMH, prefs),
   };
 };
@@ -39,9 +42,10 @@ export const buildCursorReadoutWidths = (
   const { track, metrics, window, altitudes, vario } = analysis;
   const fromIdx = window.takeoffIdx;
   const toIdx = window.landingIdx + 1;
-  const baroAltRange = track.baroAlt
-    ? range(track.baroAlt, fromIdx, toIdx, (dm) => dm / 10)
-    : null;
+  const baroAltRange =
+    analysis.hasAltitudeData && track.baroAlt
+      ? range(track.baroAlt, fromIdx, toIdx, (dm) => dm / 10)
+      : null;
   const maxSpeed = max(metrics.speed, fromIdx, toIdx);
   const maxPathSpeed = max(metrics.pathSpeed, fromIdx, toIdx);
   const maxTas = metrics.tas ? max(metrics.tas, fromIdx, toIdx) : null;
@@ -59,20 +63,24 @@ export const buildCursorReadoutWidths = (
         analysis.takeoffOffset,
       ).length,
     ),
-    gps: Math.max(
-      formatAltitude(altitudes.minAlt, prefs).length,
-      formatAltitude(altitudes.maxAlt, prefs).length,
-    ),
+    gps: altitudes
+      ? Math.max(
+          formatAltitude(altitudes.minAlt, prefs).length,
+          formatAltitude(altitudes.maxAlt, prefs).length,
+        )
+      : undefined,
     baroAlt: baroAltRange
       ? Math.max(
           formatAltitude(baroAltRange.min, prefs).length,
           formatAltitude(baroAltRange.max, prefs).length,
         )
       : undefined,
-    vario: Math.max(
-      formatVario(vario.peakSink, prefs).length,
-      formatVario(vario.peakClimb, prefs).length,
-    ),
+    vario: analysis.hasAltitudeData
+      ? Math.max(
+          formatVario(vario.peakSink, prefs).length,
+          formatVario(vario.peakClimb, prefs).length,
+        )
+      : undefined,
     // Ground-speed metrics are stored as km/h; formatSpeed takes m/s.
     speed: formatSpeed(maxSpeed / MPS_TO_KMH, prefs).length,
     pathSpeed: formatSpeed(maxPathSpeed / MPS_TO_KMH, prefs).length,

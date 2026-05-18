@@ -50,6 +50,7 @@ export function TrackPage() {
           {state.status === 'ok' && (
             <TrackMetaPanel
               data={state.data}
+              hasAltitudeData={analysis?.hasAltitudeData}
               peaks={analysis?.vario}
               altitudes={analysis?.altitudes}
             />

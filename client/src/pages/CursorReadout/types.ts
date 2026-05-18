@@ -21,20 +21,20 @@ export type CursorReadoutKey =
 
 export interface CursorReadoutValue {
   time: string;
-  gps: string;
+  gps: string | null;
   baroAlt: string | null;
   pathSpeed: string;
   tas: string | null;
-  vario: string;
+  vario: string | null;
   speed: string;
 }
 
 export interface CursorReadoutWidths {
   time: number;
-  gps: number;
+  gps: number | undefined;
   baroAlt: number | undefined;
   pathSpeed: number;
   tas: number | undefined;
-  vario: number;
+  vario: number | undefined;
   speed: number;
 }
