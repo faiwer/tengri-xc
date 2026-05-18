@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TrackMetadata } from '../api/tracks.io';
 import { buildFlightAnalysis } from './flightAnalysis';
-import { COLOR_MISSING_ALTITUDE } from './toPaths';
+import { COLOR_GROUND, COLOR_MISSING_ALTITUDE } from './toPaths';
 import type { Track } from './types';
 
 const buildTrack = (input: {
@@ -89,9 +89,9 @@ describe('buildFlightAnalysis', () => {
     expect(analysis.hasAltitudeData).toBe(false);
     expect(analysis.altitudes).toBeNull();
     expect(analysis.paths.map((path) => path.color)).toEqual([
-      '#9ca3af',
+      COLOR_GROUND,
       COLOR_MISSING_ALTITUDE,
-      '#9ca3af',
+      COLOR_GROUND,
     ]);
   });
 });

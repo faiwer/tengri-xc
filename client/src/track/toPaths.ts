@@ -22,7 +22,7 @@ export interface TrackWindow {
   landingIdx: number;
 }
 
-const COLOR_PRE_POST = '#9ca3af';
+export const COLOR_GROUND = '#9ca3af';
 export const COLOR_MISSING_ALTITUDE = '#3b82f6';
 
 interface TrackPathOptions {
@@ -87,7 +87,7 @@ export function trackToPaths(
   const paths: TrackPath[] = [];
 
   if (takeoff > 0) {
-    paths.push(projectPath(track, 0, takeoff + 1, COLOR_PRE_POST));
+    paths.push(projectPath(track, 0, takeoff + 1, COLOR_GROUND));
   }
 
   if (landing > takeoff) {
@@ -99,7 +99,7 @@ export function trackToPaths(
   }
 
   if (landing < fixCount - 1) {
-    paths.push(projectPath(track, landing, fixCount, COLOR_PRE_POST));
+    paths.push(projectPath(track, landing, fixCount, COLOR_GROUND));
   }
 
   return paths;
