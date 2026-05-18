@@ -266,8 +266,8 @@ pub async fn seed_user(pool: &PgPool, id: i32, name: &str) -> i32 {
 /// [`seed_flight_at`] when a test asserts on the timestamps. Returns the
 /// flight id for chaining.
 ///
-/// `takeoff_offset` / `landing_offset` are written as `0` and the points
-/// as `(0, 0)` because nullable-on-disk columns would force every API
+/// Timezones are written as `Etc/UTC` and the points as `(0, 0)` because
+/// nullable-on-disk columns would force every API
 /// route reading them to special-case `Option`.
 pub async fn seed_flight(pool: &PgPool, flight_id: &str, user_id: i32) -> String {
     seed_flight_with_glider(
@@ -295,10 +295,10 @@ pub async fn seed_flight_with_glider(
 ) -> String {
     sqlx::query(
         "INSERT INTO flights \
-            (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
+            (id, user_id, takeoff_at, landing_at, takeoff_timezone, landing_timezone, \
              takeoff_point, landing_point, brand_id, kind, model_id) \
          VALUES \
-            ($1, $2, now(), now(), 0, 0, \
+            ($1, $2, now(), now(), 'Etc/UTC', 'Etc/UTC', \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
              $3, $4::glider_kind, $5)",
@@ -325,10 +325,10 @@ pub async fn seed_flight_at(
 ) -> String {
     sqlx::query(
         "INSERT INTO flights \
-            (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
+            (id, user_id, takeoff_at, landing_at, takeoff_timezone, landing_timezone, \
              takeoff_point, landing_point, brand_id, kind, model_id) \
          VALUES \
-            ($1, $2, to_timestamp($3), to_timestamp($4), 0, 0, \
+            ($1, $2, to_timestamp($3), to_timestamp($4), 'Etc/UTC', 'Etc/UTC', \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
              ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography, \
              $5, $6::glider_kind, $7)",

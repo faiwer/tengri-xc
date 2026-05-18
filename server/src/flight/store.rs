@@ -46,8 +46,8 @@ pub struct FlightRow<'a> {
     pub user_id: i32,
     pub takeoff_at: i64,
     pub landing_at: i64,
-    pub takeoff_offset: i32,
-    pub landing_offset: i32,
+    pub takeoff_timezone: &'a str,
+    pub landing_timezone: &'a str,
     pub takeoff_lat: i32,
     pub takeoff_lon: i32,
     pub landing_lat: i32,
@@ -78,7 +78,7 @@ pub enum InsertFlightError {
 /// Column list shared by both `INSERT … VALUES` paths. Kept as a constant so
 /// the placeholder numbering below matches the bind order in both writers.
 const INSERT_FLIGHT_SQL: &str = "INSERT INTO flights \
-    (id, user_id, takeoff_at, landing_at, takeoff_offset, landing_offset, \
+    (id, user_id, takeoff_at, landing_at, takeoff_timezone, landing_timezone, \
      takeoff_point, landing_point, brand_id, kind, model_id, \
      propulsion, launch_method) \
     VALUES \
@@ -100,8 +100,8 @@ pub async fn insert_flight(
         .bind(row.user_id)
         .bind(row.takeoff_at)
         .bind(row.landing_at)
-        .bind(row.takeoff_offset)
-        .bind(row.landing_offset)
+        .bind(row.takeoff_timezone)
+        .bind(row.landing_timezone)
         .bind(row.takeoff_lon as f64 / 1e5)
         .bind(row.takeoff_lat as f64 / 1e5)
         .bind(row.landing_lon as f64 / 1e5)
@@ -135,8 +135,8 @@ pub async fn insert_flight_idempotent(
         .bind(row.user_id)
         .bind(row.takeoff_at)
         .bind(row.landing_at)
-        .bind(row.takeoff_offset)
-        .bind(row.landing_offset)
+        .bind(row.takeoff_timezone)
+        .bind(row.landing_timezone)
         .bind(row.takeoff_lon as f64 / 1e5)
         .bind(row.takeoff_lat as f64 / 1e5)
         .bind(row.landing_lon as f64 / 1e5)

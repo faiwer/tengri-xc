@@ -1,6 +1,6 @@
 //! Re-encode every flight whose `flight_tracks` blob lags behind the current
 //! [`VERSION`] and refresh the `flights` columns introduced alongside that bump
-//! (offsets, geography points, …).
+//! (timezone names, geography points, …).
 //!
 //! Runs after `sqlx::migrate!` on every server boot (and from `tengri
 //! migrate`). The "is this flight stale?" predicate is `flight_tracks.version <
@@ -98,16 +98,16 @@ async fn upgrade_one(pool: &PgPool, row: &Pending) -> anyhow::Result<()> {
         "UPDATE flights \
          SET takeoff_at = to_timestamp($1), \
              landing_at = to_timestamp($2), \
-             takeoff_offset = $3, \
-             landing_offset = $4, \
+             takeoff_timezone = $3, \
+             landing_timezone = $4, \
              takeoff_point = ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, \
              landing_point = ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography \
          WHERE id = $9",
     )
     .bind(prepared.takeoff_at)
     .bind(prepared.landing_at)
-    .bind(prepared.takeoff_offset)
-    .bind(prepared.landing_offset)
+    .bind(&prepared.takeoff_timezone)
+    .bind(&prepared.landing_timezone)
     .bind(prepared.takeoff_lon as f64 / 1e5)
     .bind(prepared.takeoff_lat as f64 / 1e5)
     .bind(prepared.landing_lon as f64 / 1e5)

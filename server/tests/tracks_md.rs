@@ -45,11 +45,10 @@ async fn track_md_returns_id_and_pilot_name() {
     assert_eq!(json["pilot"]["name"], TEST_USER_NAME);
     assert_eq!(json["takeoff_at"], TAKEOFF_AT);
     assert_eq!(json["landing_at"], LANDING_AT);
-    // Offsets and points come from the seed defaults (zeros + `(0, 0)`), so the
-    // assertion is on shape and values: the route projects them through
-    // `EXTRACT` / `ST_Y` / `ST_X` and the JSON stays numeric.
-    assert_eq!(json["takeoff_offset"], 0);
-    assert_eq!(json["landing_offset"], 0);
+    // Timezones and points come from the seed defaults (`Etc/UTC` + `(0, 0)`),
+    // so the assertion is on shape and values.
+    assert_eq!(json["takeoff_timezone"], "Etc/UTC");
+    assert_eq!(json["landing_timezone"], "Etc/UTC");
     assert_eq!(json["takeoff"]["lat"], 0.0);
     assert_eq!(json["takeoff"]["lon"], 0.0);
     assert_eq!(json["landing"]["lat"], 0.0);

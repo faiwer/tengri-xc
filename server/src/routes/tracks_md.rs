@@ -23,11 +23,9 @@ struct TrackMd {
     /// `new Date(seconds * 1000)` without parsing strings.
     takeoff_at: i64,
     landing_at: i64,
-    /// UTC offsets in whole seconds at the takeoff/landing fixes, computed at
-    /// ingest from the fix coordinates and the historical `tzdb` rules valid on
-    /// the flight's date.
-    takeoff_offset: i32,
-    landing_offset: i32,
+    /// IANA timezone names at the takeoff/landing fixes.
+    takeoff_timezone: String,
+    landing_timezone: String,
     takeoff: Point,
     landing: Point,
     /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
@@ -72,8 +70,8 @@ async fn get_track_md(
                 f.brand_id, b.name, f.model_id, m.name, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint, \
                 EXTRACT(EPOCH FROM f.landing_at)::bigint, \
-                f.takeoff_offset, \
-                f.landing_offset, \
+                f.takeoff_timezone, \
+                f.landing_timezone, \
                 ST_Y(f.takeoff_point::geometry), \
                 ST_X(f.takeoff_point::geometry), \
                 ST_Y(f.landing_point::geometry), \
@@ -104,8 +102,8 @@ async fn get_track_md(
         model_name,
         takeoff_at,
         landing_at,
-        takeoff_offset,
-        landing_offset,
+        takeoff_timezone,
+        landing_timezone,
         takeoff_lat,
         takeoff_lon,
         landing_lat,
@@ -130,8 +128,8 @@ async fn get_track_md(
         },
         takeoff_at,
         landing_at,
-        takeoff_offset,
-        landing_offset,
+        takeoff_timezone,
+        landing_timezone,
         takeoff: Point {
             lat: takeoff_lat,
             lon: takeoff_lon,
@@ -156,8 +154,8 @@ type TrackMdRow = (
     String,
     i64,
     i64,
-    i32,
-    i32,
+    String,
+    String,
     f64,
     f64,
     f64,

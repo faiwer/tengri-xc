@@ -1,4 +1,4 @@
-//! Look up the UTC offset that applied at a given (lat, lon, UTC instant).
+//! Look up timezone metadata for a given (lat, lon, UTC instant).
 //!
 //! Two layers stacked together:
 //! 1. [`tzf_rs::DefaultFinder`] resolves a (lat, lon) to an IANA timezone name
@@ -38,14 +38,8 @@ fn finder() -> &'static DefaultFinder {
 /// [`super::types::TrackPoint`] carries (`deg × 1e5`); `utc_seconds` is the
 /// same Unix-epoch second `TrackPoint::time` carries widened to `i64`.
 pub fn offset_seconds_at(lat_e5: i32, lon_e5: i32, utc_seconds: i64) -> i32 {
-    let lat = lat_e5 as f64 / 1e5;
-    let lon = lon_e5 as f64 / 1e5;
-
-    let name = finder().get_tz_name(lon, lat);
-    if name.is_empty() {
-        return 0;
-    }
-    let Ok(tz) = Tz::from_str(name) else {
+    let name = name_at(lat_e5, lon_e5);
+    let Ok(tz) = Tz::from_str(&name) else {
         return 0;
     };
     let Some(utc_dt) = DateTime::<Utc>::from_timestamp(utc_seconds, 0) else {
@@ -55,6 +49,20 @@ pub fn offset_seconds_at(lat_e5: i32, lon_e5: i32, utc_seconds: i64) -> i32 {
     tz.offset_from_utc_datetime(&utc_dt.naive_utc())
         .fix()
         .local_minus_utc()
+}
+
+/// IANA timezone name at the given fix, or `Etc/UTC` when the coordinate is not
+/// covered by the bundled timezone polygons.
+pub fn name_at(lat_e5: i32, lon_e5: i32) -> String {
+    let lat = lat_e5 as f64 / 1e5;
+    let lon = lon_e5 as f64 / 1e5;
+
+    let name = finder().get_tz_name(lon, lat);
+    if name.is_empty() {
+        "Etc/UTC".to_owned()
+    } else {
+        name.to_owned()
+    }
 }
 
 #[cfg(test)]

@@ -501,10 +501,10 @@ pub struct Prepared {
     pub window: FlightWindow,
     pub takeoff_at: i64,
     pub landing_at: i64,
-    /// UTC offset in whole seconds at the takeoff fix. Mirrored into
-    /// the `.tengri` [`Metadata`] and into `flights.takeoff_offset`.
-    pub takeoff_offset: i32,
-    pub landing_offset: i32,
+    /// IANA timezone names at the takeoff/landing fixes. Mirrored into the
+    /// `.tengri` [`Metadata`] and into `flights.*_timezone`.
+    pub takeoff_timezone: String,
+    pub landing_timezone: String,
     /// E5 micro-degrees (deg × 10⁵), pulled straight off the takeoff
     /// fix. Bound into `flights.takeoff_point` after a degree conversion
     /// at the SQL boundary.
@@ -573,12 +573,12 @@ pub fn prepare_bytes_for_storage(
     let takeoff_at = p_takeoff.time as i64;
     let landing_at = p_landing.time as i64;
 
-    let takeoff_offset = timezone::offset_seconds_at(p_takeoff.lat, p_takeoff.lon, takeoff_at);
-    let landing_offset = timezone::offset_seconds_at(p_landing.lat, p_landing.lon, landing_at);
+    let takeoff_timezone = timezone::name_at(p_takeoff.lat, p_takeoff.lon);
+    let landing_timezone = timezone::name_at(p_landing.lat, p_landing.lon);
 
     let metadata = Metadata {
-        takeoff_offset,
-        landing_offset,
+        takeoff_timezone: takeoff_timezone.clone(),
+        landing_timezone: landing_timezone.clone(),
         takeoff_lat: p_takeoff.lat,
         takeoff_lon: p_takeoff.lon,
         landing_lat: p_landing.lat,
@@ -606,8 +606,8 @@ pub fn prepare_bytes_for_storage(
         window,
         takeoff_at,
         landing_at,
-        takeoff_offset,
-        landing_offset,
+        takeoff_timezone,
+        landing_timezone,
         takeoff_lat: p_takeoff.lat,
         takeoff_lon: p_takeoff.lon,
         landing_lat: p_landing.lat,

@@ -6,10 +6,12 @@ import {
   Variant,
   i32,
   i8,
+  String,
   u16,
   u32,
   type Value,
 } from 'bincode-ts';
+import { keyByField } from '../utils/keyBy';
 
 // --- JSON metadata (zod) -----------------------------------------------------
 //
@@ -23,36 +25,33 @@ const PointIo = z.object({
   lon: z.number(),
 });
 
-export const TrackMetadataIo = z.object({
-  id: z.string(),
-  pilot: z.object({
-    name: z.string(),
-    /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
-    country: z.string().nullable(),
-  }),
-  glider: z.object({
-    brandId: z.string(),
-    brandName: z.string(),
-    modelId: z.string(),
-    modelName: z.string(),
-  }),
-  /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
-  takeoffAt: z.number().int(),
-  /** Unix epoch seconds (UTC). */
-  landingAt: z.number().int(),
-  /**
-   * UTC offsets in whole seconds, computed at ingest from the takeoff/landing
-   * fix coordinates and the `tzdb` rules valid on the flight's date. Positive =
-   * ahead of UTC. Use these to display flight-local wall-clock time without
-   * dragging the viewer's TZ in.
-   */
-  takeoffOffset: z.number().int(),
-  landingOffset: z.number().int(),
-  takeoff: PointIo,
-  landing: PointIo,
-  /** Wire-track size as a fraction of the gzipped source (0..1ish). */
-  compressionRatio: z.number(),
-});
+export const TrackMetadataIo = z
+  .object({
+    id: z.string(),
+    pilot: z.object({
+      name: z.string(),
+      /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
+      country: z.string().nullable(),
+    }),
+    glider: z.object({
+      brandId: z.string(),
+      brandName: z.string(),
+      modelId: z.string(),
+      modelName: z.string(),
+    }),
+    /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
+    takeoffAt: z.number().int(),
+    /** Unix epoch seconds (UTC). */
+    landingAt: z.number().int(),
+    /** IANA timezone names at the takeoff/landing fixes. */
+    takeoffTimezone: z.string(),
+    landingTimezone: z.string(),
+    takeoff: PointIo,
+    landing: PointIo,
+    /** Wire-track size as a fraction of the gzipped source (0..1ish). */
+    compressionRatio: z.number(),
+  })
+  .transform(withMetadataOffsets);
 
 export type TrackMetadata = z.infer<typeof TrackMetadataIo>;
 
@@ -64,18 +63,20 @@ export const TrackListItemIo = z.object({
     /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
     country: z.string().nullable(),
   }),
-  track: z.object({
-    id: z.string(),
-    /** Unix epoch seconds (UTC). */
-    takeoffAt: z.number().int(),
-    /** Whole seconds, from `flights.duration`. */
-    duration: z.number().int(),
-    /** UTC offsets — see {@link TrackMetadataIo}. */
-    takeoffOffset: z.number().int(),
-    landingOffset: z.number().int(),
-    takeoff: PointIo,
-    landing: PointIo,
-  }),
+  track: z
+    .object({
+      id: z.string(),
+      /** Unix epoch seconds (UTC). */
+      takeoffAt: z.number().int(),
+      /** Whole seconds, from `flights.duration`. */
+      duration: z.number().int(),
+      /** IANA timezone names at the takeoff/landing fixes. */
+      takeoffTimezone: z.string(),
+      landingTimezone: z.string(),
+      takeoff: PointIo,
+      landing: PointIo,
+    })
+    .transform(withListTrackOffsets),
 });
 
 export type TrackListItem = z.infer<typeof TrackListItemIo>;
@@ -173,12 +174,12 @@ const CompactTrackIo = Struct({
   hash: u32,
 });
 
-// Mirrors `server/src/flight/metadata.rs` — bump the field set in lockstep
-// with `tengri::VERSION`. All six are i32; the four `_lat`/`_lon` are E5
-// micro-degrees (deg × 10⁵), matching `TrackPoint`'s coordinate units.
+// Mirrors `server/src/flight/metadata.rs` — bump the field set in lockstep with
+// `tengri::VERSION`. The four `_lat`/`_lon` are E5 micro-degrees (deg × 10⁵),
+// matching `TrackPoint`'s coordinate units.
 const MetadataIo = Struct({
-  takeoff_offset: i32,
-  landing_offset: i32,
+  takeoff_timezone: String,
+  landing_timezone: String,
   takeoff_lat: i32,
   takeoff_lon: i32,
   landing_lat: i32,
@@ -200,3 +201,75 @@ export type CoordDual = Value<typeof CoordDualIo>;
 export type TimeFix = Value<typeof TimeFixIo>;
 export type TasFix = Value<typeof TasFixIo>;
 export type TasBody = Value<typeof TasBodyIo>;
+
+function withMetadataOffsets<
+  T extends {
+    takeoffAt: number;
+    landingAt: number;
+    takeoffTimezone: string;
+    landingTimezone: string;
+  },
+>(value: T): T & { takeoffOffset: number; landingOffset: number } {
+  return {
+    ...value,
+    takeoffOffset: offsetSecondsAt(value.takeoffAt, value.takeoffTimezone),
+    landingOffset: offsetSecondsAt(value.landingAt, value.landingTimezone),
+  };
+}
+
+function withListTrackOffsets<
+  T extends {
+    takeoffAt: number;
+    duration: number;
+    takeoffTimezone: string;
+    landingTimezone: string;
+  },
+>(value: T): T & { takeoffOffset: number; landingOffset: number } {
+  return {
+    ...value,
+    takeoffOffset: offsetSecondsAt(value.takeoffAt, value.takeoffTimezone),
+    landingOffset: offsetSecondsAt(
+      value.takeoffAt + value.duration,
+      value.landingTimezone,
+    ),
+  };
+}
+
+function offsetSecondsAt(epochSeconds: number, timeZone: string): number {
+  const date = new Date(epochSeconds * 1000);
+  const parts = keyByField(
+    offsetFormatter(timeZone).formatToParts(date),
+    'type',
+  );
+  const asUtc = Date.UTC(
+    Number(parts.year.value),
+    Number(parts.month.value) - 1,
+    Number(parts.day.value),
+    Number(parts.hour.value),
+    Number(parts.minute.value),
+    Number(parts.second.value),
+  );
+  return Math.round((asUtc - date.getTime()) / 1000);
+}
+
+const offsetFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function offsetFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = offsetFormatterCache.get(timeZone);
+  if (cached) {
+    return cached;
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  offsetFormatterCache.set(timeZone, formatter);
+  return formatter;
+}

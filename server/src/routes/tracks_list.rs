@@ -87,11 +87,10 @@ struct TrackRef {
     takeoff_at: i64,
     /// Whole seconds, from the `flights.duration` generated column.
     duration: i32,
-    /// UTC offsets in whole seconds at the takeoff/landing fixes, matching
-    /// `/tracks/{id}/md`. Lets the client render flight-local time on the list
-    /// without a per-row metadata fetch.
-    takeoff_offset: i32,
-    landing_offset: i32,
+    /// IANA timezone names at the takeoff/landing fixes, matching
+    /// `/tracks/{id}/md`.
+    takeoff_timezone: String,
+    landing_timezone: String,
     takeoff: Point,
     landing: Point,
 }
@@ -128,8 +127,8 @@ async fn list_tracks(
         "f.id",
         "EXTRACT(EPOCH FROM f.takeoff_at)::bigint",
         "f.duration",
-        "f.takeoff_offset",
-        "f.landing_offset",
+        "f.takeoff_timezone",
+        "f.landing_timezone",
         "ST_Y(f.takeoff_point::geometry)",
         "ST_X(f.takeoff_point::geometry)",
         "ST_Y(f.landing_point::geometry)",
@@ -182,8 +181,8 @@ async fn list_tracks(
                 flight_id,
                 takeoff_at,
                 duration,
-                takeoff_offset,
-                landing_offset,
+                takeoff_timezone,
+                landing_timezone,
                 takeoff_lat,
                 takeoff_lon,
                 landing_lat,
@@ -201,8 +200,8 @@ async fn list_tracks(
                     id: flight_id,
                     takeoff_at,
                     duration,
-                    takeoff_offset,
-                    landing_offset,
+                    takeoff_timezone,
+                    landing_timezone,
                     takeoff: Point {
                         lat: takeoff_lat,
                         lon: takeoff_lon,
@@ -219,16 +218,16 @@ async fn list_tracks(
     Ok(Json(ListResponse { items, next_cursor }))
 }
 
-/// Concrete row tuple: `(flight_id, takeoff_at, duration, takeoff_offset,
-/// landing_offset, takeoff_lat, takeoff_lon, landing_lat, landing_lon, user_id,
-/// user_name, country)`. Aliased because the literal tuple is too long to
-/// inline at the call site without harming readability.
+/// Concrete row tuple: `(flight_id, takeoff_at, duration, takeoff_timezone,
+/// landing_timezone, takeoff_lat, takeoff_lon, landing_lat, landing_lon,
+/// user_id, user_name, country)`. Aliased because the literal tuple is too long
+/// to inline at the call site without harming readability.
 type TrackListRow = (
     String,
     i64,
     i32,
-    i32,
-    i32,
+    String,
+    String,
     f64,
     f64,
     f64,

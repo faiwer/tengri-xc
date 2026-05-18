@@ -29,6 +29,8 @@ const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
   },
   takeoffAt,
   landingAt,
+  takeoffTimezone: 'Etc/UTC',
+  landingTimezone: 'Etc/UTC',
   takeoffOffset: 0,
   landingOffset: 0,
   takeoff: { lat: 0, lon: 0 },
