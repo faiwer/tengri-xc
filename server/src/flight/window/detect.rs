@@ -1,24 +1,23 @@
-//! Takeoff/landing detection on a parsed [`Track`].
+//! Takeoff and landing detection for parsed flight tracks.
 //!
-//! Port of `igc_lib._compute_flight` + `_compute_takeoff_landing`. The
-//! algorithm is well-documented in the Python source; this is a faithful
-//! Rust translation:
+//! The public detector returns the index window that best represents the
+//! airborne portion of a track. It first uses an altitude-aware pass when GPS
+//! or pressure altitude has enough range to distinguish flight from ground
+//! movement:
 //!
-//! 1. Per-fix ground-speed emissions (`1` if gsp > 15 km/h, else `0`).
-//! 2. Viterbi smoothing with sticky transitions (handles GPS noise + lone
-//!    outliers).
-//! 3. `min_landing_time` re-merge: an interior `0` segment shorter than
-//!    300 s is folded back into the surrounding `1` (handles low-speed
-//!    scratching, near-ground thermalling, brief touch-and-relaunch).
-//! 4. Boundary scan: `takeoff_idx` is the first flying fix; `landing_idx`
-//!    is the first non-flying fix after the last flying one (or the very
-//!    last fix if the log ended mid-flight).
+//! 1. Pick pressure altitude when it is usable, otherwise GPS altitude.
+//! 2. Build moving averages for horizontal speed and absolute vertical speed.
+//! 3. Detect sustained flight from simultaneous horizontal and vertical motion.
+//! 4. Detect landing from sustained low horizontal and vertical motion.
+//! 5. When several airborne candidates exist, keep the one with the greatest
+//!    path distance.
 //!
-//! Constants are hardcoded (matching `igc_lib` defaults) and only become a
-//! parameter struct when there's a concrete reason to vary them.
+//! Tracks without useful altitude data fall back to the horizontal-speed HMM
+//! path: per-fix speed emissions, Viterbi smoothing, short-stop re-merge, then
+//! boundary scan for takeoff and landing indices.
 
 use crate::flight::types::{Track, TrackPoint};
-use crate::geo::haversine_m;
+use crate::geo::{approximate_distance_m, haversine_m};
 
 use super::viterbi::{HmmParams, decode as viterbi_decode};
 
@@ -42,11 +41,45 @@ pub fn find_flight_window(track: &Track) -> Option<FlightWindow> {
         return None;
     }
 
-    let emissions = build_emissions(&track.points);
+    if let Some(window) = find_altitude_flight_window(&track.points) {
+        return Some(window);
+    }
+
+    find_horizontal_flight_window(&track.points)
+}
+
+fn find_horizontal_flight_window(points: &[TrackPoint]) -> Option<FlightWindow> {
+    let emissions = build_emissions(points);
     let smoothed = viterbi_decode(&emissions, &HMM);
-    let flying = apply_min_landing_time(&smoothed, &track.points);
+    let flying = apply_min_landing_time(&smoothed, points);
     scan_boundaries(&flying)
 }
+
+/// Moving-average period for altitude-aware speeds; this smooths the samples,
+/// it is not the duration required to split a flight window.
+const ALTITUDE_MA_PERIOD_S: u32 = 10;
+/// Horizontal speed required to start an airborne candidate.
+const FLIGHT_INITIAL_HSPEED_MPS: f64 = 5.0;
+/// Horizontal speed that keeps an airborne candidate alive; vertical speed
+/// above `FLIGHT_CONTINUE_VSPEED_MPS` keeps it alive too.
+const FLIGHT_CONTINUE_HSPEED_MPS: f64 = 1.5;
+/// Absolute vertical speed required to start an airborne candidate.
+const FLIGHT_INITIAL_VSPEED_MPS: f64 = 0.9;
+/// Absolute vertical speed that keeps an airborne candidate alive; horizontal
+/// speed above `FLIGHT_CONTINUE_HSPEED_MPS` keeps it alive too.
+const FLIGHT_CONTINUE_VSPEED_MPS: f64 = 0.05;
+/// Continuous flight-like movement required before accepting takeoff.
+const FLIGHT_DETECT_TIME_S: u32 = 60;
+/// Horizontal speed below this threshold can count as landed.
+const GROUND_MAX_HSPEED_MPS: f64 = 2.5;
+/// Absolute vertical speed below this threshold can count as landed.
+const GROUND_MAX_VSPEED_MPS: f64 = 0.1;
+/// Continuous ground-like movement required before accepting landing.
+const GROUND_DETECT_TIME_S: u32 = 20;
+/// Minimum altitude range before vertical movement is trusted: 100 dm = 10 m.
+const MIN_USABLE_ALTITUDE_RANGE_DM: i32 = 100;
+/// Minimum non-null altitude samples needed before vertical movement is trusted.
+const MIN_USABLE_ALTITUDE_VALUES: usize = 4;
 
 /// Minimum ground speed (km/h) to treat a fix as "flying". Matches
 /// `igc_lib.FlightParsingConfig.min_gsp_flight`.
@@ -63,6 +96,239 @@ const HMM: HmmParams = HmmParams {
     transition: [[0.9995, 0.0005], [0.0005, 0.9995]],
     emission: [[0.8, 0.2], [0.2, 0.8]],
 };
+
+/// Return the best altitude-aware flight window, if altitude data is usable.
+///
+/// The detector builds flight and ground masks from smoothed horizontal and
+/// vertical speeds, converts those masks into candidate windows, then keeps the
+/// candidate with the greatest path distance.
+fn find_altitude_flight_window(points: &[TrackPoint]) -> Option<FlightWindow> {
+    let altitude = select_usable_altitude_m(points)?;
+    let (hma, vma) = compute_smoothed_speed_series(points, &altitude);
+    let state_flight = detect_sustained_flight(points, &hma, &vma);
+    let state_ground = detect_sustained_ground(points, &hma, &vma);
+    let windows = detect_launch_landing(points, &state_flight, &state_ground);
+
+    windows.into_iter().max_by(|a, b| {
+        compute_window_path_distance_m(points, *a)
+            .total_cmp(&compute_window_path_distance_m(points, *b))
+    })
+}
+
+/// Select the altitude series used by the altitude-aware detector.
+///
+/// Pressure altitude wins when every fix has it and it is varied enough to be
+/// useful. Otherwise GPS altitude is used if it passes the same usability check.
+/// Returned values are metres, converted from the track's decimetre storage.
+fn select_usable_altitude_m(points: &[TrackPoint]) -> Option<Vec<f64>> {
+    let pressure: Option<Vec<i32>> = points.iter().map(|point| point.pressure_alt).collect();
+    if let Some(pressure) = pressure
+        && is_altitude_usable(&pressure)
+    {
+        return Some(pressure.into_iter().map(|alt| alt as f64 / 10.0).collect());
+    }
+
+    let geo: Vec<i32> = points.iter().map(|point| point.geo_alt).collect();
+    is_altitude_usable(&geo).then(|| geo.into_iter().map(|alt| alt as f64 / 10.0).collect())
+}
+
+/// Return whether an altitude series has enough signal for vertical speed checks.
+///
+/// A usable series needs enough samples, at least 10 m of total range, and
+/// enough distinct values to avoid treating flat placeholder altitude as real
+/// vertical movement.
+fn is_altitude_usable(altitude_dm: &[i32]) -> bool {
+    if altitude_dm.len() < 5 {
+        return false;
+    }
+
+    let min = altitude_dm.iter().copied().min().unwrap_or(0);
+    let max = altitude_dm.iter().copied().max().unwrap_or(0);
+    if max.saturating_sub(min) < MIN_USABLE_ALTITUDE_RANGE_DM {
+        return false;
+    }
+
+    let mut distinct = altitude_dm.to_vec();
+    distinct.sort_unstable();
+    distinct.dedup();
+    distinct.len() >= MIN_USABLE_ALTITUDE_VALUES
+}
+
+/// Return `(hma_mps, vma_mps)` aligned to fixes: smoothed horizontal speed and
+/// smoothed absolute vertical speed, both in metres per second.
+fn compute_smoothed_speed_series(
+    points: &[TrackPoint],
+    altitude_m: &[f64],
+) -> (Vec<f64>, Vec<f64>) {
+    let n = points.len();
+    let mut hspeed = vec![0.0; n];
+    let mut vspeed = vec![0.0; n];
+
+    for i in 1..n {
+        let dt = points[i].time.saturating_sub(points[i - 1].time);
+        if dt == 0 {
+            hspeed[i] = hspeed[i - 1];
+            vspeed[i] = vspeed[i - 1];
+            continue;
+        }
+
+        hspeed[i] = approximate_distance_m(
+            points[i - 1].lat,
+            points[i - 1].lon,
+            points[i].lat,
+            points[i].lon,
+        ) / f64::from(dt);
+        vspeed[i] = (altitude_m[i] - altitude_m[i - 1]) / f64::from(dt);
+    }
+
+    let mut hma = vec![0.0; n];
+    let mut vma = vec![0.0; n];
+    let half_window_s = ALTITUDE_MA_PERIOD_S / 2;
+
+    for i in 0..n {
+        let now = points[i].time;
+        let mut start = i;
+        while start > 0 && points[start].time > now.saturating_sub(half_window_s) {
+            start -= 1;
+        }
+        let mut end = i;
+        while end < n - 1 && points[end].time < now.saturating_add(half_window_s) {
+            end += 1;
+        }
+
+        let count = (end - start + 1) as f64;
+        for j in start..=end {
+            hma[i] += hspeed[j];
+            vma[i] += vspeed[j].abs();
+        }
+        hma[i] /= count;
+        vma[i] /= count;
+    }
+
+    (hma, vma)
+}
+
+/// Return a flight mask from smoothed speeds.
+///
+/// A run starts when both horizontal and absolute vertical speed cross the
+/// initial flight thresholds. It stays alive while both speeds remain above the
+/// lower continuation thresholds; once the run lasts long enough, the whole run
+/// is marked as flight-like.
+fn detect_sustained_flight(points: &[TrackPoint], hma: &[f64], vma: &[f64]) -> Vec<bool> {
+    let n = points.len();
+    let mut out = vec![false; n];
+    let mut start: Option<usize> = None;
+
+    for i in 0..n.saturating_sub(1) {
+        if start.is_none()
+            && hma[i] > FLIGHT_INITIAL_HSPEED_MPS
+            && vma[i] > FLIGHT_INITIAL_VSPEED_MPS
+        {
+            start = Some(i);
+        }
+
+        if let Some(start_idx) = start {
+            if hma[i] > FLIGHT_CONTINUE_HSPEED_MPS && vma[i] > FLIGHT_CONTINUE_VSPEED_MPS {
+                if points[i].time > points[start_idx].time.saturating_add(FLIGHT_DETECT_TIME_S) {
+                    out[start_idx..=i].fill(true);
+                }
+            } else {
+                start = None;
+            }
+        }
+    }
+
+    out
+}
+
+/// Return a ground mask from smoothed speeds.
+///
+/// A run starts when both horizontal and absolute vertical speed are below the
+/// ground thresholds. Once that low-motion run lasts long enough, the whole run
+/// is marked as ground-like.
+fn detect_sustained_ground(points: &[TrackPoint], hma: &[f64], vma: &[f64]) -> Vec<bool> {
+    let n = points.len();
+    let mut out = vec![false; n];
+    let mut start: Option<usize> = None;
+
+    for i in 0..n.saturating_sub(1) {
+        if start.is_none() && hma[i] < GROUND_MAX_HSPEED_MPS && vma[i] < GROUND_MAX_VSPEED_MPS {
+            start = Some(i);
+        }
+
+        if let Some(start_idx) = start {
+            if hma[i] < GROUND_MAX_HSPEED_MPS && vma[i] < GROUND_MAX_VSPEED_MPS {
+                if points[i].time > points[start_idx].time.saturating_add(GROUND_DETECT_TIME_S) {
+                    out[start_idx..=i].fill(true);
+                }
+            } else {
+                start = None;
+            }
+        }
+    }
+
+    out
+}
+
+/// Convert flight/ground masks into candidate takeoff and landing windows.
+///
+/// The scan finds each flight-like run, extends its start backward to the
+/// previous ground-like fix, extends its end forward to the next ground-like
+/// fix, then resumes after that landing so the same run is not reported twice.
+fn detect_launch_landing(
+    points: &[TrackPoint],
+    state_flight: &[bool],
+    state_ground: &[bool],
+) -> Vec<FlightWindow> {
+    let n = points.len();
+    let mut windows = Vec::new();
+    let scan_end = n.saturating_sub(1);
+    let landing_search_end = n.saturating_sub(2);
+    let mut i = 0;
+
+    while i < scan_end {
+        if !state_flight[i] {
+            i += 1;
+            continue;
+        }
+
+        let mut launch = i;
+        while launch > 0 && !state_ground[launch] {
+            launch -= 1;
+        }
+
+        let mut landing = i;
+        while landing < landing_search_end && !state_ground[landing] {
+            landing += 1;
+        }
+
+        windows.push(FlightWindow {
+            takeoff_idx: launch,
+            landing_idx: landing,
+        });
+        i = landing.saturating_add(1);
+    }
+
+    windows
+}
+
+/// Rank candidate windows by flown path distance inside their boundaries.
+fn compute_window_path_distance_m(points: &[TrackPoint], window: FlightWindow) -> f64 {
+    if window.landing_idx <= window.takeoff_idx {
+        return 0.0;
+    }
+
+    (window.takeoff_idx + 1..=window.landing_idx)
+        .map(|i| {
+            approximate_distance_m(
+                points[i - 1].lat,
+                points[i - 1].lon,
+                points[i].lat,
+                points[i].lon,
+            )
+        })
+        .sum()
+}
 
 /// Per-fix emissions. The pair-based ground speed for index `i` (i ≥ 1)
 /// uses the segment from `i-1` to `i`. The emission at index 0 reuses the
@@ -165,6 +431,38 @@ mod tests {
         Track { start_time, points }
     }
 
+    fn track_with_geo_alt(samples: &[(u32, f64, f64, i32)]) -> Track {
+        let points: Vec<TrackPoint> = samples
+            .iter()
+            .map(|&(t, lat, lon, geo_alt_m)| TrackPoint {
+                time: t,
+                lat: (lat * 1e5).round() as i32,
+                lon: (lon * 1e5).round() as i32,
+                geo_alt: geo_alt_m * 10,
+                pressure_alt: None,
+                tas: None,
+            })
+            .collect();
+        let start_time = points.first().map(|p| p.time).unwrap_or(0);
+        Track { start_time, points }
+    }
+
+    fn track_with_pressure_alt(samples: &[(u32, f64, f64, i32)]) -> Track {
+        let points: Vec<TrackPoint> = samples
+            .iter()
+            .map(|&(t, lat, lon, pressure_alt_m)| TrackPoint {
+                time: t,
+                lat: (lat * 1e5).round() as i32,
+                lon: (lon * 1e5).round() as i32,
+                geo_alt: 0,
+                pressure_alt: Some(pressure_alt_m * 10),
+                tas: None,
+            })
+            .collect();
+        let start_time = points.first().map(|p| p.time).unwrap_or(0);
+        Track { start_time, points }
+    }
+
     /// Linear constant-speed leg of `n` 1 Hz samples, eastbound from
     /// `(start_lat, start_lon)`. `kmh` controls the per-step longitude
     /// delta (using a flat-earth approximation: at 47° N, 1° lon ≈
@@ -187,6 +485,17 @@ mod tests {
 
     fn stationary(t0: u32, n: usize, lat: f64, lon: f64) -> Vec<(u32, f64, f64)> {
         (0..n).map(|i| (t0 + i as u32, lat, lon)).collect()
+    }
+
+    fn samples_with_alt(
+        samples: &[(u32, f64, f64)],
+        alt: impl Fn(u32, usize) -> i32,
+    ) -> Vec<(u32, f64, f64, i32)> {
+        samples
+            .iter()
+            .enumerate()
+            .map(|(idx, &(t, lat, lon))| (t, lat, lon, alt(t, idx)))
+            .collect()
     }
 
     #[test]
@@ -250,6 +559,90 @@ mod tests {
         assert!(
             (595..=605).contains(&w.takeoff_idx),
             "takeoff near the stand→fly edge, got {}",
+            w.takeoff_idx
+        );
+    }
+
+    #[test]
+    fn altitude_detector_uses_gps_altitude_without_pressure_altitude() {
+        let mut samples = stationary(0, 40, 47.0, 8.0);
+        samples.extend(leg_eastbound(40, 180, 47.0, 8.0, 45.0));
+        let alt_samples = samples_with_alt(&samples, |t, _| {
+            if t < 40 {
+                1_000
+            } else {
+                1_000 + (t as i32 - 40) * 2
+            }
+        });
+        let t = track_with_geo_alt(&alt_samples);
+
+        let w = find_flight_window(&t).expect("should detect flight");
+
+        assert!(
+            (35..=45).contains(&w.takeoff_idx),
+            "takeoff near the altitude-active edge, got {}",
+            w.takeoff_idx
+        );
+    }
+
+    #[test]
+    fn altitude_detector_prefers_pressure_altitude_when_present() {
+        let mut samples = stationary(0, 40, 47.0, 8.0);
+        samples.extend(leg_eastbound(40, 180, 47.0, 8.0, 45.0));
+        let alt_samples = samples_with_alt(&samples, |t, _| {
+            if t < 40 {
+                1_000
+            } else {
+                1_000 + (t as i32 - 40) * 2
+            }
+        });
+        let t = track_with_pressure_alt(&alt_samples);
+
+        let w = find_flight_window(&t).expect("should detect flight");
+
+        assert!(
+            (35..=45).contains(&w.takeoff_idx),
+            "takeoff near the altitude-active edge, got {}",
+            w.takeoff_idx
+        );
+    }
+
+    #[test]
+    fn altitude_detector_selects_stronger_candidate_window() {
+        let mut samples = stationary(0, 40, 47.0, 8.0);
+        samples.extend(leg_eastbound(40, 120, 47.0, 8.0, 30.0));
+        let first_end_lon = samples.last().unwrap().2;
+        samples.extend(stationary(160, 60, 47.0, first_end_lon));
+        samples.extend(leg_eastbound(220, 180, 47.0, first_end_lon, 45.0));
+        let alt_samples = samples_with_alt(&samples, |t, _| match t {
+            0..=39 => 1_000,
+            40..=159 => 1_000 + (t as i32 - 40) * 2,
+            160..=219 => 1_240,
+            _ => 1_240 + (t as i32 - 220) * 2,
+        });
+        let t = track_with_geo_alt(&alt_samples);
+
+        let w = find_flight_window(&t).expect("should detect flight");
+
+        assert!(
+            (215..=225).contains(&w.takeoff_idx),
+            "takeoff should come from the longer second window, got {}",
+            w.takeoff_idx
+        );
+    }
+
+    #[test]
+    fn flat_altitude_uses_horizontal_fallback() {
+        let mut samples = stationary(0, 60, 47.0, 8.0);
+        samples.extend(leg_eastbound(60, 600, 47.0, 8.0, 30.0));
+        let alt_samples = samples_with_alt(&samples, |_, _| 1_000);
+        let t = track_with_geo_alt(&alt_samples);
+
+        let w = find_flight_window(&t).expect("should detect flight");
+
+        assert!(
+            (55..=65).contains(&w.takeoff_idx),
+            "flat altitude should fall back to horizontal detection, got {}",
             w.takeoff_idx
         );
     }

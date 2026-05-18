@@ -290,13 +290,15 @@ fn demote_zero_pressure(points: &mut [TrackPoint]) {
     }
 }
 
-/// Tracks midnight wraps inside a single flight. IGC B-records carry only
-/// `HHMMSS`, so a non-monotone time means the clock has rolled over.
+/// Tracks midnight wraps inside a single flight. Tiny backwards `HHMMSS`
+/// glitches are left non-monotone so the ingest cleaner can drop them.
 #[derive(Default)]
 struct TimeAccumulator {
     day_offset: u32,
     prev: Option<u32>,
 }
+
+const MIDNIGHT_ROLLOVER_WINDOW_S: u32 = 6 * 60 * 60;
 
 impl TimeAccumulator {
     fn advance(&mut self, hh: u32, mm: u32, ss: u32) -> u32 {
@@ -304,6 +306,7 @@ impl TimeAccumulator {
         let mut total = self.day_offset * 86_400 + seconds_today;
         if let Some(prev) = self.prev
             && total < prev
+            && is_midnight_rollover(prev, total)
         {
             self.day_offset += 1;
             total = self.day_offset * 86_400 + seconds_today;
@@ -311,6 +314,15 @@ impl TimeAccumulator {
         self.prev = Some(total);
         total
     }
+}
+
+/// A backward `HHMMSS` jump is midnight only when it moves from late-day to
+/// early-day; small same-day clock glitches stay non-monotone for ingest cleanup.
+fn is_midnight_rollover(prev: u32, total: u32) -> bool {
+    let prev_seconds_today = prev % 86_400;
+    let total_seconds_today = total % 86_400;
+    prev_seconds_today >= 86_400 - MIDNIGHT_ROLLOVER_WINDOW_S
+        && total_seconds_today <= MIDNIGHT_ROLLOVER_WINDOW_S
 }
 
 fn first_digits_run(s: &str, n: usize) -> Option<&str> {
@@ -450,6 +462,20 @@ B0000004600000N01300000EA0100001000
         let t = parse_str(input).expect("parse");
         assert_eq!(t.points.len(), 2);
         assert_eq!(t.points[1].time, t.points[0].time + 1);
+    }
+
+    #[test]
+    fn keeps_small_backwards_clock_glitch_same_day() {
+        let input = "\
+HFDTEDATE:030526,01
+B0633374600000N01300000EA0100001000
+B0633364600000N01300000EA0100001000
+B0633384600000N01300000EA0100001000
+";
+        let t = parse_str(input).expect("parse");
+
+        assert_eq!(t.points[1].time + 1, t.points[0].time);
+        assert_eq!(t.points[2].time, t.points[0].time + 1);
     }
 
     #[test]
