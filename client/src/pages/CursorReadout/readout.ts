@@ -19,7 +19,7 @@ export const buildCursorReadout = (
     time: formatShortTimeWithSeconds(
       track.t[idx]!,
       prefs,
-      analysis.timeOffsetSeconds,
+      analysis.takeoffOffset,
     ),
     gps: formatAltitude(track.alt[idx] / 10, prefs),
     baroAlt: track.baroAlt
@@ -51,12 +51,12 @@ export const buildCursorReadoutWidths = (
       formatShortTimeWithSeconds(
         track.t[fromIdx] ?? 0,
         prefs,
-        analysis.timeOffsetSeconds,
+        analysis.takeoffOffset,
       ).length,
       formatShortTimeWithSeconds(
         track.t[window.landingIdx] ?? 0,
         prefs,
-        analysis.timeOffsetSeconds,
+        analysis.takeoffOffset,
       ).length,
     ),
     gps: Math.max(

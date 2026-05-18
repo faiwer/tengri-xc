@@ -61,7 +61,7 @@ export function FlightChart({
         {activeKind === 'altitude' && (
           <AltitudeChart
             track={track}
-            window={analysis.window}
+            analysis={analysis}
             onHoverFractionChange={onHoverFractionChange}
             hoverFraction={hoverFraction}
           />

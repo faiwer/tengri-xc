@@ -48,7 +48,7 @@ describe('buildFlightAnalysis', () => {
     const analysis = buildFlightAnalysis(track, metadata(10, 20));
 
     expect(analysis.track).toBe(track);
-    expect(analysis.timeOffsetSeconds).toBe(0);
+    expect(analysis.takeoffOffset).toBe(0);
     expect(analysis.window).toEqual({ takeoffIdx: 1, landingIdx: 2 });
     expect(analysis.altitudes).toEqual({ minAlt: 900, maxAlt: 1200 });
     expect(analysis.bounds).toEqual({ south: 46, west: 8, north: 47, east: 9 });

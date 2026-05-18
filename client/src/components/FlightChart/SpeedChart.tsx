@@ -55,12 +55,15 @@ export function SpeedChart({
   const hasTas = !!track.tas;
   const opts = useMemo(
     () => ({
-      axes: [X_AXIS, buildYAxis(prefs.speedUnit)],
+      axes: [
+        buildXAxis(analysis.takeoffOffset, prefs.timeFormat),
+        buildYAxis(prefs.speedUnit),
+      ],
       series: hasTas
         ? [{}, GPS_SERIES, PATH_SERIES, TAS_SERIES]
         : [{}, GPS_SERIES, PATH_SERIES],
     }),
-    [hasTas, prefs.speedUnit],
+    [hasTas, prefs.timeFormat, prefs.speedUnit, analysis.takeoffOffset],
   );
   const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
 
@@ -71,13 +74,18 @@ const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
 
-const X_AXIS: Axis = {
+const buildXAxis = (
+  takeoffOffset: number,
+  timeFormat: ReturnType<typeof usePreferences>['timeFormat'],
+): Axis => ({
   stroke: AXIS_STROKE,
   grid: { stroke: AXIS_GRID },
   ticks: { stroke: AXIS_GRID },
   values: (_self, splits) =>
-    splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
-};
+    splits.map((epochSeconds) =>
+      formatHourMinute(epochSeconds, timeFormat, takeoffOffset),
+    ),
+});
 
 const buildYAxis = (speedUnit: 'kmh' | 'mph'): Axis => {
   const suffix = speedLabel({ speedUnit });

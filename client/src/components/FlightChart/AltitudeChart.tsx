@@ -3,7 +3,7 @@ import type { Axis, Series } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { usePreferences } from '../../core/preferences';
 import type { Track } from '../../track';
-import type { TrackWindow } from '../../track/toPaths';
+import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { altitudeLabel } from '../../utils/formatUnits';
 import { CHART_COLORS } from './chartColors';
 import styles from './AltitudeChart.module.scss';
@@ -14,8 +14,7 @@ import { useAltitudeSeries } from './useAltitudeSeries';
 
 interface AltitudeChartProps {
   track: Track;
-  /** Flight portion to plot. Pre-takeoff and post-landing fixes stay off-chart. */
-  window: TrackWindow;
+  analysis: FlightAnalysis;
   onHoverFractionChange?: HoverFractionHandler;
   hoverFraction?: number | null;
 }
@@ -38,18 +37,21 @@ interface AltitudeChartProps {
  */
 export function AltitudeChart({
   track,
-  window,
+  analysis,
   onHoverFractionChange,
   hoverFraction,
 }: AltitudeChartProps) {
   const prefs = usePreferences();
-  const { data, hasBaro } = useAltitudeSeries(track, window, prefs);
+  const { data, hasBaro } = useAltitudeSeries(track, analysis.window, prefs);
   const opts = useMemo(
     () => ({
-      axes: [X_AXIS, buildYAxis(prefs.units)],
+      axes: [
+        buildXAxis(analysis.takeoffOffset, prefs.timeFormat),
+        buildYAxis(prefs.units),
+      ],
       series: hasBaro ? SERIES_WITH_BARO : SERIES_GPS_ONLY,
     }),
-    [hasBaro, prefs.units],
+    [hasBaro, prefs.timeFormat, prefs.units, analysis.takeoffOffset],
   );
   const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
 
@@ -60,13 +62,18 @@ const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
 
-const X_AXIS: Axis = {
+const buildXAxis = (
+  takeoffOffset: number,
+  timeFormat: ReturnType<typeof usePreferences>['timeFormat'],
+): Axis => ({
   stroke: AXIS_STROKE,
   grid: { stroke: AXIS_GRID },
   ticks: { stroke: AXIS_GRID },
   values: (_self, splits) =>
-    splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
-};
+    splits.map((epochSeconds) =>
+      formatHourMinute(epochSeconds, timeFormat, takeoffOffset),
+    ),
+});
 
 const buildYAxis = (units: 'metric' | 'imperial'): Axis => {
   const suffix = altitudeLabel({ units });

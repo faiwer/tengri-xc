@@ -14,8 +14,8 @@ import { computeVario } from './varioSegments/vario';
 export interface FlightAnalysis {
   /** Decoded full-resolution track used by every derived field below. */
   track: Track;
-  /** Whole-second offset from UTC used to display flight-local wall clock. */
-  timeOffsetSeconds: number;
+  /** Whole-second UTC offset at takeoff, used for flight-local wall clock. */
+  takeoffOffset: number;
   /** Flight slice selected from metadata takeoff/landing timestamps. */
   window: TrackWindow;
   /** Per-fix series shared by charts, map colouring, and cursor readouts. */
@@ -80,7 +80,7 @@ export const buildFlightAnalysis = (
 
   return {
     track,
-    timeOffsetSeconds: metadata.takeoffOffset,
+    takeoffOffset: metadata.takeoffOffset,
     window,
     metrics,
     vario,

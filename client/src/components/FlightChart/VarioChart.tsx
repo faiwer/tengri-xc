@@ -42,11 +42,14 @@ export function VarioChart({
   const { data } = useVarioSeries(analysis, prefs);
   const opts = useMemo(
     () => ({
-      axes: [X_AXIS, buildYAxis(prefs.varioUnit)],
+      axes: [
+        buildXAxis(analysis.takeoffOffset, prefs.timeFormat),
+        buildYAxis(prefs.varioUnit),
+      ],
       series: [{}, VARIO_SERIES],
       hooks: { draw: [drawZeroRule] },
     }),
-    [prefs.varioUnit],
+    [prefs.timeFormat, prefs.varioUnit, analysis.takeoffOffset],
   );
   const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
   return <div ref={ref} className={styles.chart} />;
@@ -56,13 +59,18 @@ const AXIS_STROKE = '#6b6b73';
 const AXIS_GRID = '#e3e3e7';
 const SERIES_WIDTH = 1.5;
 
-const X_AXIS: Axis = {
+const buildXAxis = (
+  takeoffOffset: number,
+  timeFormat: ReturnType<typeof usePreferences>['timeFormat'],
+): Axis => ({
   stroke: AXIS_STROKE,
   grid: { stroke: AXIS_GRID },
   ticks: { stroke: AXIS_GRID },
   values: (_self, splits) =>
-    splits.map((epochSeconds) => formatHourMinute(epochSeconds)),
-};
+    splits.map((epochSeconds) =>
+      formatHourMinute(epochSeconds, timeFormat, takeoffOffset),
+    ),
+});
 
 const buildYAxis = (varioUnit: 'mps' | 'fpm'): Axis => {
   const suffix = varioLabel({ varioUnit });
