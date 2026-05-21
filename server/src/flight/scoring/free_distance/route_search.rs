@@ -91,7 +91,7 @@ pub(super) fn evaluate_dp(track: &Track) -> Result<FreeDistanceScore, ScoringErr
         .collect::<Vec<_>>();
     let distance_m = indexes
         .windows(2)
-        .map(|pair| points[pair[0]].distance(&points[pair[1]]))
+        .map(|pair| points[pair[0]].distance_haversine(&points[pair[1]]))
         .sum::<f64>();
     Ok(FreeDistanceScore {
         distance_m,
