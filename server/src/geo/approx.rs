@@ -1,4 +1,9 @@
-use super::consts::{E5_TO_RAD, EARTH_RADIUS_M};
+use crate::flight::types::TrackPoint;
+
+use super::{
+    Point,
+    consts::{E5_TO_RAD, EARTH_RADIUS_M},
+};
 
 /// Fast approximate surface distance in metres between two E5 lat/lon points.
 /// Relatively accurate for short distances at any latitude. Even Alaska.
@@ -11,12 +16,51 @@ pub fn approximate_distance_m(lat_a_e5: i32, lon_a_e5: i32, lat_b_e5: i32, lon_b
     (dlat * dlat + dlon * dlon).sqrt() * EARTH_RADIUS_M
 }
 
+/// Project E5 track points into an approximate local metre plane. Faster than
+/// the Haversine formula (only one cos, no asin), but less accurate.
+pub(crate) fn project_track_points_m(points: &[TrackPoint]) -> Vec<Point> {
+    let n = points.len() as f64;
+    let mean_lat = points
+        .iter()
+        .map(|point| point.lat as f64 * E5_TO_RAD)
+        .sum::<f64>()
+        / n;
+    let mean_lon = points
+        .iter()
+        .map(|point| point.lon as f64 * E5_TO_RAD)
+        .sum::<f64>()
+        / n;
+
+    points
+        .iter()
+        .map(|point| {
+            let lat = point.lat as f64 * E5_TO_RAD;
+            let lon = point.lon as f64 * E5_TO_RAD;
+            Point::new(
+                (lon - mean_lon) * lat.cos() * EARTH_RADIUS_M,
+                (lat - mean_lat) * EARTH_RADIUS_M,
+            )
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn e5(deg: f64) -> i32 {
         (deg * 1e5).round() as i32
+    }
+
+    fn point(lat: f64, lon: f64) -> TrackPoint {
+        TrackPoint {
+            time: 0,
+            lat: e5(lat),
+            lon: e5(lon),
+            geo_alt: 0,
+            pressure_alt: None,
+            tas: None,
+        }
     }
 
     #[test]
@@ -32,6 +76,22 @@ mod tests {
         assert!(
             (223.0..=226.0).contains(&km),
             "Geneva->Zurich expected roughly 224 km, got {km:.3} km"
+        );
+    }
+
+    #[test]
+    fn projection_uses_metres_at_high_latitude() {
+        let projected = project_track_points_m(&[point(69.65, 18.95), point(69.65, 18.96)]);
+        let dx = (projected[1].x - projected[0].x).abs();
+        let dy = (projected[1].y - projected[0].y).abs();
+
+        assert!(
+            (380.0..=390.0).contains(&dx),
+            "0.01 deg longitude at Tromso latitude should be about 386 m, got {dx:.3} m"
+        );
+        assert!(
+            dy < 1.0,
+            "same-latitude projection should have tiny dy, got {dy:.3} m"
         );
     }
 }
