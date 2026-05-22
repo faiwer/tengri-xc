@@ -244,7 +244,7 @@ fn simplify_range_capped(
     )
 }
 
-/// Calculate the squared distance between a point and a segment. This is a 
+/// Calculate the squared distance between a point and a segment. This is a
 /// plain algebra, it does not take into account the Earth's curvature. Project
 /// the points into a local metre plane BEFORE calculating the distance.
 fn point_segment_distance_sq(point: Point, start: Point, end: Point) -> f64 {

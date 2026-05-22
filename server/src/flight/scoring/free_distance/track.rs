@@ -1,6 +1,6 @@
 use crate::flight::types::Track;
 
-use super::RouteResult;
+use super::types::FreeDistanceScore;
 
 /// Track wrapper used by the free-distance scorer.
 ///
@@ -58,14 +58,14 @@ impl<'a> ScoringTrack<'a> {
         self.deduped.as_ref().unwrap_or(self.source)
     }
 
-    pub(super) fn remap_route(&self, mut route: RouteResult) -> RouteResult {
+    pub(super) fn remap_score(&self, mut score: FreeDistanceScore) -> FreeDistanceScore {
         if self.deduped.is_none() {
-            return route;
+            return score;
         }
 
-        for point in &mut route.turnpoints {
+        for point in &mut score.turnpoints {
             point.track_idx = self.index_map[point.track_idx];
         }
-        route
+        score
     }
 }

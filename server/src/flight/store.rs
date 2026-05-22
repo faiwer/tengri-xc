@@ -23,7 +23,7 @@ use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
 
 use super::{
-    Track,
+    Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome, Track,
     ingest::{InputFormat, gunzip_bytes, parse_format},
 };
 
@@ -170,6 +170,22 @@ pub async fn insert_source(
     Ok(())
 }
 
+pub async fn fetch_scored_routes(pool: &PgPool, flight_id: &str) -> anyhow::Result<Vec<Route>> {
+    let rows = sqlx::query_as::<_, StoredRouteRow>(
+        "SELECT flight_id, type::text AS route_type, sub_type::text AS sub_type, \
+                turnpoints::text AS turnpoints, leg_distances, distance, \
+                score::float8 AS score, factor::float8 AS factor, optimal, closure::text AS closure \
+         FROM routes \
+         WHERE flight_id = $1",
+    )
+    .bind(flight_id)
+    .fetch_all(pool)
+    .await
+    .with_context(|| format!("fetching scored routes for flight {flight_id}"))?;
+
+    rows.into_iter().map(StoredRouteRow::into_route).collect()
+}
+
 pub struct StoredSource {
     pub format: InputFormat,
     pub bytes: Vec<u8>,
@@ -223,6 +239,79 @@ pub async fn insert_track(
     Ok(())
 }
 
+pub async fn upsert_scored_routes(
+    tx: &mut Transaction<'_, Postgres>,
+    flight_id: &str,
+    evaluation: &RouteEvaluation,
+) -> anyhow::Result<u64> {
+    let mut saved = 0;
+    for outcome in &evaluation.routes {
+        if let ScoringOutcome::Answer(route) = outcome {
+            upsert_scored_route(tx, flight_id, route).await?;
+            saved += 1;
+        }
+    }
+    Ok(saved)
+}
+
+pub async fn upsert_scored_route(
+    tx: &mut Transaction<'_, Postgres>,
+    flight_id: &str,
+    route: &Route,
+) -> anyhow::Result<()> {
+    let turnpoints = serde_json::to_string(&route.turnpoints).context("serializing turnpoints")?;
+    let closure = route
+        .closure
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .context("serializing closure")?;
+    let leg_distances = route
+        .leg_distances
+        .iter()
+        .copied()
+        .map(i32::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .context("converting leg distances to Postgres integer[]")?;
+    let distance =
+        i32::try_from(route.distance).context("converting distance to Postgres integer")?;
+    let score = format!("{:.2}", route.score);
+    let factor = format!("{:.1}", route.factor);
+
+    sqlx::query(
+        "INSERT INTO routes \
+         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure) \
+         VALUES ($1, $2::route_type, $3::route_sub_type, $4::jsonb, $5, $6, $7::numeric, $8::numeric, $9, $10::jsonb) \
+         ON CONFLICT (flight_id, type, sub_type) DO UPDATE SET \
+         turnpoints = EXCLUDED.turnpoints, \
+         leg_distances = EXCLUDED.leg_distances, \
+         distance = EXCLUDED.distance, \
+         score = EXCLUDED.score, \
+         factor = EXCLUDED.factor, \
+         optimal = EXCLUDED.optimal, \
+         closure = EXCLUDED.closure",
+    )
+    .bind(flight_id)
+    .bind(route_type_value(route.route_type))
+    .bind(route_sub_type_value(route.sub_type))
+    .bind(turnpoints)
+    .bind(&leg_distances)
+    .bind(distance)
+    .bind(score)
+    .bind(factor)
+    .bind(route.optimal)
+    .bind(closure)
+    .execute(&mut **tx)
+    .await
+    .with_context(|| {
+        format!(
+            "upserting {:?}/{:?} route for flight {flight_id}",
+            route.route_type, route.sub_type
+        )
+    })?;
+    Ok(())
+}
+
 /// Translate a `flights`-table sqlx error: the FK on `user_id` has a
 /// stable SQLSTATE (`23503`) and is the only error the caller needs
 /// distinguished. The `user_id` we pass in is the one we just tried
@@ -235,4 +324,83 @@ fn map_flight_error(e: sqlx::Error, user_id: i32) -> InsertFlightError {
         return InsertFlightError::MissingUser(user_id);
     }
     InsertFlightError::Db(e)
+}
+
+#[derive(sqlx::FromRow)]
+struct StoredRouteRow {
+    flight_id: String,
+    route_type: String,
+    sub_type: String,
+    turnpoints: String,
+    leg_distances: Vec<i32>,
+    distance: i32,
+    score: f64,
+    factor: f64,
+    optimal: bool,
+    closure: Option<String>,
+}
+
+impl StoredRouteRow {
+    fn into_route(self) -> anyhow::Result<Route> {
+        Ok(Route {
+            flight_id: self.flight_id,
+            route_type: route_type_from_value(&self.route_type)?,
+            sub_type: route_sub_type_from_value(&self.sub_type)?,
+            turnpoints: serde_json::from_str(&self.turnpoints)
+                .context("parsing route turnpoints")?,
+            leg_distances: self
+                .leg_distances
+                .into_iter()
+                .map(u32::try_from)
+                .collect::<Result<Vec<_>, _>>()
+                .context("converting stored leg distances")?,
+            distance: u32::try_from(self.distance).context("converting stored route distance")?,
+            score: self.score,
+            factor: self.factor,
+            optimal: self.optimal,
+            closure: self
+                .closure
+                .map(|closure| serde_json::from_str(&closure))
+                .transpose()
+                .context("parsing route closure")?,
+        })
+    }
+}
+
+fn route_type_value(route_type: RouteType) -> &'static str {
+    match route_type {
+        RouteType::FreeDistance => "free_distance",
+        RouteType::FaiTriangle => "fai_triangle",
+        RouteType::FreeTriangle => "free_triangle",
+        RouteType::Task => "task",
+    }
+}
+
+fn route_type_from_value(value: &str) -> anyhow::Result<RouteType> {
+    match value {
+        "free_distance" => Ok(RouteType::FreeDistance),
+        "fai_triangle" => Ok(RouteType::FaiTriangle),
+        "free_triangle" => Ok(RouteType::FreeTriangle),
+        "task" => Ok(RouteType::Task),
+        _ => Err(anyhow::anyhow!("unknown route_type {value:?}")),
+    }
+}
+
+fn route_sub_type_value(sub_type: RouteSubType) -> &'static str {
+    match sub_type {
+        RouteSubType::None => "none",
+        RouteSubType::OlcClosed => "olc_closed",
+        RouteSubType::OlcOpen => "olc_open",
+        RouteSubType::FaiCylinders => "fai_cylinders",
+    }
+}
+
+fn route_sub_type_from_value(value: &str) -> anyhow::Result<RouteSubType> {
+    match value {
+        "none" => Ok(RouteSubType::None),
+        "olc_closed" => Ok(RouteSubType::OlcClosed),
+        "olc_open" => Ok(RouteSubType::OlcOpen),
+        "fai_cylinders" => Ok(RouteSubType::FaiCylinders),
+        _ => Err(anyhow::anyhow!("unknown route_sub_type {value:?}")),
+    }
 }

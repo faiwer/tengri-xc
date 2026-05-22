@@ -25,6 +25,59 @@ const PointIo = z.object({
   lon: z.number(),
 });
 
+const TrackPointIo = z.object({
+  time: z.number().int(),
+  lat: z.number().int(),
+  lon: z.number().int(),
+  geoAlt: z.number().int(),
+  pressureAlt: z.number().int().nullable(),
+  tas: z.number().int().nullable(),
+});
+
+const RouteFixIo = z.tuple([z.number().int(), z.number().int()]);
+
+const RouteWaypointIo = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('point'),
+    fix: TrackPointIo,
+  }),
+  z.object({
+    type: z.literal('cylinder'),
+    center: RouteFixIo,
+    mode: z.enum(['enter', 'exit']).nullable(),
+    radius: z.number().int(),
+    tangents: z.array(RouteFixIo),
+    trackFix: TrackPointIo,
+  }),
+  z.object({
+    type: z.literal('line'),
+    trackFix: TrackPointIo,
+    projection: z.tuple([RouteFixIo, RouteFixIo]),
+    tangent: RouteFixIo,
+  }),
+]);
+
+const RouteClosureIo = z.object({
+  start: RouteWaypointIo,
+  end: RouteWaypointIo,
+  distance: z.number().int(),
+});
+
+const RouteIo = z.object({
+  flightId: z.string(),
+  routeType: z.enum(['free_distance', 'fai_triangle', 'free_triangle', 'task']),
+  subType: z.enum(['none', 'olc_closed', 'olc_open', 'fai_cylinders']),
+  turnpoints: z.array(RouteWaypointIo),
+  legDistances: z.array(z.number().int()),
+  distance: z.number().int(),
+  score: z.number(),
+  factor: z.number(),
+  optimal: z.boolean(),
+  closure: RouteClosureIo.nullable(),
+});
+
+export type Route = z.infer<typeof RouteIo>;
+
 export const TrackMetadataIo = z
   .object({
     id: z.string(),

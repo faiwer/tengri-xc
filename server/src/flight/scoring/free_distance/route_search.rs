@@ -66,7 +66,7 @@ use crate::flight::types::Track;
 
 use super::super::shared::Point;
 use super::super::shared::simplify::simplify_track_to_target_count;
-use super::super::{RouteKind, ScoringError};
+use super::super::{RouteType, ScoringError};
 use super::constants::{
     RDP_MAX_TOLERANCE_M, RDP_MIN_TOLERANCE_M, RDP_TARGET_POINTS, RDP_TARGET_SPREAD,
     REFINE_MIN_WINDOW_POINTS, REFINE_START_WINDOW_PERCENT,
@@ -77,24 +77,14 @@ use super::types::{FreeDistanceScore, route_point};
 pub(super) fn evaluate_dp(track: &Track) -> Result<FreeDistanceScore, ScoringError> {
     if track.points.len() < 5 {
         return Err(ScoringError::SolverFailed {
-            kind: RouteKind::FreeDistance,
+            route_type: RouteType::FreeDistance,
             reason: "track has fewer than five fixes",
         });
     }
 
     let indexes = find_solution(track)?;
     // We found the result. Pack and return it.
-    let points = track
-        .points
-        .iter()
-        .map(Point::from_track_point)
-        .collect::<Vec<_>>();
-    let distance_m = indexes
-        .windows(2)
-        .map(|pair| points[pair[0]].distance_haversine(&points[pair[1]]))
-        .sum::<f64>();
     Ok(FreeDistanceScore {
-        distance_m,
         turnpoints: indexes
             .into_iter()
             .map(|idx| route_point(idx, &track.points[idx]))
@@ -105,7 +95,7 @@ pub(super) fn evaluate_dp(track: &Track) -> Result<FreeDistanceScore, ScoringErr
 fn run_dp_algo(track: &Track, candidate_indexes: &[usize]) -> Result<Vec<usize>, ScoringError> {
     if candidate_indexes.len() < 5 {
         return Err(ScoringError::SolverFailed {
-            kind: RouteKind::FreeDistance,
+            route_type: RouteType::FreeDistance,
             reason: "candidate set has fewer than five fixes",
         });
     }
@@ -118,7 +108,7 @@ fn run_dp_algo(track: &Track, candidate_indexes: &[usize]) -> Result<Vec<usize>,
     find_best_free_distance_dp(&points, candidate_indexes)
         .map(Vec::from)
         .ok_or(ScoringError::SolverFailed {
-            kind: RouteKind::FreeDistance,
+            route_type: RouteType::FreeDistance,
             reason: "DP found no positive-distance route",
         })
 }

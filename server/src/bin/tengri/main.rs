@@ -122,6 +122,9 @@ enum Cmd {
     Score {
         /// Flight id to evaluate (`flights.id`, e.g. `LEO-1350`).
         flight_id: String,
+        /// Upsert answered routes into the `routes` table.
+        #[arg(long)]
+        update_db: bool,
     },
 
     /// Apply outstanding SQL migrations from `server/migrations/`, then
@@ -190,7 +193,10 @@ fn run() -> anyhow::Result<()> {
             format,
             destination,
         } => run_async(export::run(flight_id, format, destination)),
-        Cmd::Score { flight_id } => run_async(score::run(flight_id)),
+        Cmd::Score {
+            flight_id,
+            update_db,
+        } => run_async(score::run(flight_id, update_db)),
         Cmd::Migrate => run_async(migrate::run()),
         Cmd::Prune { yes } => run_async(prune::run(yes)),
         Cmd::Db { args } => db::run(args),

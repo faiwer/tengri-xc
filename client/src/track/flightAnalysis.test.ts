@@ -37,6 +37,7 @@ const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
   takeoff: { lat: 0, lon: 0 },
   landing: { lat: 0, lon: 0 },
   compressionRatio: 1,
+  routes: [],
 });
 
 describe('buildFlightAnalysis', () => {

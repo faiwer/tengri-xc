@@ -6,43 +6,62 @@ mod types;
 
 use crate::flight::types::Track;
 
-use super::{RouteKind, RouteResult, ScoringError, ScoringOutcome};
+use super::{Route, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome};
 use constants::{FREE_DISTANCE_MULTIPLIER, METERS_PER_KM};
 use route_search::evaluate_dp;
+use super::types::{leg_distance_m, to_track_point};
 use track::ScoringTrack;
 use types::FreeDistanceScore;
 
-pub fn evaluate_free_distance(track: &Track) -> ScoringOutcome<RouteResult> {
+pub fn evaluate_free_distance(track: &Track) -> ScoringOutcome<Route> {
     let scoring_track = ScoringTrack::new(track);
     let track = scoring_track.track();
 
     let score = match evaluate_dp(track) {
         Ok(score) => score,
         Err(ScoringError::SolverFailed {
-            kind: RouteKind::FreeDistance,
+            route_type: RouteType::FreeDistance,
             reason: "track has fewer than five fixes",
         }) => return ScoringOutcome::NoAnswer,
         Err(error) => return ScoringOutcome::Error(error),
     };
-    let route = route_result(RouteKind::FreeDistance, score);
+    let score = scoring_track.remap_score(score);
 
-    ScoringOutcome::Answer(scoring_track.remap_route(route))
+    ScoringOutcome::Answer(route_result(score))
 }
 
-fn route_result(kind: RouteKind, score: FreeDistanceScore) -> RouteResult {
-    let distance_m = round_final_distance_m(score.distance_m);
+fn route_result(score: FreeDistanceScore) -> Route {
+    let turnpoints = score
+        .turnpoints
+        .into_iter()
+        .map(|point| RouteWaypoint::Point { fix: point.point })
+        .collect::<Vec<_>>();
+    let leg_distances = calc_leg_distances_m(&turnpoints);
+    let distance = round_final_distance_m(leg_distances.iter().copied().sum::<u32>());
+    let factor = FREE_DISTANCE_MULTIPLIER;
 
-    RouteResult {
-        kind,
-        distance_m,
-        closure_distance_m: None, // Free distance has no closure constraint
-        points: (distance_m as f64 / METERS_PER_KM) * FREE_DISTANCE_MULTIPLIER,
-        turnpoints: score.turnpoints,
+    Route {
+        flight_id: "draft".to_owned(),
+        route_type: RouteType::FreeDistance,
+        sub_type: RouteSubType::None,
+        turnpoints,
+        leg_distances,
+        distance,
+        closure: None,
+        score: (distance as f64 / METERS_PER_KM) * factor,
+        factor,
         optimal: true, // The algorithm is always optimal
     }
 }
 
 // XContest rounds recognized distance to 0.01 km.
-fn round_final_distance_m(distance_m: f64) -> u32 {
-    ((distance_m / 10.0).round() as u32) * 10.0 as u32
+fn round_final_distance_m(distance_m: u32) -> u32 {
+    ((distance_m as f64 / 10.0).round() as u32) * 10
+}
+
+fn calc_leg_distances_m(turnpoints: &[RouteWaypoint]) -> Vec<u32> {
+    turnpoints
+        .windows(2)
+        .map(|pair| leg_distance_m(to_track_point(&pair[0]), to_track_point(&pair[1])))
+        .collect()
 }
