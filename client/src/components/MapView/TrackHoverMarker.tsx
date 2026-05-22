@@ -1,5 +1,6 @@
 import { useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useRef } from 'react';
+import { MAP_Z_INDEX } from './zIndex';
 
 interface TrackHoverMarkerProps {
   point: google.maps.LatLngLiteral | null;
@@ -31,7 +32,7 @@ export function TrackHoverMarker({ point }: TrackHoverMarkerProps) {
       },
       map,
       clickable: false,
-      zIndex: 20,
+      zIndex: MAP_Z_INDEX.hoverMarker,
     });
     markerRef.current = marker;
 

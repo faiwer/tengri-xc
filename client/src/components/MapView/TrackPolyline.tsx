@@ -1,6 +1,7 @@
 import { useMap } from '@vis.gl/react-google-maps';
 import { useEffect } from 'react';
 import type { TrackPath } from '../../track/toPaths';
+import { MAP_Z_INDEX } from './zIndex';
 
 const DEFAULT_COLOR = '#dc2626';
 const STROKE_WEIGHT = 3;
@@ -35,7 +36,7 @@ export function TrackPolyline({ paths }: TrackPolylineProps) {
           strokeOpacity: STROKE_OPACITY,
           strokeWeight: STROKE_WEIGHT,
           clickable: false,
-          zIndex: 10,
+          zIndex: MAP_Z_INDEX.track,
         }),
     );
 

@@ -12,6 +12,7 @@ import {
   type Value,
 } from 'bincode-ts';
 import { keyByField } from '../utils/keyBy';
+import { DecimalDegreeIo, E5CoordinateIo } from '../utils/geo/coordinates';
 
 // --- JSON metadata (zod) -----------------------------------------------------
 //
@@ -21,20 +22,20 @@ import { keyByField } from '../utils/keyBy';
 
 /** Decimal degrees on WGS-84. Sent by the server for both takeoff and landing. */
 const PointIo = z.object({
-  lat: z.number(),
-  lon: z.number(),
+  lat: DecimalDegreeIo,
+  lon: DecimalDegreeIo,
 });
 
 const TrackPointIo = z.object({
   time: z.number().int(),
-  lat: z.number().int(),
-  lon: z.number().int(),
+  lat: E5CoordinateIo,
+  lon: E5CoordinateIo,
   geoAlt: z.number().int(),
   pressureAlt: z.number().int().nullable(),
   tas: z.number().int().nullable(),
 });
 
-const RouteFixIo = z.tuple([z.number().int(), z.number().int()]);
+const RouteFixIo = z.tuple([E5CoordinateIo, E5CoordinateIo]);
 
 const RouteWaypointIo = z.discriminatedUnion('type', [
   z.object({
@@ -77,6 +78,10 @@ const RouteIo = z.object({
 });
 
 export type Route = z.infer<typeof RouteIo>;
+export type PointWaypoint = Extract<
+  Route['turnpoints'][number],
+  { type: 'point' }
+>;
 
 export const TrackMetadataIo = z
   .object({
@@ -103,6 +108,7 @@ export const TrackMetadataIo = z
     landing: PointIo,
     /** Wire-track size as a fraction of the gzipped source (0..1ish). */
     compressionRatio: z.number(),
+    routes: z.array(RouteIo),
   })
   .transform(withMetadataOffsets);
 

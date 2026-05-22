@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TrackMetadata } from '../api/tracks.io';
+import { decimalDegree } from '../utils/geo/coordinates';
 import { buildFlightAnalysis } from './flightAnalysis';
 import { COLOR_GROUND, COLOR_MISSING_ALTITUDE } from './toPaths';
 import type { Track } from './types';
@@ -34,8 +35,8 @@ const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
   landingTimezone: 'Etc/UTC',
   takeoffOffset: 0,
   landingOffset: 0,
-  takeoff: { lat: 0, lon: 0 },
-  landing: { lat: 0, lon: 0 },
+  takeoff: { lat: decimalDegree(0), lon: decimalDegree(0) },
+  landing: { lat: decimalDegree(0), lon: decimalDegree(0) },
   compressionRatio: 1,
   routes: [],
 });

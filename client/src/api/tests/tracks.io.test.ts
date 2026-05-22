@@ -19,10 +19,37 @@ describe('track API schemas', () => {
       takeoff: { lat: 48.21, lon: 16.37 },
       landing: { lat: 43.25, lon: 76.95 },
       compressionRatio: 1,
+      routes: [
+        {
+          flightId: 'track-1',
+          routeType: 'free_distance',
+          subType: 'none',
+          turnpoints: [
+            {
+              type: 'point',
+              fix: {
+                time: 1,
+                lat: 4800000,
+                lon: 1600000,
+                geoAlt: 10000,
+                pressureAlt: null,
+                tas: null,
+              },
+            },
+          ],
+          legDistances: [],
+          distance: 1234,
+          score: 1.23,
+          factor: 1,
+          optimal: true,
+          closure: null,
+        },
+      ],
     });
 
     expect(parsed.takeoffOffset).toBe(2 * 3600);
     expect(parsed.landingOffset).toBe(5 * 3600);
+    expect(parsed.routes[0]?.routeType).toBe('free_distance');
   });
 
   it('derives list offsets without changing the track shape consumed by the UI', () => {

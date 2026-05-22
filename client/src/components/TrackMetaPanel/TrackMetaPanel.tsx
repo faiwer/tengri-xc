@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import type { TrackMetadata } from '../../api/tracks.io';
+import type { Route, TrackMetadata } from '../../api/tracks.io';
 import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
@@ -8,13 +8,19 @@ import {
   formatShortTime,
   formatVerboseDate,
 } from '../../utils/formatDateTime';
-import { formatAltitude, formatVario } from '../../utils/formatUnits';
+import {
+  formatAltitude,
+  formatDistance,
+  formatVario,
+} from '../../utils/formatUnits';
 import { Flag } from '../Flag';
 import { LandingLabel } from './LandingLabel';
 import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
+  /** The chosen route. */
+  route: Route | null;
   /** `undefined` until track analysis has loaded. */
   hasAltitudeData?: boolean;
   /**
@@ -32,6 +38,7 @@ interface TrackMetaPanelProps {
 
 export function TrackMetaPanel({
   data,
+  route,
   hasAltitudeData,
   peaks,
   altitudes,
@@ -65,6 +72,10 @@ export function TrackMetaPanel({
       <Cell label="Duration">
         {formatDuration(data.landingAt - data.takeoffAt)}
       </Cell>
+      <Cell label="Route">
+        {route ? formatDistance(route.distance, prefs) : '—'}
+      </Cell>
+      <Cell label="Score">{route ? route.score.toFixed(2) : '—'}</Cell>
       {showAltitudeFields && (
         <>
           <Cell label="Best climb">

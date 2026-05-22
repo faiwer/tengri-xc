@@ -5,10 +5,12 @@ import {
   MapView,
   TrackHoverMarker,
   TrackPolyline,
+  TrackRoute,
 } from '../components/MapView';
 import { FlightChart, useChartKind } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
+import type { Route, TrackMetadata } from '../api/tracks.io';
 import { debounce } from '../utils/debounce';
 import { CursorReadout } from './CursorReadout/index';
 import styles from './TrackPage.module.scss';
@@ -25,6 +27,7 @@ export function TrackPage() {
   const [activeChartKind, setActiveChartKind] = useChartKind();
   const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
   const { state, trackState, track } = useTrackPageData(id);
+  const route = useRoute(state.status === 'ok' ? state.data : null);
   const analysis = useFlightAnalysis(
     track,
     state.status === 'ok' ? state.data : undefined,
@@ -50,6 +53,7 @@ export function TrackPage() {
           {state.status === 'ok' && (
             <TrackMetaPanel
               data={state.data}
+              route={route}
               hasAltitudeData={analysis?.hasAltitudeData}
               peaks={analysis?.vario}
               altitudes={analysis?.altitudes}
@@ -80,6 +84,7 @@ export function TrackPage() {
                 onHoverLatLng={setHoverLatLng}
               >
                 {analysis && <TrackPolyline paths={analysis.paths} />}
+                {route && <TrackRoute route={route} />}
                 <TrackHoverMarker point={hoverPoint} />
                 <FitBounds
                   bounds={analysis?.bounds ?? null}
@@ -138,3 +143,16 @@ const Loading = ({ inverseTheme = false }: { inverseTheme?: boolean }) => (
     <LoadingIcon inverseTheme={inverseTheme} />
   </div>
 );
+
+const useRoute = (metadata: TrackMetadata | null): Route | null =>
+  useMemo(
+    () =>
+      metadata
+        ? metadata.routes.reduce(
+            (best, candidate) =>
+              best === null || candidate.score > best.score ? candidate : best,
+            null as Route | null,
+          )
+        : null,
+    [metadata],
+  );
