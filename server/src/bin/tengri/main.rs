@@ -24,6 +24,7 @@
 //! (format detection, gzip, NanoID, Postgres connection) are in `shared`.
 
 mod add;
+mod aspect_ratio;
 mod convert;
 mod db;
 mod delete;
@@ -57,6 +58,12 @@ enum Cmd {
         /// Output path. Defaults to `<input>.tengri`.
         #[arg(short, long)]
         output: Option<PathBuf>,
+    },
+
+    /// Print the in-window minimum-rectangle aspect ratio of a flight log.
+    AspectRatio {
+        /// Input file (.igc, .kml, .kmz, .gpx).
+        input: PathBuf,
     },
 
     /// Inspect a `.tengri` envelope without unpacking it.
@@ -179,6 +186,7 @@ fn main() {
 fn run() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::Convert { input, output } => convert::run(input, output),
+        Cmd::AspectRatio { input } => aspect_ratio::run(input),
         Cmd::Inspect { input } => inspect::run(input),
         Cmd::Add {
             input,
