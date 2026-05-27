@@ -632,9 +632,12 @@ pub fn prepare_path_for_storage(input: &Path) -> Result<Prepared, PrepareError> 
 
 #[cfg(test)]
 mod tests {
-    use crate::flight::types::{Track, TrackPoint};
+    use crate::flight::{
+        find_flight_window,
+        types::{Track, TrackPoint},
+    };
 
-    use super::clean_track_points;
+    use super::{InputFormat, clean_track_points, parse_format};
 
     fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
         TrackPoint {
@@ -655,6 +658,24 @@ mod tests {
 
     fn stationary(t0: u32, n: usize, lat: i32, lon: i32) -> Vec<TrackPoint> {
         (0..n).map(|idx| point(t0 + idx as u32, lat, lon)).collect()
+    }
+
+    fn midnight_date_change_igc() -> String {
+        let mut out = String::from("HFDTE030526\n");
+        for idx in 0..600 {
+            let seconds = (23 * 3_600 + 55 * 60 + idx) % 86_400;
+            if idx == 300 {
+                out.push_str("HFDTE040526\n");
+            }
+            let hh = seconds / 3_600;
+            let mm = (seconds % 3_600) / 60;
+            let ss = seconds % 60;
+            let lon_minutes = idx * 10;
+            out.push_str(&format!(
+                "B{hh:02}{mm:02}{ss:02}4700000N008{lon_minutes:05}EA0100001000\n"
+            ));
+        }
+        out
     }
 
     #[test]
@@ -798,6 +819,18 @@ mod tests {
                 point(30, 0, 300),
             ]
         );
+    }
+
+    #[test]
+    fn changing_date_header_at_midnight_does_not_split_track() {
+        let input = midnight_date_change_igc();
+        let track = parse_format(InputFormat::Igc, input.as_bytes()).unwrap();
+        let window = find_flight_window(&track).expect("should detect flight");
+
+        assert_eq!(track.points.len(), 600);
+        assert_eq!(track.points[300].time, track.points[299].time + 1);
+        assert!(window.takeoff_idx < 10);
+        assert_eq!(window.landing_idx, track.points.len() - 1);
     }
 
     #[test]

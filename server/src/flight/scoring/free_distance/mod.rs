@@ -6,10 +6,10 @@ mod types;
 
 use crate::flight::types::Track;
 
+use super::types::{leg_distance_m, to_track_point};
 use super::{Route, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome};
 use constants::{FREE_DISTANCE_MULTIPLIER, METERS_PER_KM};
 use route_search::evaluate_dp;
-use super::types::{leg_distance_m, to_track_point};
 use track::ScoringTrack;
 use types::FreeDistanceScore;
 
