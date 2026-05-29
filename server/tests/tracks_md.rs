@@ -26,6 +26,19 @@ async fn track_md_returns_id_and_pilot_name() {
     // The /md endpoint joins flight_tracks for compression_ratio; without
     // a matching row the JOIN drops the flight and we'd 404 here.
     common::seed_full_track(&pool, &flight_id, vec![0; 4]).await;
+    sqlx::query(
+        "INSERT INTO routes \
+         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure) \
+         VALUES ($1, 'free_distance', 'none', $2::jsonb, $3, 1234, 1.23, 1.0, true, NULL)",
+    )
+    .bind(&flight_id)
+    .bind(
+        r#"[{"type":"point","fix":{"time":1777887122,"lat":0,"lon":0,"geo_alt":0,"pressure_alt":null,"tas":null}}]"#,
+    )
+    .bind(Vec::<i32>::new())
+    .execute(&pool)
+    .await
+    .expect("seed route");
 
     let resp = app
         .oneshot(common::get(format!("/tracks/{flight_id}/md")))
@@ -57,6 +70,15 @@ async fn track_md_returns_id_and_pilot_name() {
     // present and a number; the precise value isn't part of the API
     // contract here.
     assert!(json["compression_ratio"].is_number());
+    assert_eq!(json["routes"].as_array().unwrap().len(), 1);
+    assert_eq!(json["routes"][0]["route_type"], "free_distance");
+    assert_eq!(json["routes"][0]["sub_type"], "none");
+    assert_eq!(json["routes"][0]["distance"], 1234);
+    assert_eq!(json["routes"][0]["score"], 1.23);
+    assert_eq!(json["routes"][0]["factor"], 1.0);
+    assert_eq!(json["routes"][0]["optimal"], true);
+    assert_eq!(json["routes"][0]["closure"], Value::Null);
+    assert_eq!(json["routes"][0]["turnpoints"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]

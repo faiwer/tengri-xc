@@ -159,3 +159,13 @@ interactively. The real search problem is therefore:
 4. Be cheap on common tracks while staying bounded on adversarial ones.
 
 Several facts make the problem tractable:
+
+- Two of the three constraints (side ratio, closure) cap the perimeter from
+  above, given just bounding boxes around groups of candidate fixes.
+- Closure depends only on the prefix `[start .. tp1]` and the suffix
+  `[tp3 .. end]`, not on `tp2`. The closest pair between those two halves can
+  be computed once per `(tp1, tp3)` pair and reused.
+- Many flights have an obvious triangle and a clear "no triangle here"
+  region; a coarse first pass finds the obvious answer and rules out the
+  rest cheaply.
+

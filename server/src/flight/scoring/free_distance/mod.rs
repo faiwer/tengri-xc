@@ -5,10 +5,11 @@ mod track;
 mod types;
 
 use crate::flight::types::Track;
+use crate::geo::METERS_PER_KM;
 
 use super::types::{leg_distance_m, to_track_point};
 use super::{Route, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome};
-use constants::{FREE_DISTANCE_MULTIPLIER, METERS_PER_KM};
+use constants::FREE_DISTANCE_MULTIPLIER;
 use route_search::evaluate_dp;
 use track::ScoringTrack;
 use types::FreeDistanceScore;

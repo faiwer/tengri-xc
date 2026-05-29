@@ -4,6 +4,12 @@
 /// model error below ~0.3 % anywhere on the globe.
 pub const EARTH_RADIUS_M: f64 = 6_371_000.0;
 
+/// Metres in one kilometre.
+pub const METERS_PER_KM: f64 = 1000.0;
+
+/// Conversion factor from E5 micro-degrees to decimal degrees.
+pub const E5_TO_DEGREES: f64 = 1.0 / 1e5;
+
 /// Conversion factor from E5 micro-degrees to radians, in one multiply.
 /// Equivalent to `(value as f64) / 1e5 * π / 180.0`.
 pub const E5_TO_RAD: f64 = std::f64::consts::PI / 180.0 / 1e5;

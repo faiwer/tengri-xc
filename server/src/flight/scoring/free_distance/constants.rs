@@ -1,6 +1,5 @@
 /// Since free distance is the simplest kind of route it has no boost multiplier.
 pub(super) const FREE_DISTANCE_MULTIPLIER: f64 = 1.0;
-pub(super) const METERS_PER_KM: f64 = 1000.0;
 
 /// Preferred number of points in the RDP-simplified track before we run DP (any
 /// iteration). The number is chosen empirically to be a good trade-off between
