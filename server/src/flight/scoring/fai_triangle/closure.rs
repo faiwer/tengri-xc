@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use super::geometry::{Box, Point, Range, RangeBoxes};
 use super::types::FaiTriangleClosureCacheStats;
 
+/// Branch-and-Bound search for the nearest (Q, W) closure pair.
+///
 /// ```text
 ///              B
 ///             / \
@@ -19,13 +21,10 @@ use super::types::FaiTriangleClosureCacheStats;
 ///          └-------┘
 ///         closure gap
 /// ```
-
-/// Branch-and-Bound search for the nearest (Q, W) closure pair.
 ///
-/// Splits the prefix [0..A] and suffix [C..n-1] ranges recursively, pruning
-/// sub-problems whose lower-bound FCC distance already exceeds the current
-/// best. No R*-tree dependency: pruning is done via the same `RangeBoxes`
-/// segment tree that the outer FAI-triangle B&B uses.
+/// Splits the prefix `[0..A]` and suffix `[C..n-1]` ranges recursively,
+/// pruning sub-problems whose lower-bound distance already exceeds the current
+/// best. Pruning uses the same `RangeBoxes` segment tree as the outer B&B.
 ///
 /// A validity-rectangle cache avoids re-running the B&B for queries whose
 /// search space is a subset of a previously solved one: if `(q, w, d)` was the
@@ -242,4 +241,73 @@ fn lower_bound_km(box_q: Box, box_w: Box) -> f64 {
     // Place the two virtual points symmetrically so mid_lat = ref_lat.
     let half = lat_gap / 2;
     Point::new(ref_lat - half, 0).distance_haversine_km(&Point::new(ref_lat + half, lon_gap))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bbox(min_lat: i32, min_lon: i32, max_lat: i32, max_lon: i32) -> Box {
+        Box {
+            min_lat,
+            min_lon,
+            max_lat,
+            max_lon,
+        }
+    }
+
+    #[test]
+    fn lower_bound_zero_for_overlapping_boxes() {
+        let a = bbox(0, 0, 100_000, 100_000);
+        let b = bbox(50_000, 50_000, 150_000, 150_000);
+        assert_eq!(lower_bound_km(a, b), 0.0);
+    }
+
+    #[test]
+    fn lower_bound_zero_for_touching_boxes() {
+        // Boxes share an edge — still overlapping per the ≤ gap check.
+        let a = bbox(0, 0, 100_000, 0);
+        let b = bbox(100_000, 0, 200_000, 0);
+        assert_eq!(lower_bound_km(a, b), 0.0);
+    }
+
+    #[test]
+    fn lower_bound_positive_for_lat_separated_boxes() {
+        // Boxes separated only in latitude (~111 km per degree).
+        let a = bbox(0, 0, 0, 0);
+        let b = bbox(100_000, 0, 100_000, 0); // 1° north ≈ 111.2 km
+        let lb = lower_bound_km(a, b);
+        assert!(
+            lb > 0.0 && lb <= 111.3,
+            "expected (0, 111.3] km, got {lb:.3}"
+        );
+    }
+
+    #[test]
+    fn lower_bound_positive_for_lon_separated_boxes() {
+        // Boxes separated only in longitude on the equator.
+        let a = bbox(0, 0, 0, 0);
+        let b = bbox(0, 100_000, 0, 100_000); // 1° east ≈ 111.2 km
+        let lb = lower_bound_km(a, b);
+        assert!(
+            lb > 0.0 && lb <= 111.3,
+            "expected (0, 111.3] km, got {lb:.3}"
+        );
+    }
+
+    #[test]
+    fn lower_bound_is_not_greater_than_actual_distance() {
+        // The bound must never exceed the true Haversine distance between the
+        // closest corners — that would make it an invalid lower bound.
+        let a = bbox(0, 0, 50_000, 50_000);
+        let b = bbox(200_000, 200_000, 250_000, 250_000);
+        let lb = lower_bound_km(a, b);
+        // Closest corners: a=(0.5°,0.5°) and b=(2°,2°)
+        let actual =
+            Point::new(50_000, 50_000).distance_haversine_km(&Point::new(200_000, 200_000));
+        assert!(
+            lb <= actual + 1e-9,
+            "lower bound {lb:.6} exceeds actual distance {actual:.6}"
+        );
+    }
 }

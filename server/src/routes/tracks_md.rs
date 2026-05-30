@@ -118,9 +118,7 @@ async fn get_track_md(
         return Err(AppError::NotFound);
     };
 
-    let routes = fetch_scored_routes(state.pool(), &flight_id)
-        .await
-        .map_err(anyhow::Error::from)?;
+    let routes = fetch_scored_routes(state.pool(), &flight_id).await?;
 
     Ok(Json(TrackMd {
         id: flight_id,

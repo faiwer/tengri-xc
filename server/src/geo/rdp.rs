@@ -57,7 +57,7 @@ pub(crate) fn rdp_indexes_capped(points: &[Point], tolerance: f64, max_points: u
 
 /// The RDP implementation with a maximum chord length between kept points.
 /// - `tolerance`: the biggest allowed perpendicular distance between a point
-///    and the chord between the two adjacent points.
+///   and the chord between the two adjacent points.
 /// - `chord_cap_m`: the returned track must have a point at least each `chord_cap_m`
 ///   meters (if the given track has them)
 pub(crate) fn rdp_indexes_with_chord_cap(
@@ -91,7 +91,7 @@ pub(crate) fn rdp_indexes_with_chord_cap(
 
 /// The RDP implementation limited by a maximum number of points.
 /// - `tolerance`: the biggest allowed perpendicular distance between a point
-///    and the chord between the two adjacent points.
+///   and the chord between the two adjacent points.
 /// - `chord_cap_m`: the track must have a point at least each `chord_cap_m`
 ///   meters (if the given track has them)
 /// - `max_points`: the maximum number of points to keep. If the track has more
@@ -174,6 +174,7 @@ fn simplify_range(
     simplify_range(points, split, last, tolerance_sq, chord_cap_sq, keep);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn simplify_range_capped(
     points: &[Point],
     first: usize,

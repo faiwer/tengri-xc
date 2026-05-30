@@ -44,8 +44,8 @@ pub(super) fn find_best_free_distance_dp(
     let n = track.len();
     let mut cache: [Vec<CacheState>; ROUTE_POINTS] =
         std::array::from_fn(|_| vec![CacheState::default(); n]);
-    for idx in 0..n {
-        cache[0][idx] = CacheState {
+    for entry in cache[0].iter_mut().take(n) {
+        *entry = CacheState {
             distance_m: 0.0,
             prev: None,
         };

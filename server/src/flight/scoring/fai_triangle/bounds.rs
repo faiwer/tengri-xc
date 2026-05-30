@@ -96,8 +96,9 @@ fn max_triangle_distance(boxes: [Box; 3]) -> f64 {
     for &a in &path[0] {
         for &b in &path[1] {
             for &c in &path[2] {
-                let distance =
-                    a.distance_haversine_km(&b) + b.distance_haversine_km(&c) + c.distance_haversine_km(&a);
+                let distance = a.distance_haversine_km(&b)
+                    + b.distance_haversine_km(&c)
+                    + c.distance_haversine_km(&a);
                 if distance > best {
                     best = distance;
                 }
@@ -117,8 +118,9 @@ fn min_distance_bw_three_boxes(boxes: [Box; 3]) -> f64 {
     for a in vertices[0] {
         for b in vertices[1] {
             for c in vertices[2] {
-                let distance =
-                    a.distance_haversine_km(&b) + b.distance_haversine_km(&c) + c.distance_haversine_km(&a);
+                let distance = a.distance_haversine_km(&b)
+                    + b.distance_haversine_km(&c)
+                    + c.distance_haversine_km(&a);
                 if distance < best {
                     best = distance;
                 }
@@ -143,4 +145,84 @@ fn max_distance_bw_two_boxes(boxes: [Box; 2]) -> f64 {
         }
     }
     best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pt(lat: i32, lon: i32) -> Box {
+        Box {
+            min_lat: lat,
+            min_lon: lon,
+            max_lat: lat,
+            max_lon: lon,
+        }
+    }
+
+    #[test]
+    fn zero_when_max_shortest_side_below_min_scoring_side() {
+        // Three collinear single-point boxes ~55 km apart. max_shortest_side ≈
+        // 55.6 km < 100 km floor → 0.
+        let boxes = [pt(0, 0), pt(0, 50_000), pt(0, 100_000)];
+        assert_eq!(max_fai_distance(boxes, 100.0), 0.0);
+    }
+
+    #[test]
+    fn zero_when_fai_shape_is_impossible() {
+        // Three nearly collinear single-point boxes with tiny inter-box gaps.
+        // max_shortest_side / MIN_SIDE < min_tri_distance, so no FAI triangle
+        // can fit inside these boxes.
+        let boxes = [pt(0, 0), pt(0, 1_000), pt(0, 2_000)];
+        assert_eq!(max_fai_distance(boxes, 0.0), 0.0);
+    }
+
+    #[test]
+    fn positive_bound_for_valid_triangle_boxes() {
+        // Three well-separated single-point boxes forming a roughly equilateral
+        // triangle (~100 km sides). The bound should be positive and at least
+        // as large as the actual triangle perimeter.
+        let boxes = [pt(0, 0), pt(0, 90_000), pt(77_942, 45_000)];
+        let bound = max_fai_distance(boxes, 1.4);
+        assert!(bound > 200.0, "expected bound > 200 km, got {bound}");
+    }
+
+    #[test]
+    fn max_triangle_distance_non_intersecting_boxes() {
+        // Three non-overlapping boxes, each a single point at a triangle
+        // corner. The max perimeter should equal the sum of the three pairwise
+        // distances.
+        let a = pt(0, 0);
+        let b = pt(0, 90_000);
+        let c = pt(77_942, 45_000);
+        let direct = a.vertices()[0].distance_haversine_km(&b.vertices()[0])
+            + b.vertices()[0].distance_haversine_km(&c.vertices()[0])
+            + c.vertices()[0].distance_haversine_km(&a.vertices()[0]);
+        let bound = max_triangle_distance([a, b, c]);
+        assert!(
+            (bound - direct).abs() < 0.001,
+            "expected {direct:.3}, got {bound:.3}"
+        );
+    }
+
+    #[test]
+    fn max_triangle_distance_intersecting_boxes() {
+        // Two overlapping boxes and one separated box. The function should
+        // still return a finite, positive result rather than panicking.
+        let a = Box {
+            min_lat: 0,
+            min_lon: 0,
+            max_lat: 50_000,
+            max_lon: 50_000,
+        };
+        let b = Box {
+            min_lat: 25_000,
+            min_lon: 25_000,
+            max_lat: 75_000,
+            max_lon: 75_000,
+        };
+        let c = pt(0, 200_000);
+        let bound = max_triangle_distance([a, b, c]);
+        assert!(bound > 0.0);
+    }
 }

@@ -30,10 +30,10 @@ pub async fn run(
             println!("exported {flight_id} to {}", path.display());
         }
         None => {
-            if let Err(e) = format.write(std::io::stdout().lock(), &track) {
-                if e.kind() != ErrorKind::BrokenPipe {
-                    return Err(e).context("writing exported flight to stdout");
-                }
+            if let Err(e) = format.write(std::io::stdout().lock(), &track)
+                && e.kind() != ErrorKind::BrokenPipe
+            {
+                return Err(e).context("writing exported flight to stdout");
             }
         }
     }

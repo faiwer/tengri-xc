@@ -159,7 +159,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
         // Even though the solution is based on the three range centers, we know
         // that the center fix of each is the right answer fix. The rest are
         // worse or equal.
-        if let Some(cb) = trace.as_deref_mut() {
+        if let Some(cb) = trace {
             cb(&TraceEvent::Summary(SummaryTraceEvent {
                 processed: self.processed,
                 current_upper_bound: self.best.score,
