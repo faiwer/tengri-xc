@@ -25,21 +25,52 @@ pub fn min_scoring_side_for_free_distance(free_distance_m: u32) -> f64 {
     DEFAULT_MIN_SCORING_SIDE_KM.max(min_side_km)
 }
 
-pub fn evaluate_fai_triangle(track: &Track, class: FaiTriangleClass) -> ScoringOutcome<Route> {
+/// Evaluate the best FAI triangle for the track.
+///
+/// `class`:
+/// - `None` — run both `Open` and `Closed` and return whichever scores higher.
+/// - `Some(c)` — run only the given class.
+pub fn evaluate_fai_triangle(
+    track: &Track,
+    class: Option<FaiTriangleClass>,
+) -> ScoringOutcome<Route> {
     evaluate_fai_triangle_with_min_side(track, class, DEFAULT_MIN_SCORING_SIDE_KM)
 }
 
-/// min_scoring_side_km is used to ignore triangles that are too small in
-/// comparison to the flight's free-distance result.
+/// Like `evaluate_fai_triangle`, but with an explicit minimum scoring side.
+///
+/// `min_scoring_side_km` filters out triangles whose shortest leg is below the
+/// given threshold, which avoids noise when comparing against a free-distance
+/// result.
 pub fn evaluate_fai_triangle_with_min_side(
     track: &Track,
-    class: FaiTriangleClass,
+    class: Option<FaiTriangleClass>,
     min_scoring_side_km: f64,
 ) -> ScoringOutcome<Route> {
-    let mut evaluator = FaiTriangleEvaluator::new(track, class, min_scoring_side_km);
-    evaluator.evaluate(None)
+    match class {
+        Some(c) => {
+            let mut evaluator = FaiTriangleEvaluator::new(track, c, min_scoring_side_km);
+            evaluator.evaluate(None)
+        }
+        None => {
+            let open = evaluate_fai_triangle_with_min_side(
+                track,
+                Some(FaiTriangleClass::Open),
+                min_scoring_side_km,
+            );
+            let closed = evaluate_fai_triangle_with_min_side(
+                track,
+                Some(FaiTriangleClass::Closed),
+                min_scoring_side_km,
+            );
+            best_outcome(open, closed)
+        }
+    }
 }
 
+/// Like `evaluate_fai_triangle_with_min_side`, but emits trace events for each
+/// B&B node. Useful for comparing the algorithm step-by-step against the
+/// Node.js reference scorer.
 pub fn evaluate_fai_triangle_with_min_side_traced(
     track: &Track,
     class: FaiTriangleClass,
@@ -66,17 +97,17 @@ pub fn probe_fai_triangle(track: &Track) -> ScoringOutcome<Route> {
     evaluator.evaluate(None)
 }
 
-pub fn evaluate_fai_triangle_traced(
-    track: &Track,
-    trace: &mut dyn FnMut(&TraceEvent),
-) -> ScoringOutcome<Route> {
-    let mut evaluator = FaiTriangleEvaluator::new_with_closure(
-        track,
-        FaiTriangleClass::Open,
-        FAI_CLOSURE_OPEN,
-        DEFAULT_MIN_SCORING_SIDE_KM,
-    );
-    evaluator.evaluate(Some(trace))
+/// Return the outcome with the higher score. `Answer` beats `NoAnswer` or
+/// `Error`; between two `Answer`s the higher `score` wins.
+fn best_outcome(a: ScoringOutcome<Route>, b: ScoringOutcome<Route>) -> ScoringOutcome<Route> {
+    match (a, b) {
+        (ScoringOutcome::Answer(ra), ScoringOutcome::Answer(rb)) => {
+            ScoringOutcome::Answer(if ra.score >= rb.score { ra } else { rb })
+        }
+        (answer @ ScoringOutcome::Answer(_), _) | (_, answer @ ScoringOutcome::Answer(_)) => answer,
+        (ScoringOutcome::NoAnswer, other) | (other, ScoringOutcome::NoAnswer) => other,
+        (a, _) => a,
+    }
 }
 
 #[cfg(test)]

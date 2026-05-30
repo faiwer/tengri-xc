@@ -39,7 +39,7 @@ fn strict_closure_rejects_borderline_relaxed_accepts() {
     let track = triangle_track(58_000);
 
     assert!(matches!(
-        evaluate_fai_triangle(&track, FaiTriangleClass::Open),
+        evaluate_fai_triangle(&track, Some(FaiTriangleClass::Open)),
         ScoringOutcome::NoAnswer,
     ));
     let relaxed = answer(probe_fai_triangle(&track));
@@ -51,7 +51,7 @@ fn strict_closure_rejects_borderline_relaxed_accepts() {
 fn relaxed_matches_strict_on_clean_closure_flight() {
     let track = triangle_track(27_000);
 
-    let strict = answer(evaluate_fai_triangle(&track, FaiTriangleClass::Open));
+    let strict = answer(evaluate_fai_triangle(&track, Some(FaiTriangleClass::Open)));
     let relaxed = answer(probe_fai_triangle(&track));
 
     assert_eq!(
@@ -64,7 +64,7 @@ fn relaxed_matches_strict_on_clean_closure_flight() {
 fn route_distance_and_score_subtract_closure() {
     let route = answer(evaluate_fai_triangle(
         &triangle_track(27_000),
-        FaiTriangleClass::Open,
+        Some(FaiTriangleClass::Open),
     ));
     let raw_perimeter = route.leg_distances.iter().copied().sum::<u32>();
     let closure_distance = route
@@ -85,7 +85,7 @@ fn route_distance_and_score_subtract_closure() {
 fn explicit_closed_class_uses_closed_subtype_and_multiplier() {
     let route = answer(evaluate_fai_triangle(
         &triangle_track(5_000),
-        FaiTriangleClass::Closed,
+        Some(FaiTriangleClass::Closed),
     ));
 
     assert_eq!(route.sub_type, RouteSubType::OlcClosed);
@@ -97,10 +97,10 @@ fn explicit_closed_class_uses_closed_subtype_and_multiplier() {
 }
 
 #[test]
-fn default_class_is_open() {
+fn explicit_open_class_uses_open_subtype_and_multiplier() {
     let route = answer(evaluate_fai_triangle(
         &triangle_track(27_000),
-        FaiTriangleClass::Open,
+        Some(FaiTriangleClass::Open),
     ));
 
     assert_eq!(route.sub_type, RouteSubType::OlcOpen);
@@ -121,7 +121,7 @@ fn shape_rule_rejects_thin_triangle() {
         ],
     };
     assert!(matches!(
-        evaluate_fai_triangle(&track, FaiTriangleClass::Open),
+        evaluate_fai_triangle(&track, Some(FaiTriangleClass::Open)),
         ScoringOutcome::NoAnswer,
     ));
 }
@@ -142,7 +142,7 @@ fn straight_track_has_no_triangle() {
         ],
     };
     assert!(matches!(
-        evaluate_fai_triangle(&track, FaiTriangleClass::Open),
+        evaluate_fai_triangle(&track, Some(FaiTriangleClass::Open)),
         ScoringOutcome::NoAnswer,
     ));
 }
@@ -153,7 +153,7 @@ fn min_scoring_side_filters_small_triangle() {
     // artificially high floor of 1000 km should suppress it entirely.
     let track = triangle_track(0);
     assert!(matches!(
-        evaluate_fai_triangle_with_min_side(&track, FaiTriangleClass::Open, 1_000.0),
+        evaluate_fai_triangle_with_min_side(&track, Some(FaiTriangleClass::Open), 1_000.0),
         ScoringOutcome::NoAnswer,
     ));
 }
