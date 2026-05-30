@@ -96,7 +96,8 @@ fn max_triangle_distance(boxes: [Box; 3]) -> f64 {
     for &a in &path[0] {
         for &b in &path[1] {
             for &c in &path[2] {
-                let distance = a.distance(&b) + b.distance(&c) + c.distance(&a);
+                let distance =
+                    a.distance_haversine_km(&b) + b.distance_haversine_km(&c) + c.distance_haversine_km(&a);
                 if distance > best {
                     best = distance;
                 }
@@ -116,7 +117,8 @@ fn min_distance_bw_three_boxes(boxes: [Box; 3]) -> f64 {
     for a in vertices[0] {
         for b in vertices[1] {
             for c in vertices[2] {
-                let distance = a.distance(&b) + b.distance(&c) + c.distance(&a);
+                let distance =
+                    a.distance_haversine_km(&b) + b.distance_haversine_km(&c) + c.distance_haversine_km(&a);
                 if distance < best {
                     best = distance;
                 }
@@ -134,7 +136,7 @@ fn max_distance_bw_two_boxes(boxes: [Box; 2]) -> f64 {
     let mut best = 0.0;
     for a in vertices[0] {
         for b in vertices[1] {
-            let distance = a.distance(&b);
+            let distance = a.distance_haversine_km(&b);
             if distance > best {
                 best = distance;
             }

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use serde::Serialize;
 
-use super::super::{Route, RouteSubType, ScoringOutcome};
+use super::super::RouteSubType;
 use super::constants::{
     FAI_CLOSURE_CLOSED, FAI_CLOSURE_OPEN, FAI_TRIANGLE_CLOSED_MULTIPLIER,
     FAI_TRIANGLE_OPEN_MULTIPLIER,
@@ -78,6 +78,7 @@ pub struct FaiTriangleClosureCacheStats {
     pub cached_prefix_tree_points: usize,
     pub largest_cached_prefix_tree_points: usize,
     pub cached_closures: usize,
+    pub max_cache_hits_per_lookup: usize,
 }
 
 /// Everything needed to score a FAI triangle.

@@ -3,6 +3,7 @@
 //! Subcommands:
 //! - `convert` — parse a flight log (IGC, KML, KMZ, GPX) and write a `.tengri`
 //!   envelope.
+//! - `aspect-ratio` — measure the in-window track shape of a flight log.
 //! - `inspect` — peek inside a `.tengri` envelope without unpacking it.
 //! - `add` — ingest a flight log into the database for a given user: gzipped
 //!   source goes into `flight_sources`; the encoded `.tengri` HTTP wire form

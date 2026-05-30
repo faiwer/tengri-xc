@@ -1,7 +1,5 @@
-use crate::flight::types::TrackPoint;
-
 use super::{
-    Point,
+    HasE5Coords, Point,
     consts::{E5_TO_RAD, EARTH_RADIUS_M},
 };
 
@@ -16,26 +14,27 @@ pub fn approximate_distance_m(lat_a_e5: i32, lon_a_e5: i32, lat_b_e5: i32, lon_b
     (dlat * dlat + dlon * dlon).sqrt() * EARTH_RADIUS_M
 }
 
-/// Project E5 track points into an approximate local metre plane. Faster than
-/// the Haversine formula (only one cos, no asin), but less accurate.
-pub(crate) fn project_track_points_m(points: &[TrackPoint]) -> Vec<Point> {
+/// Project E5 points into an approximate local metre plane. Uses per-point
+/// `cos(lat)` for longitude scaling — more accurate than a single midpoint
+/// scale but still a flat-earth approximation.
+pub(crate) fn project_track_points_m<P: HasE5Coords>(points: &[P]) -> Vec<Point> {
     let n = points.len() as f64;
     let mean_lat = points
         .iter()
-        .map(|point| point.lat as f64 * E5_TO_RAD)
+        .map(|point| point.lat_e5() as f64 * E5_TO_RAD)
         .sum::<f64>()
         / n;
     let mean_lon = points
         .iter()
-        .map(|point| point.lon as f64 * E5_TO_RAD)
+        .map(|point| point.lon_e5() as f64 * E5_TO_RAD)
         .sum::<f64>()
         / n;
 
     points
         .iter()
         .map(|point| {
-            let lat = point.lat as f64 * E5_TO_RAD;
-            let lon = point.lon as f64 * E5_TO_RAD;
+            let lat = point.lat_e5() as f64 * E5_TO_RAD;
+            let lon = point.lon_e5() as f64 * E5_TO_RAD;
             Point::new(
                 (lon - mean_lon) * lat.cos() * EARTH_RADIUS_M,
                 (lat - mean_lat) * EARTH_RADIUS_M,
@@ -46,6 +45,8 @@ pub(crate) fn project_track_points_m(points: &[TrackPoint]) -> Vec<Point> {
 
 #[cfg(test)]
 mod tests {
+    use crate::flight::types::TrackPoint;
+
     use super::*;
 
     fn e5(deg: f64) -> i32 {

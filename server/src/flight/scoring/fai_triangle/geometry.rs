@@ -1,5 +1,5 @@
-use crate::flight::types::TrackPoint;
-use crate::geo::fcc_distance_km;
+pub(super) use crate::geo::PointE5 as Point;
+use crate::geo::PointE5;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Range {
@@ -182,35 +182,16 @@ impl Box {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Point {
-    pub(super) lat: i32,
-    pub(super) lon: i32,
-}
-
-impl Point {
-    pub(super) fn from_track_point(point: &TrackPoint) -> Self {
-        Self::new(point.lat, point.lon)
-    }
-
-    pub(super) fn new(lat: i32, lon: i32) -> Self {
-        Self { lat, lon }
-    }
-
-    pub(super) fn distance(self, other: &Self) -> f64 {
-        fcc_distance_km(self.lat, self.lon, other.lat, other.lon)
-    }
-}
 
 /// Push a point to a vector if it's not already present. O(n)
-pub(super) fn push_unique_point(points: &mut Vec<Point>, point: Point) {
+pub(super) fn push_unique_point(points: &mut Vec<PointE5>, point: PointE5) {
     if !points.contains(&point) {
         points.push(point);
     }
 }
 
 /// Returns a new vector with the unique points. O(n)
-pub(super) fn dedupe_points(points: Vec<Point>) -> Vec<Point> {
+pub(super) fn dedupe_points(points: Vec<PointE5>) -> Vec<PointE5> {
     points.into_iter().fold(Vec::new(), |mut unique, point| {
         push_unique_point(&mut unique, point);
         unique

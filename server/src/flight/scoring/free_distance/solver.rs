@@ -56,7 +56,7 @@ pub(super) fn find_best_free_distance_dp(
             let mut best = CacheState::default();
             for start in (leg - 1)..end {
                 let candidate = cache[leg - 1][start].distance_m
-                    + points[track[start]].distance(&points[track[end]]);
+                    + points[track[start]].distance_fcc_m(&points[track[end]]);
                 if candidate > best.distance_m {
                     best = CacheState {
                         distance_m: candidate,

@@ -259,10 +259,12 @@ impl<'a> FaiTriangleEvaluator<'a> {
     /// Score a triangle by its center turnpoints. Return `None` if the triangle
     /// is not valid, too small or not a triangle.
     fn score_turnpoints(&self, indexes: [usize; 3]) -> Option<ScoreInfo> {
+        // Use "haversine" instead of "fcc" because we use "haversine" at the
+        // final step to be consistent with competitors.
         let legs = [
-            self.points[indexes[0]].distance(&self.points[indexes[1]]),
-            self.points[indexes[1]].distance(&self.points[indexes[2]]),
-            self.points[indexes[2]].distance(&self.points[indexes[0]]),
+            self.points[indexes[0]].distance_haversine_km(&self.points[indexes[1]]),
+            self.points[indexes[1]].distance_haversine_km(&self.points[indexes[2]]),
+            self.points[indexes[2]].distance_haversine_km(&self.points[indexes[0]]),
         ];
 
         if legs.iter().any(|&leg| leg < self.min_scoring_side_km) {
@@ -308,8 +310,8 @@ impl<'a> FaiTriangleEvaluator<'a> {
         self.closure_pairs
             .closest_pair(first_tp, last_tp, &self.points)
             .map(|closure| Closure {
-                start_idx: closure.start_idx,
-                end_idx: closure.end_idx,
+                start_idx: closure.q_idx,
+                end_idx: closure.w_idx,
                 distance_km: closure.distance_km,
             })
             .unwrap_or(Closure {
