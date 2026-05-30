@@ -169,3 +169,124 @@ Several facts make the problem tractable:
   region; a coarse first pass finds the obvious answer and rules out the
   rest cheaply.
 
+## Rust Implementation
+
+### Branch-and-Bound Over Range Triples
+
+The search is a branch-and-bound walk over triples of fix-index ranges:
+
+```text
+state = (Range_A, Range_B, Range_C)   // disjoint sub-ranges of the track,
+                                      // ordered in time
+```
+
+The root state has each of the three ranges set to the entire track. The solver
+repeatedly:
+
+1. Pops the pending state with the highest _upper bound_ on score.
+2. Splits it by halving its widest range, producing two children.
+3. For each child, computes a fresh upper bound. If the bound is `<=` the best
+   known score, the child is pruned. Otherwise it is scored "from the centre" of
+   each range and pushed back onto the heap.
+4. Stops when the heap is empty (proven optimal).
+
+### Upper Bound
+
+For a given range triple `(A, B, C)`, the bound is computed against the
+axis-aligned bounding boxes of the three ranges:
+
+```text
++-----+              +-----+
+|  A  |              |  C  |
++-----+              +-----+
+       \           /
+        +---------+
+        |    B    |
+        +---------+
+```
+
+- The maximum possible perimeter is the largest triangle whose vertices live
+  one in each box.
+- The minimum side cap (each side >= 28% of perimeter) translates to an
+  upper bound on perimeter from the _shortest_ maximum cross-box distance.
+- Once `A` and `C` no longer overlap in time, we can compute a lower bound on
+  the closure gap from their bounding boxes. Since the score formula subtracts
+  the closure gap before multiplying, a larger gap floor shrinks the upper bound
+  on score — pruning more states early.
+
+All three checks operate on bounding boxes in O(1) per state, which is what
+makes the search affordable.
+
+A `RangeBoxes` segment tree, built once per track, answers "bounding box of
+fixes `[i..=j]`" in O(log n).
+
+### Branching Heuristic
+
+When splitting a state, the solver picks which of the three ranges to halve. The
+default is "the widest range", but a range whose bounding box is much larger (`>
+8x area`) than the current pick takes priority. This mirrors the igc-xc-score
+heuristic: splitting the geometrically biggest range removes more of the search
+space per branch than splitting the longest one.
+
+### Closure B&B and Validity-Rectangle Cache
+
+The closure gap is the most expensive piece of the bound: "minimum Haversine
+distance between any prefix fix (≤ tp1) and any suffix fix (≥ tp3)", which is
+O(n²) naively.
+
+`ClosurePairs` solves this with its own inner B&B. Each closure query `(a, c)` —
+"best pair with Q in `[0..a]` and W in `[c..n-1]`" — recursively splits the
+prefix and suffix ranges, pruning sub-problems whose Haversine lower bound
+already exceeds the running best. The lower bound for a prefix/suffix range pair
+is computed from their bounding boxes in O(1), via the same `RangeBoxes` segment
+tree used by the outer B&B.
+
+Results are stored in a validity-rectangle cache so that overlapping queries
+don't repeat work. A result `(q, w, d)` computed for query `(a₀, c₀)` is valid
+for any `(a, c)` where `q ≤ a ≤ a₀` and `c₀ ≤ c ≤ w` — the new search space is a
+subset of the original, and the optimal pair is still reachable. The cache is a
+`BTreeMap<usize, Vec<ValidityRect>>` keyed by `a₀`:
+
+- **Exact-hit lookup** (`lookup_cached`): `range(a..)` skips all rects with
+  `a_idx < a` immediately. Any matching rect yields the exact answer — first
+  hit wins, no need to scan further.
+- **Cache-miss warm-up** (`best_seed_from_cache`): On a miss, scan all cached
+  rects for any `(q, w)` reachable from the new search space (`q ≤ a`, `w ≥ c`).
+  The best such distance seeds the inner B&B so it can prune from the start
+  rather than discovering a good bound after many iterations.
+
+### Prefilter
+
+The prefilter stage (`probe_fai_triangle`) runs the same B&B with a relaxed
+closure threshold of 25% (`FAI_CLOSURE_PREFILTER`) instead of the strict 20%.
+RDP simplification can shift a real triangle's closure by a couple of metres;
+without the wider band, a barely-valid candidate would be filtered out before
+the strict run sees it. The trade-off is that the prefilter may surface a
+triangle whose closure falls in `(20%, 25%]` — geometrically real, but one the
+strict run will reject. So the probe result is a feasibility signal, not a lower
+bound.
+
+### Distance Formula
+
+All distances — perimeter legs, closure pairs, and B&B lower bounds — use
+Haversine. The choice is driven by compatibility with external platforms
+(XContest, Leonardo, DHV, OLC), not by speed or accuracy requirements.
+
+**Every distance in the scorer must use the same formula.** The B&B's pruning
+relies on the lower bound being consistent with the score formula: if they
+diverge, the heap's priority ordering degrades and the solver visits far more
+nodes than necessary on some tracks. Mixing Haversine and FCC — even in a
+single place — breaks that invariant and can cause severe performance
+regressions on adversarial tracks.
+
+### Important Tradeoffs
+
+The scorer proves optimality when the outer B&B heap drains. The cost/accuracy
+levers are:
+
+- **`FAI_CLOSURE_PREFILTER` (25%)** widens the prefilter's acceptance band.
+  Tightening it loses real triangles to RDP noise; widening it wastes
+  strict-pass time on triangles the strict pass will reject.
+- **`DEFAULT_MIN_SCORING_SIDE_KM` (1.4 km)** is the floor; longer flights raise
+  it via `min_scoring_side_for_free_distance` so that scoring a tiny triangle on
+  top of a big free-distance flight isn't worth chasing.
