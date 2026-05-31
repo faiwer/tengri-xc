@@ -6,7 +6,7 @@ set -e
 
 if [ -d server ]; then
   echo "Running cargo test on server/..."
-  cargo test --manifest-path server/Cargo.toml --all-targets --quiet
+  cargo test --manifest-path server/Cargo.toml --all-targets
 fi
 
 if [ -d client ]; then

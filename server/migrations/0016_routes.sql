@@ -27,7 +27,6 @@ CREATE TABLE routes (
     distance      integer        NOT NULL,
     score         numeric(7, 2)  NOT NULL, -- e.g., 163.23
     factor        numeric(2, 1)  NOT NULL, -- 0.0 (excluded), 1.0 (FD), 1.4 (open OLC-FAI-T), 1.6 (closed OLC-FAI-T)
-    optimal       boolean        NOT NULL, -- if `false` the score computing stopped prematurely (e.g., due to time limit)
     closure       jsonb, -- for OLC-like triangles
 
     PRIMARY KEY (flight_id, type, sub_type),

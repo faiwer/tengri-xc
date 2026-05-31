@@ -11,7 +11,7 @@ use super::geometry::{Range, RangeBoxes};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FaiTriangleClass {
-    Open, // 20% closure gap
+    Open,   // 20% closure gap
     Closed, // 5% closure gap
 }
 

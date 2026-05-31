@@ -7,7 +7,11 @@ use crate::geo::{
 /// The output track preserves the original track's shape, but the distance
 /// between two consecutive points might be extreme.
 pub fn simplify_track(track: &Track, tolerance_m: f64) -> Vec<usize> {
-    simplify_track_for_scoring_with_chord_cap(track, tolerance_m, None)
+    let n = track.points.len();
+    if n <= 2 {
+        return (0..n).collect();
+    }
+    rdp_indexes(&project_track_points_m(&track.points), tolerance_m)
 }
 
 /// Apply RDP to the track using binary search.
@@ -61,3 +65,84 @@ pub fn simplify_track_to_target_count(
     densest_complete
 }
 
+/// Simplify a track for scoring and cap the distance between kept points.
+///
+/// The chord cap forces intermediate points to be kept on long straight
+/// segments. Without it, plain RDP may keep only the endpoints, losing
+/// potential scorer turnpoints that lie mid-chord.
+pub fn simplify_track_for_scoring_with_chord_cap(
+    track: &Track,
+    tolerance_m: f64,
+    chord_cap_m: f64,
+) -> Vec<usize> {
+    let n = track.points.len();
+    if n <= 2 {
+        return (0..n).collect();
+    }
+    rdp_indexes_with_chord_cap(
+        &project_track_points_m(&track.points),
+        tolerance_m,
+        Some(chord_cap_m),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::flight::types::TrackPoint;
+
+    use super::*;
+
+    fn point(idx: u32, lat: i32, lon: i32) -> TrackPoint {
+        TrackPoint {
+            time: idx,
+            lat,
+            lon,
+            geo_alt: 0,
+            pressure_alt: None,
+            tas: None,
+        }
+    }
+
+    #[test]
+    fn straight_line_keeps_only_endpoints() {
+        let track = Track {
+            start_time: 0,
+            points: (0..10).map(|idx| point(idx, idx as i32 * 10, 0)).collect(),
+        };
+
+        assert_eq!(simplify_track(&track, 1.0), vec![0, 9]);
+    }
+
+    #[test]
+    fn chord_cap_forces_straight_line_candidates() {
+        let track = Track {
+            start_time: 0,
+            points: (0..10).map(|idx| point(idx, idx as i32 * 10, 0)).collect(),
+        };
+
+        let simplified = simplify_track_for_scoring_with_chord_cap(&track, 1.0, 40.0);
+
+        assert_eq!(simplified.first(), Some(&0));
+        assert_eq!(simplified.last(), Some(&9));
+        assert!(simplified.len() > simplify_track(&track, 1.0).len());
+    }
+
+    #[test]
+    fn corner_survives_simplification() {
+        let track = Track {
+            start_time: 0,
+            points: vec![
+                point(0, 0, 0),
+                point(1, 0, 100),
+                point(2, 100, 100),
+                point(3, 200, 100),
+            ],
+        };
+
+        let simplified = simplify_track(&track, 10.0);
+
+        assert!(simplified.contains(&1));
+        assert_eq!(simplified.first(), Some(&0));
+        assert_eq!(simplified.last(), Some(&3));
+    }
+}

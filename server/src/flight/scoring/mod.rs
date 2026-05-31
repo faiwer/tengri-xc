@@ -1,14 +1,42 @@
+mod fai_triangle;
+mod free_distance;
+mod free_triangle;
+mod shared;
 mod types;
 
-use crate::flight::types::{Track, TrackPoint};
+use crate::flight::types::Track;
 
-pub use types::{RouteEvaluation, RouteKind, RoutePoint, RouteResult};
+pub use fai_triangle::{
+    FAI_CLOSURE_PREFILTER, FaiTriangleClass, FaiTriangleClosureCacheStats, FaiTriangleLazyAudit,
+    FaiTriangleLazySkipReason, TraceEvent, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
+};
+pub use free_distance::evaluate_free_distance;
+pub use free_triangle::{
+    evaluate_free_triangle, evaluate_xcontest_free_triangle,
+    evaluate_xcontest_free_triangle_bounded,
+};
+pub use shared::simplify::{simplify_track, simplify_track_for_scoring_with_chord_cap};
+pub(crate) use types::{IndexedTrackPoint, RouteClosure, RouteSubType, ScoringError};
+pub use types::{Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome};
 
-pub fn evaluate_routes(track: &Track) -> RouteEvaluation {
+pub fn evaluate_routes(track: &Track) -> ScoringOutcome<RouteEvaluation> {
+    let free_distance = match evaluate_free_distance(track) {
+        ScoringOutcome::Answer(route) => route,
+        ScoringOutcome::NoAnswer => {
+            return ScoringOutcome::Error(ScoringError::SolverFailed {
+                route_type: RouteType::FreeDistance,
+                reason: "no free-distance route found",
+            });
+        }
+        ScoringOutcome::Error(error) => return ScoringOutcome::Error(error),
+    };
     let routes = std::thread::scope(|scope| {
-        let handles: Vec<_> = RouteKind::ALL
+        let handles: Vec<_> = RouteType::SCORABLE
             .into_iter()
-            .map(|kind| scope.spawn(move || evaluate_route(track, kind)))
+            .map(|route_type| {
+                let free_distance = free_distance.clone();
+                scope.spawn(move || evaluate_route(track, route_type, &free_distance))
+            })
             .collect();
 
         handles
@@ -17,44 +45,28 @@ pub fn evaluate_routes(track: &Track) -> RouteEvaluation {
             .collect()
     });
 
-    RouteEvaluation { routes }
+    ScoringOutcome::Answer(RouteEvaluation { routes })
 }
 
-fn evaluate_route(track: &Track, kind: RouteKind) -> RouteResult {
-    RouteResult {
-        kind,
-        distance_m: 0,
-        points: 0.0,
-        turnpoints: stub_endpoints(track),
-        optimal: false,
-    }
-}
-
-fn stub_endpoints(track: &Track) -> Vec<RoutePoint> {
-    let Some(first) = track.points.first() else {
-        return Vec::new();
-    };
-    let last_idx = track.points.len() - 1;
-    let last = &track.points[last_idx];
-
-    if last_idx == 0 {
-        vec![route_point(0, first)]
-    } else {
-        vec![route_point(0, first), route_point(last_idx, last)]
-    }
-}
-
-fn route_point(track_idx: usize, point: &TrackPoint) -> RoutePoint {
-    RoutePoint {
-        track_idx,
-        time: point.time,
-        lat: point.lat,
-        lon: point.lon,
+fn evaluate_route(
+    track: &Track,
+    route_type: RouteType,
+    free_distance: &Route,
+) -> ScoringOutcome<Route> {
+    match route_type {
+        RouteType::FreeDistance => ScoringOutcome::Answer(free_distance.clone()),
+        RouteType::FreeTriangle => evaluate_free_triangle(track),
+        RouteType::FaiTriangle => {
+            evaluate_fai_triangle_lazy(track, free_distance.distance, None, None)
+        }
+        RouteType::Task => ScoringOutcome::NoAnswer,
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::flight::types::TrackPoint;
+
     use super::*;
 
     fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
@@ -69,37 +81,48 @@ mod tests {
     }
 
     #[test]
-    fn returns_one_stub_per_route_kind() {
+    fn returns_one_outcome_per_scorable_route_type() {
+        // Near-equilateral triangle with tight closure: three ~111 km legs each
+        // exceed the 28 % FAI minimum, closure ~55 m << the 20 % Open threshold.
+        // Intermediate points along each leg give the free-distance DP solver
+        // enough candidates to produce an Answer.
         let track = Track {
-            start_time: 10,
-            points: vec![point(10, 100, 200), point(20, 300, 400)],
+            start_time: 0,
+            points: vec![
+                point(0, 0, 0), // start (closure point)
+                point(1, 25_000, 12_500),
+                point(2, 50_000, 25_000),
+                point(3, 75_000, 37_500),
+                point(4, 100_000, 50_000), // first turn
+                point(5, 75_000, 62_500),
+                point(6, 50_000, 75_000),
+                point(7, 25_000, 87_500),
+                point(8, 0, 100_000), // second turn
+                point(9, 500, 250),   // finish — ≈55 m from start
+            ],
         };
 
-        let evaluated = evaluate_routes(&track);
+        let evaluated = match evaluate_routes(&track) {
+            ScoringOutcome::Answer(evaluated) => evaluated,
+            other => panic!("expected scored routes, got {other:?}"),
+        };
 
-        assert_eq!(evaluated.routes.len(), RouteKind::ALL.len());
-        for (route, kind) in evaluated.routes.iter().zip(RouteKind::ALL) {
-            assert_eq!(route.kind, kind);
-            assert_eq!(route.distance_m, 0);
-            assert_eq!(route.points, 0.0);
-            assert!(!route.optimal);
-            assert_eq!(
-                route.turnpoints,
-                vec![
-                    RoutePoint {
-                        track_idx: 0,
-                        time: 10,
-                        lat: 100,
-                        lon: 200,
-                    },
-                    RoutePoint {
-                        track_idx: 1,
-                        time: 20,
-                        lat: 300,
-                        lon: 400,
-                    },
-                ]
-            );
+        assert_eq!(evaluated.routes.len(), RouteType::SCORABLE.len());
+        for (outcome, route_type) in evaluated.routes.iter().zip(RouteType::SCORABLE) {
+            match (route_type, outcome) {
+                (RouteType::FreeDistance, ScoringOutcome::Answer(route)) => {
+                    assert_eq!(route.route_type, RouteType::FreeDistance);
+                    assert!(route.optimal);
+                }
+                (RouteType::FaiTriangle, ScoringOutcome::Answer(route)) => {
+                    assert_eq!(route.route_type, RouteType::FaiTriangle);
+                    assert!(route.optimal);
+                    assert!(route.distance > 0);
+                }
+                (_, ScoringOutcome::Answer(route)) => assert_eq!(route.route_type, route_type),
+                (_, ScoringOutcome::NoAnswer) => {}
+                (_, ScoringOutcome::Error(error)) => panic!("{route_type:?} failed: {error}"),
+            }
         }
     }
 }

@@ -182,7 +182,6 @@ impl Box {
     }
 }
 
-
 /// Push a point to a vector if it's not already present. O(n)
 pub(super) fn push_unique_point(points: &mut Vec<PointE5>, point: PointE5) {
     if !points.contains(&point) {

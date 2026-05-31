@@ -288,5 +288,5 @@ levers are:
   Tightening it loses real triangles to RDP noise; widening it wastes
   strict-pass time on triangles the strict pass will reject.
 - **`DEFAULT_MIN_SCORING_SIDE_KM` (1.4 km)** is the floor; longer flights raise
-  it via `min_scoring_side_for_free_distance` so that scoring a tiny triangle on
-  top of a big free-distance flight isn't worth chasing.
+  it proportionally to `free_distance × MIN_FAI_TO_FREE_DISTANCE_RATIO × MIN_SIDE`
+  so that scoring a tiny triangle on top of a big free-distance flight isn't worth chasing.
