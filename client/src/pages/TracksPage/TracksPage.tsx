@@ -1,6 +1,6 @@
 import { Skeleton } from 'antd';
 import { useMemo } from 'react';
-import type { TrackListItem } from '../../api/tracks.io';
+import type { RouteType, TrackListItem } from '../../api/tracks.io';
 import { Flag } from '../../components/Flag';
 import { LoadError } from '../../components/LoadError';
 import { PageLayout } from '../../components/PageLayout';
@@ -15,6 +15,7 @@ import { formatDistance } from '../../utils/formatUnits';
 import styles from './TracksPage.module.scss';
 import { useScrollSentinel } from './useScrollSentinel';
 import { useTracksFeed } from './useTracksFeed';
+import { RouteTypeIcon } from '../../components/icons/RouteTypeIcon';
 
 /**
  * Global tracks feed: cursor-paginated, infinite-scroll on window
@@ -140,22 +141,19 @@ function buildHomeRowCells(
   ];
 }
 
-const ROUTE_TYPE_LABEL: Record<string, string> = {
-  fai_triangle: 'FAI',
-  free_triangle: 'T',
-  free_distance: 'FD',
-  task: 'Task',
-};
-
 const formatScore = (
-  routeType: string | null | undefined,
+  routeType: RouteType | null,
   score: number | null | undefined,
-): string => {
+): React.ReactNode => {
   if (routeType == null || score == null) {
     return '—';
   }
-  const label = ROUTE_TYPE_LABEL[routeType] ?? routeType;
-  return `${label} ${score.toFixed(2)}`;
+
+  return (
+    <>
+      <RouteTypeIcon kind={routeType} /> {score.toFixed(2)}
+    </>
+  );
 };
 
 function SkeletonRows({ colSpan }: { colSpan: number }) {

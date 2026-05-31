@@ -64,10 +64,18 @@ const RouteClosureIo = z.object({
   distance: z.number().int(),
 });
 
+const RouteTypeIo = z.enum([
+  'free_distance',
+  'fai_triangle',
+  'free_triangle',
+  'task',
+]);
+export type RouteType = z.infer<typeof RouteTypeIo>;
+
 const RouteIo = z.object({
   id: z.number().int(),
   flightId: z.string(),
-  routeType: z.enum(['free_distance', 'fai_triangle', 'free_triangle', 'task']),
+  routeType: RouteTypeIo,
   subType: z.enum(['none', 'olc_closed', 'olc_open', 'fai_cylinders']),
   turnpoints: z.array(RouteWaypointIo),
   legDistances: z.array(z.number().int()),

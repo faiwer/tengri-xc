@@ -1,5 +1,6 @@
 import type { Route } from '../../api/tracks.io';
 import styles from './TrackMetaPanel.module.scss';
+import { RouteTypeIcon } from '../icons/RouteTypeIcon';
 
 interface RouteSwitcherProps {
   routes: Route[];
@@ -29,22 +30,9 @@ export function RouteSwitcher({
           }
           onClick={() => onSelect(candidate)}
         >
-          {routeTypeLabel(candidate)}
+          <RouteTypeIcon kind={candidate.routeType} />
         </button>
       ))}
     </span>
   );
 }
-
-const routeTypeLabel = (route: Route): string => {
-  switch (route.routeType) {
-    case 'free_distance':
-      return 'FD';
-    case 'free_triangle':
-      return 'T';
-    case 'fai_triangle':
-      return 'FAI';
-    case 'task':
-      return 'Task';
-  }
-};
