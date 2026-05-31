@@ -10,11 +10,8 @@ import {
   usePreferences,
   type ResolvedPreferences,
 } from '../../core/preferences';
-import {
-  formatDuration,
-  formatShortDate,
-  formatShortTime,
-} from '../../utils/formatDateTime';
+import { formatDuration, formatShortDate } from '../../utils/formatDateTime';
+import { formatDistance } from '../../utils/formatUnits';
 import styles from './TracksPage.module.scss';
 import { useScrollSentinel } from './useScrollSentinel';
 import { useTracksFeed } from './useTracksFeed';
@@ -48,18 +45,19 @@ export function TracksPage() {
           <tr>
             <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
             <th className={styles.colDate}>Date</th>
-            <th className={styles.colTime}>Takeoff</th>
             <th>Pilot</th>
             <th className={`${styles.colDuration} ${styles.alignRight}`}>
               Duration
             </th>
+            <th className={styles.colScore}>Score</th>
+            <th className={styles.colDist}>Distance</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({ item, cells }) => (
             <TrackRow key={item.track.id} item={item} cells={cells} />
           ))}
-          {feed.isLoading && <SkeletonRows />}
+          {feed.isLoading && <SkeletonRows colSpan={6} />}
         </tbody>
       </table>
 
@@ -103,15 +101,6 @@ function buildHomeRowCells(
       className: styles.colDate,
     },
     {
-      key: 'time',
-      content: formatShortTime(
-        item.track.takeoffAt,
-        prefs,
-        item.track.takeoffOffset,
-      ),
-      className: styles.colTime,
-    },
-    {
       key: 'pilot',
       content: (
         <>
@@ -131,15 +120,50 @@ function buildHomeRowCells(
       align: 'right',
       className: styles.colDuration,
     },
+    {
+      key: 'score',
+      content: formatScore(item.track.mainRouteType, item.track.mainScore),
+      align: 'left',
+      muted: item.track.mainScore == null,
+      className: styles.colScore,
+    },
+    {
+      key: 'dist',
+      content:
+        item.track.mainDistance != null
+          ? formatDistance(item.track.mainDistance, prefs)
+          : '—',
+      align: 'left',
+      muted: item.track.mainDistance == null,
+      className: styles.colDist,
+    },
   ];
 }
 
-function SkeletonRows() {
+const ROUTE_TYPE_LABEL: Record<string, string> = {
+  fai_triangle: 'FAI',
+  free_triangle: 'T',
+  free_distance: 'FD',
+  task: 'Task',
+};
+
+const formatScore = (
+  routeType: string | null | undefined,
+  score: number | null | undefined,
+): string => {
+  if (routeType == null || score == null) {
+    return '—';
+  }
+  const label = ROUTE_TYPE_LABEL[routeType] ?? routeType;
+  return `${label} ${score.toFixed(2)}`;
+};
+
+function SkeletonRows({ colSpan }: { colSpan: number }) {
   return (
     <>
       {Array.from({ length: LOADING_SKELETON_COUNT }, (_, i) => (
         <tr key={`sk-${i}`} className={styles.skeletonRow}>
-          <td colSpan={5}>
+          <td colSpan={colSpan}>
             <Skeleton.Input active block size="small" />
           </td>
         </tr>

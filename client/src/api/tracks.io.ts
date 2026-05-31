@@ -65,6 +65,7 @@ const RouteClosureIo = z.object({
 });
 
 const RouteIo = z.object({
+  id: z.number().int(),
   flightId: z.string(),
   routeType: z.enum(['free_distance', 'fai_triangle', 'free_triangle', 'task']),
   subType: z.enum(['none', 'olc_closed', 'olc_open', 'fai_cylinders']),
@@ -75,6 +76,7 @@ const RouteIo = z.object({
   factor: z.number(),
   optimal: z.boolean(),
   closure: RouteClosureIo.nullable(),
+  scoredMs: z.number().int(),
 });
 
 export type Route = z.infer<typeof RouteIo>;
@@ -82,6 +84,15 @@ export type PointWaypoint = Extract<
   Route['turnpoints'][number],
   { type: 'point' }
 >;
+
+const MainRouteIo = z.object({
+  id: z.number().int(),
+  routeType: z.enum(['free_distance', 'fai_triangle', 'free_triangle', 'task']),
+  score: z.number(),
+  distance: z.number().int(),
+});
+
+export type MainRoute = z.infer<typeof MainRouteIo>;
 
 export const TrackMetadataIo = z
   .object({
@@ -109,6 +120,7 @@ export const TrackMetadataIo = z
     /** Wire-track size as a fraction of the gzipped source (0..1ish). */
     compressionRatio: z.number(),
     routes: z.array(RouteIo),
+    mainRoute: MainRouteIo.nullable(),
   })
   .transform(withMetadataOffsets);
 
@@ -134,6 +146,11 @@ export const TrackListItemIo = z.object({
       landingTimezone: z.string(),
       takeoff: PointIo,
       landing: PointIo,
+      mainRouteType: z
+        .enum(['free_distance', 'fai_triangle', 'free_triangle', 'task'])
+        .nullable(),
+      mainScore: z.number().nullable(),
+      mainDistance: z.number().int().nullable(),
     })
     .transform(withListTrackOffsets),
 });

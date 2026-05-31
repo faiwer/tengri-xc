@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import type { Route, TrackMetadata } from '../../api/tracks.io';
+import { RouteSwitcher } from './RouteSwitcher';
 import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
@@ -19,8 +20,8 @@ import styles from './TrackMetaPanel.module.scss';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
-  /** The chosen route. */
-  route: Route | null;
+  selectedRoute: Route | null;
+  onRouteSelect: (route: Route) => void;
   /** `undefined` until track analysis has loaded. */
   hasAltitudeData?: boolean;
   /**
@@ -38,7 +39,8 @@ interface TrackMetaPanelProps {
 
 export function TrackMetaPanel({
   data,
-  route,
+  selectedRoute,
+  onRouteSelect,
   hasAltitudeData,
   peaks,
   altitudes,
@@ -73,9 +75,18 @@ export function TrackMetaPanel({
         {formatDuration(data.landingAt - data.takeoffAt)}
       </Cell>
       <Cell label="Route">
-        {route ? formatDistance(route.distance, prefs) : '—'}
+        <span className={styles.routeValue}>
+          {selectedRoute ? formatDistance(selectedRoute.distance, prefs) : '—'}
+          <RouteSwitcher
+            routes={data.routes}
+            selectedRoute={selectedRoute}
+            onSelect={onRouteSelect}
+          />
+        </span>
       </Cell>
-      <Cell label="Score">{route ? route.score.toFixed(2) : '—'}</Cell>
+      <Cell label="Score">
+        {selectedRoute ? selectedRoute.score.toFixed(2) : '—'}
+      </Cell>
       {showAltitudeFields && (
         <>
           <Cell label="Best climb">

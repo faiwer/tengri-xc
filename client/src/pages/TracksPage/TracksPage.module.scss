@@ -38,15 +38,17 @@
   width: 110px;
 }
 
-.colTime {
-  // Sized to fit the longest expected output of `formatShortTime`: 24h
-  // locales emit `HH:mm` (5 chars), 12h locales emit `HH:mm AM`/`PM` (8
-  // chars). 100px covers the worst case at our cell padding + font
-  // without forcing ellipsis on the time string itself.
+.colDuration {
   width: 100px;
 }
 
-.colDuration {
+.colScore {
+  // Fits the longest expected value: "Task 1234.56" (12 chars).
+  width: 110px;
+}
+
+.colDist {
+  // Fits the longest expected value: "1234.5 km" / "1234.5 mi".
   width: 100px;
 }
 
