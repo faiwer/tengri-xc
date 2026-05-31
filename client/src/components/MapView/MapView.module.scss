@@ -14,3 +14,10 @@
   width: 100%;
   height: 100%;
 }
+
+.mapTypeSwitcher {
+  position: absolute;
+  top: 1rem;
+  right: 4rem;
+  z-index: 1000;
+}

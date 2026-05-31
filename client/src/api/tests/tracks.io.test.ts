@@ -21,6 +21,7 @@ describe('track API schemas', () => {
       compressionRatio: 1,
       routes: [
         {
+          id: 1,
           flightId: 'track-1',
           routeType: 'free_distance',
           subType: 'none',
@@ -43,8 +44,15 @@ describe('track API schemas', () => {
           factor: 1,
           optimal: true,
           closure: null,
+          scoredMs: 5,
         },
       ],
+      mainRoute: {
+        id: 1,
+        routeType: 'free_distance',
+        score: 1.23,
+        distance: 1234,
+      },
     });
 
     expect(parsed.takeoffOffset).toBe(2 * 3600);
@@ -63,6 +71,9 @@ describe('track API schemas', () => {
         landingTimezone: 'Asia/Almaty',
         takeoff: { lat: 48.21, lon: 16.37 },
         landing: { lat: 43.25, lon: 76.95 },
+        mainRouteType: 'free_distance',
+        mainScore: 1.23,
+        mainDistance: 1234,
       },
     });
 
