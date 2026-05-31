@@ -42,6 +42,7 @@ fn route_result(score: FreeDistanceScore) -> Route {
     let factor = FREE_DISTANCE_MULTIPLIER;
 
     Route {
+        id: 0, // A stub. Will be filled in by the caller.
         flight_id: "draft".to_owned(),
         route_type: RouteType::FreeDistance,
         sub_type: RouteSubType::None,

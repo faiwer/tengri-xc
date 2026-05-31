@@ -207,6 +207,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
         let factor = self.class.multiplier();
         let distance_m = raw_distance_m.saturating_sub(closure.distance);
         ScoringOutcome::Answer(Route {
+            id: 0, // A stub. Will be filled in by the caller.
             flight_id: "draft".to_owned(),
             route_type: RouteType::FaiTriangle,
             sub_type: self.class.route_sub_type(),

@@ -172,7 +172,7 @@ pub async fn insert_source(
 
 pub async fn fetch_scored_routes(pool: &PgPool, flight_id: &str) -> anyhow::Result<Vec<Route>> {
     let rows = sqlx::query_as::<_, StoredRouteRow>(
-        "SELECT flight_id, type::text AS route_type, sub_type::text AS sub_type, \
+        "SELECT id, flight_id, type::text AS route_type, sub_type::text AS sub_type, \
                 turnpoints::text AS turnpoints, leg_distances, distance, \
                 score::float8 AS score, factor::float8 AS factor, optimal, closure::text AS closure, \
                 scored_ms \
@@ -360,6 +360,7 @@ fn map_flight_error(e: sqlx::Error, user_id: i32) -> InsertFlightError {
 
 #[derive(sqlx::FromRow)]
 struct StoredRouteRow {
+    id: i64,
     flight_id: String,
     route_type: String,
     sub_type: String,
@@ -376,6 +377,7 @@ struct StoredRouteRow {
 impl StoredRouteRow {
     fn into_route(self) -> anyhow::Result<Route> {
         Ok(Route {
+            id: self.id,
             flight_id: self.flight_id,
             route_type: route_type_from_value(&self.route_type)?,
             sub_type: route_sub_type_from_value(&self.sub_type)?,

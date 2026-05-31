@@ -5,6 +5,7 @@ use crate::geo::haversine_m;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Route {
+    pub id: i64,
     pub flight_id: String,
     pub route_type: RouteType,
     pub sub_type: RouteSubType,
