@@ -217,6 +217,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
             score: (distance_m as f64 / METERS_PER_KM) * factor,
             factor,
             optimal: true,
+            scored_ms: 0, // A stub. Will be filled in by the caller.
         })
     }
 

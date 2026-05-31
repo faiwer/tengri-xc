@@ -174,7 +174,8 @@ pub async fn fetch_scored_routes(pool: &PgPool, flight_id: &str) -> anyhow::Resu
     let rows = sqlx::query_as::<_, StoredRouteRow>(
         "SELECT flight_id, type::text AS route_type, sub_type::text AS sub_type, \
                 turnpoints::text AS turnpoints, leg_distances, distance, \
-                score::float8 AS score, factor::float8 AS factor, optimal, closure::text AS closure \
+                score::float8 AS score, factor::float8 AS factor, optimal, closure::text AS closure, \
+                scored_ms \
          FROM routes \
          WHERE flight_id = $1",
     )
@@ -251,7 +252,36 @@ pub async fn upsert_scored_routes(
             saved += 1;
         }
     }
+    if saved > 0 {
+        update_flight_main_route(tx, flight_id).await?;
+    }
     Ok(saved)
+}
+
+async fn update_flight_main_route(
+    tx: &mut Transaction<'_, Postgres>,
+    flight_id: &str,
+) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE flights f \
+         SET main_route_id   = r.id, \
+             main_route_type = r.type, \
+             main_score      = r.score, \
+             main_distance   = r.distance \
+         FROM ( \
+             SELECT id, type, score, distance \
+             FROM routes \
+             WHERE flight_id = $1 \
+             ORDER BY score DESC \
+             LIMIT 1 \
+         ) r \
+         WHERE f.id = $1",
+    )
+    .bind(flight_id)
+    .execute(&mut **tx)
+    .await
+    .context("updating flight main route")?;
+    Ok(())
 }
 
 pub async fn upsert_scored_route(
@@ -280,8 +310,8 @@ pub async fn upsert_scored_route(
 
     sqlx::query(
         "INSERT INTO routes \
-         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure) \
-         VALUES ($1, $2::route_type, $3::route_sub_type, $4::jsonb, $5, $6, $7::numeric, $8::numeric, $9, $10::jsonb) \
+         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure, scored_ms) \
+         VALUES ($1, $2::route_type, $3::route_sub_type, $4::jsonb, $5, $6, $7::numeric, $8::numeric, $9, $10::jsonb, $11) \
          ON CONFLICT (flight_id, type, sub_type) DO UPDATE SET \
          turnpoints = EXCLUDED.turnpoints, \
          leg_distances = EXCLUDED.leg_distances, \
@@ -289,7 +319,8 @@ pub async fn upsert_scored_route(
          score = EXCLUDED.score, \
          factor = EXCLUDED.factor, \
          optimal = EXCLUDED.optimal, \
-         closure = EXCLUDED.closure",
+         closure = EXCLUDED.closure, \
+         scored_ms = EXCLUDED.scored_ms",
     )
     .bind(flight_id)
     .bind(route_type_value(route.route_type))
@@ -301,6 +332,7 @@ pub async fn upsert_scored_route(
     .bind(factor)
     .bind(route.optimal)
     .bind(closure)
+    .bind(route.scored_ms as i32)
     .execute(&mut **tx)
     .await
     .with_context(|| {
@@ -338,6 +370,7 @@ struct StoredRouteRow {
     factor: f64,
     optimal: bool,
     closure: Option<String>,
+    scored_ms: i32,
 }
 
 impl StoredRouteRow {
@@ -363,6 +396,7 @@ impl StoredRouteRow {
                 .map(|closure| serde_json::from_str(&closure))
                 .transpose()
                 .context("parsing route closure")?,
+            scored_ms: self.scored_ms as u32,
         })
     }
 }

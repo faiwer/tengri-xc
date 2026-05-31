@@ -93,6 +93,13 @@ struct TrackRef {
     landing_timezone: String,
     takeoff: Point,
     landing: Point,
+    /// Route type of the best-scoring route, e.g. `"fai_triangle"`. `null` when
+    /// the flight has not been scored yet.
+    main_route_type: Option<String>,
+    /// Points for the best-scoring route. `null` when not yet scored.
+    main_score: Option<f64>,
+    /// Distance in metres for the best-scoring route. `null` when not yet scored.
+    main_distance: Option<i32>,
 }
 
 /// Decimal degrees on WGS-84. Same shape as the [`tracks_md`] route.
@@ -136,6 +143,9 @@ async fn list_tracks(
         "u.id",
         "u.name",
         "p.country",
+        "f.main_route_type::text",
+        "f.main_score::float8",
+        "f.main_distance",
     ])
     .from("flights f")
     .join("users u", "u.id = f.user_id")
@@ -190,6 +200,9 @@ async fn list_tracks(
                 user_id,
                 user_name,
                 country,
+                main_route_type,
+                main_score,
+                main_distance,
             )| Item {
                 pilot: Pilot {
                     id: user_id,
@@ -210,6 +223,9 @@ async fn list_tracks(
                         lat: landing_lat,
                         lon: landing_lon,
                     },
+                    main_route_type,
+                    main_score,
+                    main_distance,
                 },
             },
         )
@@ -220,8 +236,9 @@ async fn list_tracks(
 
 /// Concrete row tuple: `(flight_id, takeoff_at, duration, takeoff_timezone,
 /// landing_timezone, takeoff_lat, takeoff_lon, landing_lat, landing_lon,
-/// user_id, user_name, country)`. Aliased because the literal tuple is too long
-/// to inline at the call site without harming readability.
+/// user_id, user_name, country, main_route_type, main_score, main_distance)`.
+/// Aliased because the literal tuple is too long to inline at the call site
+/// without harming readability.
 type TrackListRow = (
     String,
     i64,
@@ -235,6 +252,9 @@ type TrackListRow = (
     i32,
     String,
     Option<String>,
+    Option<String>,
+    Option<f64>,
+    Option<i32>,
 );
 
 /// Pack `(takeoff_at, flight_id)` and base64url-encode. The id is

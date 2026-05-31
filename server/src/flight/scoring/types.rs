@@ -15,6 +15,8 @@ pub struct Route {
     pub factor: f64,
     pub optimal: bool,
     pub closure: Option<RouteClosure>,
+    /// Wall-clock milliseconds spent evaluating this route type.
+    pub scored_ms: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]

@@ -4,6 +4,8 @@ mod free_triangle;
 mod shared;
 mod types;
 
+use std::time::Instant;
+
 use crate::flight::types::Track;
 
 pub use fai_triangle::{
@@ -20,7 +22,8 @@ pub(crate) use types::{IndexedTrackPoint, RouteClosure, RouteSubType, ScoringErr
 pub use types::{Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome};
 
 pub fn evaluate_routes(track: &Track) -> ScoringOutcome<RouteEvaluation> {
-    let free_distance = match evaluate_free_distance(track) {
+    let t = Instant::now();
+    let mut free_distance = match evaluate_free_distance(track) {
         ScoringOutcome::Answer(route) => route,
         ScoringOutcome::NoAnswer => {
             return ScoringOutcome::Error(ScoringError::SolverFailed {
@@ -30,12 +33,25 @@ pub fn evaluate_routes(track: &Track) -> ScoringOutcome<RouteEvaluation> {
         }
         ScoringOutcome::Error(error) => return ScoringOutcome::Error(error),
     };
+    free_distance.scored_ms = t.elapsed().as_millis() as u32;
+
     let routes = std::thread::scope(|scope| {
         let handles: Vec<_> = RouteType::SCORABLE
             .into_iter()
             .map(|route_type| {
                 let free_distance = free_distance.clone();
-                scope.spawn(move || evaluate_route(track, route_type, &free_distance))
+                scope.spawn(move || {
+                    if route_type == RouteType::FreeDistance {
+                        return ScoringOutcome::Answer(free_distance);
+                    }
+                    let t = Instant::now();
+                    let outcome = evaluate_route(track, route_type, &free_distance);
+                    let ms = t.elapsed().as_millis() as u32;
+                    outcome.map_answer(|mut route| {
+                        route.scored_ms = ms;
+                        route
+                    })
+                })
             })
             .collect();
 
@@ -82,23 +98,22 @@ mod tests {
 
     #[test]
     fn returns_one_outcome_per_scorable_route_type() {
-        // Near-equilateral triangle with tight closure: three ~111 km legs each
-        // exceed the 28 % FAI minimum, closure ~55 m << the 20 % Open threshold.
-        // Intermediate points along each leg give the free-distance DP solver
-        // enough candidates to produce an Answer.
+        // Near-equilateral triangle (corners A/B/C, each leg ≈111 km) with tight
+        // closure (~55 m). Wobble points on each leg deviate ~11 km from the
+        // straight line, so they survive RDP and the free-distance DP gets ≥5 fixes.
         let track = Track {
             start_time: 0,
             points: vec![
-                point(0, 0, 0), // start (closure point)
-                point(1, 25_000, 12_500),
-                point(2, 50_000, 25_000),
-                point(3, 75_000, 37_500),
-                point(4, 100_000, 50_000), // first turn
-                point(5, 75_000, 62_500),
-                point(6, 50_000, 75_000),
-                point(7, 25_000, 87_500),
-                point(8, 0, 100_000), // second turn
-                point(9, 500, 250),   // finish — ≈55 m from start
+                point(0, 0, 0),            // corner A — start / closure
+                point(1, 40_000, 10_000),  // leg A→B wobble
+                point(2, 60_000, 40_000),  // leg A→B wobble
+                point(3, 90_000, 45_000),  // leg A→B wobble
+                point(4, 100_000, 50_000), // corner B — first turn
+                point(5, 80_000, 70_000),  // leg B→C wobble
+                point(6, 40_000, 90_000),  // leg B→C wobble
+                point(7, 10_000, 95_000),  // leg B→C wobble
+                point(8, 0, 100_000),      // corner C — second turn
+                point(9, 500, 250),        // finish — ≈55 m from A
             ],
         };
 
