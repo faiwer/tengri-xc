@@ -11,8 +11,12 @@ pub trait HasE5Coords {
 }
 
 impl HasE5Coords for TrackPoint {
-    fn lat_e5(&self) -> i32 { self.lat }
-    fn lon_e5(&self) -> i32 { self.lon }
+    fn lat_e5(&self) -> i32 {
+        self.lat
+    }
+    fn lon_e5(&self) -> i32 {
+        self.lon
+    }
 }
 
 /// An E5-encoded geographic point: lat/lon as integer micro-degrees (1 degree =
@@ -24,8 +28,12 @@ pub struct PointE5 {
 }
 
 impl HasE5Coords for PointE5 {
-    fn lat_e5(&self) -> i32 { self.lat }
-    fn lon_e5(&self) -> i32 { self.lon }
+    fn lat_e5(&self) -> i32 {
+        self.lat
+    }
+    fn lon_e5(&self) -> i32 {
+        self.lon
+    }
 }
 
 impl PointE5 {

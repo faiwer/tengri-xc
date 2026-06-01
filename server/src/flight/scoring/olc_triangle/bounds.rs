@@ -1,4 +1,3 @@
-use super::constants::MIN_SIDE;
 use super::geometry::{Box, dedupe_points, push_unique_point};
 
 /// Finds the maximum possible FAI distance given three bounding boxes (one per
@@ -8,7 +7,11 @@ use super::geometry::{Box, dedupe_points, push_unique_point};
 /// - boxes: boxes of the vertices of the current triangle candidate
 /// - min_scoring_side_km: bail out if the maximum side length of the triangle
 ///   is less than this value
-pub(super) fn max_fai_distance(boxes: [Box; 3], min_scoring_side_km: f64) -> f64 {
+pub(super) fn max_fai_distance(
+    boxes: [Box; 3],
+    min_side: Option<f64>,
+    min_scoring_side_km: Option<f64>,
+) -> f64 {
     let max_triangle_distance = max_triangle_distance(boxes);
     let min_tri_distance = min_distance_bw_three_boxes(boxes);
     let max_ab = max_distance_bw_two_boxes([boxes[0], boxes[1]]);
@@ -17,12 +20,18 @@ pub(super) fn max_fai_distance(boxes: [Box; 3], min_scoring_side_km: f64) -> f64
     // The upper bound on the shortest leg of the given 3-boxes
     let max_shortest_side = max_ab.min(max_bc).min(max_ca);
 
-    if max_shortest_side < min_scoring_side_km {
+    if let Some(min_scoring_side_km) = min_scoring_side_km
+        && max_shortest_side < min_scoring_side_km
+    {
         return 0.0; // Too small to score.
     }
 
-    // Assume the shortest leg is 28%, how big is 100%?
-    let max_distance = max_shortest_side / MIN_SIDE;
+    let Some(min_side) = min_side else {
+        return max_triangle_distance;
+    };
+
+    // Assume the shortest leg sits at the minimum side fraction (28% for FAI).
+    let max_distance = max_shortest_side / min_side;
     if max_distance < min_tri_distance {
         // A FAI triangle in these boxes is impossible.
         return 0.0;
@@ -165,7 +174,7 @@ mod tests {
         // Three collinear single-point boxes ~55 km apart. max_shortest_side ≈
         // 55.6 km < 100 km floor → 0.
         let boxes = [pt(0, 0), pt(0, 50_000), pt(0, 100_000)];
-        assert_eq!(max_fai_distance(boxes, 100.0), 0.0);
+        assert_eq!(max_fai_distance(boxes, Some(0.28), Some(100.0)), 0.0);
     }
 
     #[test]
@@ -174,7 +183,7 @@ mod tests {
         // max_shortest_side / MIN_SIDE < min_tri_distance, so no FAI triangle
         // can fit inside these boxes.
         let boxes = [pt(0, 0), pt(0, 1_000), pt(0, 2_000)];
-        assert_eq!(max_fai_distance(boxes, 0.0), 0.0);
+        assert_eq!(max_fai_distance(boxes, Some(0.28), Some(0.0)), 0.0);
     }
 
     #[test]
@@ -183,7 +192,7 @@ mod tests {
         // triangle (~100 km sides). The bound should be positive and at least
         // as large as the actual triangle perimeter.
         let boxes = [pt(0, 0), pt(0, 90_000), pt(77_942, 45_000)];
-        let bound = max_fai_distance(boxes, 1.4);
+        let bound = max_fai_distance(boxes, Some(0.28), Some(1.4));
         assert!(bound > 200.0, "expected bound > 200 km, got {bound}");
     }
 

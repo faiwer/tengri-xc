@@ -7,11 +7,10 @@ use super::super::types::{leg_distance_m, to_track_point};
 use super::super::{Route, RouteClosure, RouteType, RouteWaypoint, ScoringOutcome};
 use super::bounds::max_fai_distance;
 use super::closure::ClosurePairs;
-use super::constants::MIN_SIDE;
 use super::geometry::{Point, Range, RangeBoxes};
 use super::types::{
-    BestSolution, Closure, FaiTriangleClass, NodeTraceEvent, PendingSolution, ScoreInfo, Solution,
-    SummaryTraceEvent, TraceEvent, TraceEventKind, to_trace_ranges,
+    BestSolution, Closure, NodeTraceEvent, PendingSolution, ScoreInfo, Solution, SummaryTraceEvent,
+    TraceEvent, TraceEventKind, TriangleOptions, to_trace_ranges,
 };
 
 pub(crate) struct FaiTriangleEvaluator<'a> {
@@ -25,21 +24,18 @@ pub(crate) struct FaiTriangleEvaluator<'a> {
     best: BestSolution,
     /// Number of non-pruned child states scored after the root candidate.
     processed: u64,
-    class: FaiTriangleClass,
+    options: TriangleOptions,
     /// Maximum closure gap as a fraction of candidate perimeter. If the closure
     /// is bigger than this value, the triangle is not valid.
     closing_distance_relative: f64,
-    /// Perimeter floor implied by `min_scoring_side_km` and the 28% side rule.
-    /// It makes no sense to score a triangle with a perimeter shorter than this
-    /// value.
-    min_scoring_distance_km: f64,
-    /// Absolute floor for each scored leg. It makes no sense to score a
-    /// triangle with a side shorter than this value.
-    min_scoring_side_km: f64,
+    /// For FAI triangles. Perimeter floor implied by `min_scoring_side_km` and
+    /// the 28% side rule. It makes no sense to score a triangle with a
+    /// perimeter shorter than this value.
+    min_scoring_distance_km: Option<f64>,
 }
 
 impl<'a> FaiTriangleEvaluator<'a> {
-    pub(crate) fn new(track: &'a Track, class: FaiTriangleClass, min_scoring_side_km: f64) -> Self {
+    pub(crate) fn new(track: &'a Track, options: TriangleOptions) -> Self {
         let points = track
             .points
             .iter()
@@ -47,7 +43,13 @@ impl<'a> FaiTriangleEvaluator<'a> {
             .collect::<Vec<_>>();
         let range_boxes = RangeBoxes::new(&points);
         let closure_pairs = ClosurePairs::new(&points);
-        let closing_distance_relative = class.closure();
+        let closing_distance_relative = options.closure_ratio();
+        let min_scoring_distance_km = match (options.min_side, options.min_scoring_side_km) {
+            // The FAI triangle rules. min_side is 28%, min_scoring_side_km is
+            // either 1.4km or dereived from the free-distance result.
+            (Some(min_side), Some(min_scoring_side_km)) => Some(min_scoring_side_km / min_side),
+            _ => None,
+        };
         Self {
             track,
             points,
@@ -55,20 +57,18 @@ impl<'a> FaiTriangleEvaluator<'a> {
             closure_pairs,
             best: BestSolution::empty(),
             processed: 0,
-            class,
+            options,
             closing_distance_relative,
-            min_scoring_distance_km: min_scoring_side_km / MIN_SIDE,
-            min_scoring_side_km,
+            min_scoring_distance_km,
         }
     }
 
     pub(crate) fn new_with_closure(
         track: &'a Track,
-        class: FaiTriangleClass,
+        options: TriangleOptions,
         closing_distance_relative: f64,
-        min_scoring_side_km: f64,
     ) -> Self {
-        let mut evaluator = Self::new(track, class, min_scoring_side_km);
+        let mut evaluator = Self::new(track, options);
         evaluator.closing_distance_relative = closing_distance_relative;
         evaluator
     }
@@ -204,13 +204,13 @@ impl<'a> FaiTriangleEvaluator<'a> {
                 &self.track.points[score_info.closure.end_idx],
             ),
         };
-        let factor = self.class.multiplier();
+        let factor = self.options.multiplier;
         let distance_m = raw_distance_m.saturating_sub(closure.distance);
         ScoringOutcome::Answer(Route {
             id: 0, // A stub. Will be filled in by the caller.
             flight_id: "draft".to_owned(),
             route_type: RouteType::FaiTriangle,
-            sub_type: self.class.route_sub_type(),
+            sub_type: self.options.sub_type,
             turnpoints,
             leg_distances,
             distance: distance_m,
@@ -225,7 +225,11 @@ impl<'a> FaiTriangleEvaluator<'a> {
     /// Compute the optimistic upper bound for a given solution.
     fn compute_upper_bound(&self, solution: &Solution) -> f64 {
         let boxes = solution.ranges.map(|range| self.range_boxes.query(range));
-        let max_fai_distance = max_fai_distance(boxes, self.min_scoring_side_km);
+        let max_fai_distance = max_fai_distance(
+            boxes,
+            self.options.min_side,
+            self.options.min_scoring_side_km,
+        );
         if max_fai_distance == 0.0 {
             return 0.0;
         }
@@ -241,11 +245,11 @@ impl<'a> FaiTriangleEvaluator<'a> {
                 return 0.0;
             };
 
-            return (max_fai_distance - closure.distance_km) * self.class.multiplier();
+            return (max_fai_distance - closure.distance_km) * self.options.multiplier;
         }
 
         // A & C have overlapping time ranges. But the FAI triangle here is still possible.
-        max_fai_distance * self.class.multiplier()
+        max_fai_distance * self.options.multiplier
     }
 
     /// Score a triangle by the center of its three ranges. Return `None` if the
@@ -269,26 +273,32 @@ impl<'a> FaiTriangleEvaluator<'a> {
             self.points[indexes[2]].distance_haversine_km(&self.points[indexes[0]]),
         ];
 
-        if legs.iter().any(|&leg| leg < self.min_scoring_side_km) {
+        if let Some(min_scoring_side_km) = self.options.min_scoring_side_km
+            && legs.iter().any(|&leg| leg < min_scoring_side_km)
+        {
             // A side is shorter than the minimum scoring side. Bail out,
             // because the triangle is too small to be meaningful.
             return None;
         }
 
         let distance_km = legs.into_iter().sum::<f64>();
-        if distance_km < self.min_scoring_distance_km {
-            // It seems we have a way bigger "Free Distance" than this triangle.
-            // Bail out, to avoid wasting CPU.
+        if let Some(min_scoring_distance_km) = self.min_scoring_distance_km
+            && distance_km < min_scoring_distance_km
+        {
+            // It seems we have a way bigger "Free Distance" than this
+            // triangle. Bail out, to avoid wasting CPU.
             return None;
         }
 
-        let min_side_km = MIN_SIDE * distance_km; // 28% of the total distance.
-        if legs.iter().any(|&leg| leg < min_side_km) {
-            return None; // Not a FAI triangle.
+        if let Some(min_side) = self.options.min_side {
+            let min_side_km = min_side * distance_km;
+            if legs.iter().any(|&leg| leg < min_side_km) {
+                return None;
+            }
         }
 
         let closure = self.triangle_closure(indexes[0], indexes[2], distance_km)?;
-        let score = (distance_km - closure.distance_km) * self.class.multiplier();
+        let score = (distance_km - closure.distance_km) * self.options.multiplier;
         Some(ScoreInfo {
             closure,
             turnpoints: indexes,

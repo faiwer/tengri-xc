@@ -15,8 +15,8 @@ pub(crate) use approx::project_track_points_m;
 pub use aspect_ratio::track_aspect_ratio;
 pub use consts::{E5_TO_DEGREES, E5_TO_RAD, EARTH_RADIUS_M, METERS_PER_KM};
 pub use fcc::fcc_distance_km;
-pub use point_e5::{HasE5Coords, PointE5};
 pub use haversine::haversine_m;
+pub use point_e5::{HasE5Coords, PointE5};
 pub(crate) use rdp::{
     Point, RdpCapped, rdp, rdp_indexes, rdp_indexes_capped, rdp_indexes_with_chord_cap,
 };

@@ -3,10 +3,7 @@ use std::cmp::Ordering;
 use serde::Serialize;
 
 use super::super::RouteSubType;
-use super::constants::{
-    FAI_CLOSURE_CLOSED, FAI_CLOSURE_OPEN, FAI_TRIANGLE_CLOSED_MULTIPLIER,
-    FAI_TRIANGLE_OPEN_MULTIPLIER,
-};
+use super::constants::{OLC_CLOSURE_CLOSED, OLC_CLOSURE_OPEN};
 use super::geometry::{Range, RangeBoxes};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,25 +12,27 @@ pub enum FaiTriangleClass {
     Closed, // 5% closure gap
 }
 
-impl FaiTriangleClass {
-    pub(super) fn closure(self) -> f64 {
-        match self {
-            Self::Open => FAI_CLOSURE_OPEN,
-            Self::Closed => FAI_CLOSURE_CLOSED,
-        }
-    }
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TriangleOptions {
+    /// The OLC triangle subtype. Only `OlcOpen` and `OlcClosed` are supported.
+    pub(crate) sub_type: RouteSubType,
+    /// The OLC triangle scoring multiplier. Each km of triangle perimeter
+    /// scores this many points.
+    pub(crate) multiplier: f64,
+    /// The minimum length of each side as a fraction of total triangle distance.
+    /// For FAI triangles, this is 28%. For OLC triangles it's None.
+    pub(crate) min_side: Option<f64>,
+    /// The minimum length of each side as a fraction of the flight's free-distance
+    /// result. For FAI triangles, this is 1.4km. For OLC triangles it's None.
+    pub(crate) min_scoring_side_km: Option<f64>,
+}
 
-    pub(super) fn multiplier(self) -> f64 {
-        match self {
-            Self::Open => FAI_TRIANGLE_OPEN_MULTIPLIER,
-            Self::Closed => FAI_TRIANGLE_CLOSED_MULTIPLIER,
-        }
-    }
-
-    pub(super) fn route_sub_type(self) -> RouteSubType {
-        match self {
-            Self::Open => RouteSubType::OlcOpen,
-            Self::Closed => RouteSubType::OlcClosed,
+impl TriangleOptions {
+    pub(crate) fn closure_ratio(self) -> f64 {
+        match self.sub_type {
+            RouteSubType::OlcOpen => OLC_CLOSURE_OPEN,
+            RouteSubType::OlcClosed => OLC_CLOSURE_CLOSED,
+            _ => unreachable!("unsupported OLC triangle subtype"),
         }
     }
 }

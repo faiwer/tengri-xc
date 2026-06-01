@@ -28,8 +28,8 @@ async fn track_md_returns_id_and_pilot_name() {
     common::seed_full_track(&pool, &flight_id, vec![0; 4]).await;
     sqlx::query(
         "INSERT INTO routes \
-         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure) \
-         VALUES ($1, 'free_distance', 'none', $2::jsonb, $3, 1234, 1.23, 1.0, true, NULL)",
+         (flight_id, type, sub_type, turnpoints, leg_distances, distance, score, factor, optimal, closure, scored_ms) \
+         VALUES ($1, 'free_distance', 'none', $2::jsonb, $3, 1234, 1.23, 1.0, true, NULL, 0)",
     )
     .bind(&flight_id)
     .bind(

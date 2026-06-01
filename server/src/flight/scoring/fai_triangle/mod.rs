@@ -1,19 +1,18 @@
+mod constants;
 mod prefilter;
 
-use crate::flight::scoring::{Route, ScoringOutcome};
+use crate::flight::scoring::{Route, RouteSubType, ScoringOutcome};
 use crate::flight::types::Track;
 use crate::geo::METERS_PER_KM;
 
-use super::olc_triangle::{
-    DEFAULT_MIN_SCORING_SIDE_KM, FaiTriangleEvaluator, MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE,
-};
-pub use super::olc_triangle::{
-    FAI_CLOSURE_PREFILTER, FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent,
+pub use super::olc_triangle::{FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent};
+use super::olc_triangle::{FaiTriangleEvaluator, TriangleOptions};
+pub use constants::FAI_CLOSURE_PREFILTER;
+use constants::{
+    DEFAULT_MIN_SCORING_SIDE_KM, FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER,
+    MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE,
 };
 pub use prefilter::{FaiTriangleLazyAudit, FaiTriangleLazySkipReason};
-
-#[cfg(test)]
-use super::olc_triangle::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
 
 /// Evaluate the best FAI triangle for the track.
 ///
@@ -40,7 +39,8 @@ pub(super) fn evaluate_fai_triangle_with_min_side(
 ) -> ScoringOutcome<Route> {
     match class {
         Some(c) => {
-            let mut evaluator = FaiTriangleEvaluator::new(track, c, min_scoring_side_km);
+            let mut evaluator =
+                FaiTriangleEvaluator::new(track, options_for_class(c, min_scoring_side_km));
             evaluator.evaluate(None)
         }
         None => {
@@ -71,7 +71,8 @@ fn evaluate_fai_triangle_with_min_side_traced(
     min_scoring_side_km: f64,
     trace: &mut dyn FnMut(&TraceEvent),
 ) -> ScoringOutcome<Route> {
-    let mut evaluator = FaiTriangleEvaluator::new(track, class, min_scoring_side_km);
+    let mut evaluator =
+        FaiTriangleEvaluator::new(track, options_for_class(class, min_scoring_side_km));
     evaluator.evaluate(Some(trace))
 }
 
@@ -84,9 +85,8 @@ fn evaluate_fai_triangle_with_min_side_traced(
 pub(super) fn probe_fai_triangle(track: &Track) -> ScoringOutcome<Route> {
     let mut evaluator = FaiTriangleEvaluator::new_with_closure(
         track,
-        FaiTriangleClass::Open,
+        options_for_class(FaiTriangleClass::Open, DEFAULT_MIN_SCORING_SIDE_KM),
         FAI_CLOSURE_PREFILTER,
-        DEFAULT_MIN_SCORING_SIDE_KM,
     );
     evaluator.evaluate(None)
 }
@@ -134,6 +134,23 @@ fn best_outcome(a: ScoringOutcome<Route>, b: ScoringOutcome<Route>) -> ScoringOu
         (answer @ ScoringOutcome::Answer(_), _) | (_, answer @ ScoringOutcome::Answer(_)) => answer,
         (ScoringOutcome::NoAnswer, other) | (other, ScoringOutcome::NoAnswer) => other,
         (a, _) => a,
+    }
+}
+
+fn options_for_class(class: FaiTriangleClass, min_scoring_side_km: f64) -> TriangleOptions {
+    match class {
+        FaiTriangleClass::Open => TriangleOptions {
+            sub_type: RouteSubType::OlcOpen,
+            multiplier: FAI_TRIANGLE_OPEN_MULTIPLIER,
+            min_side: Some(MIN_SIDE),
+            min_scoring_side_km: Some(min_scoring_side_km),
+        },
+        FaiTriangleClass::Closed => TriangleOptions {
+            sub_type: RouteSubType::OlcClosed,
+            multiplier: FAI_TRIANGLE_CLOSED_MULTIPLIER,
+            min_side: Some(MIN_SIDE),
+            min_scoring_side_km: Some(min_scoring_side_km),
+        },
     }
 }
 
