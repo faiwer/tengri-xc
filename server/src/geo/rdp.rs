@@ -39,11 +39,6 @@ pub(crate) fn rdp_with_chord_cap(
         .collect()
 }
 
-/// The same as `rdp_with_chord_cap`, but returns indexes from the original track.
-pub(crate) fn rdp_indexes(points: &[Point], tolerance: f64) -> Vec<usize> {
-    rdp_indexes_with_chord_cap(points, tolerance, None)
-}
-
 pub(crate) enum RdpCapped {
     Complete(Vec<usize>),
     TooMany,
@@ -269,7 +264,7 @@ mod tests {
     fn straight_line_keeps_only_endpoints() {
         let points: Vec<_> = (0..10).map(|idx| Point::new(idx as f64, 0.0)).collect();
 
-        assert_eq!(rdp_indexes(&points, 1.0), vec![0, 9]);
+        assert_eq!(rdp_indexes_with_chord_cap(&points, 1.0, None), vec![0, 9]);
         assert_eq!(
             rdp(&points, 1.0),
             vec![Point::new(0.0, 0.0), Point::new(9.0, 0.0)]
@@ -285,7 +280,7 @@ mod tests {
             Point::new(100.0, 200.0),
         ];
 
-        let simplified = rdp_indexes(&points, 10.0);
+        let simplified = rdp_indexes_with_chord_cap(&points, 10.0, None);
 
         assert!(simplified.contains(&1));
         assert_eq!(simplified.first(), Some(&0));
@@ -320,7 +315,7 @@ mod tests {
 
         assert_eq!(
             rdp_indexes_with_chord_cap(&points, 10.0, Some(250.0)),
-            rdp_indexes(&points, 10.0)
+            rdp_indexes_with_chord_cap(&points, 10.0, None)
         );
     }
 
@@ -336,7 +331,7 @@ mod tests {
 
         assert_eq!(
             rdp_indexes_with_chord_cap(&points, 25.0, None),
-            rdp_indexes(&points, 25.0)
+            rdp_indexes_with_chord_cap(&points, 25.0, None)
         );
         assert_eq!(rdp_with_chord_cap(&points, 25.0, None), rdp(&points, 25.0));
     }

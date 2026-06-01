@@ -2,7 +2,6 @@ mod fai_triangle;
 mod free_distance;
 mod free_triangle;
 mod olc_triangle;
-mod shared;
 mod types;
 
 use std::time::Instant;
@@ -10,15 +9,11 @@ use std::time::Instant;
 use crate::flight::types::Track;
 
 pub use fai_triangle::{
-    FAI_CLOSURE_PREFILTER, FaiTriangleClass, FaiTriangleClosureCacheStats, FaiTriangleLazyAudit,
-    FaiTriangleLazySkipReason, TraceEvent, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
+    FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
+    TraceEvent, TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
 };
 pub use free_distance::evaluate_free_distance;
-pub use free_triangle::{
-    evaluate_free_triangle, evaluate_xcontest_free_triangle,
-    evaluate_xcontest_free_triangle_bounded,
-};
-pub use shared::simplify::{simplify_track, simplify_track_for_scoring_with_chord_cap};
+pub use free_triangle::evaluate_free_triangle;
 pub(crate) use types::{IndexedTrackPoint, RouteClosure, RouteSubType, ScoringError};
 pub use types::{Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome};
 

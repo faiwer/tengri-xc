@@ -24,12 +24,10 @@ pub use kmz::KmzError;
 pub use metadata::Metadata;
 pub(crate) use scoring::RouteSubType;
 pub use scoring::{
-    FAI_CLOSURE_PREFILTER, FaiTriangleClass, FaiTriangleClosureCacheStats, FaiTriangleLazyAudit,
-    FaiTriangleLazySkipReason, Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome,
-    TraceEvent, evaluate_fai_triangle, evaluate_fai_triangle_lazy, evaluate_free_distance,
-    evaluate_free_triangle, evaluate_routes, evaluate_xcontest_free_triangle,
-    evaluate_xcontest_free_triangle_bounded, simplify_track,
-    simplify_track_for_scoring_with_chord_cap,
+    FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
+    Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome, TraceEvent,
+    TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
+    evaluate_free_distance, evaluate_free_triangle, evaluate_routes,
 };
 pub use tengri::{TengriError, TengriFile};
 pub use types::{Track, TrackPoint};

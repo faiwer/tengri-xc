@@ -17,6 +17,4 @@ pub use consts::{E5_TO_DEGREES, E5_TO_RAD, EARTH_RADIUS_M, METERS_PER_KM};
 pub use fcc::fcc_distance_km;
 pub use haversine::haversine_m;
 pub use point_e5::{HasE5Coords, PointE5};
-pub(crate) use rdp::{
-    Point, RdpCapped, rdp, rdp_indexes, rdp_indexes_capped, rdp_indexes_with_chord_cap,
-};
+pub(crate) use rdp::{Point, RdpCapped, rdp, rdp_indexes_capped, rdp_indexes_with_chord_cap};

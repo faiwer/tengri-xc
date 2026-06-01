@@ -63,14 +63,14 @@
 //! that scoring point by that local margin, not by kilometres. The DP step
 //! itself still does not miss a better route among the candidates it receives.
 use crate::flight::types::Track;
+use crate::geo::PointE5 as Point;
 
-use super::super::shared::Point;
-use super::super::shared::simplify::simplify_track_to_target_count;
 use super::super::{RouteType, ScoringError};
 use super::constants::{
     RDP_MAX_TOLERANCE_M, RDP_MIN_TOLERANCE_M, RDP_TARGET_POINTS, RDP_TARGET_SPREAD,
     REFINE_MIN_WINDOW_POINTS, REFINE_START_WINDOW_PERCENT,
 };
+use super::simplify::simplify_track_to_target_count;
 use super::solver::{find_best_free_distance_dp, squeeze_route};
 use super::types::{FreeDistanceScore, route_point};
 

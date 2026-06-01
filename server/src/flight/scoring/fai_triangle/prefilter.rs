@@ -1,6 +1,8 @@
-use crate::flight::scoring::{ScoringOutcome, simplify_track_for_scoring_with_chord_cap};
+use crate::flight::scoring::ScoringOutcome;
 use crate::flight::types::Track;
 use crate::geo::track_aspect_ratio;
+
+use super::simplify::simplify_track_for_scoring_with_chord_cap;
 
 pub(super) const MIN_FREE_DISTANCE_M: u32 = 5_000;
 pub(super) const MAX_ASPECT_RATIO: f64 = 8.0;

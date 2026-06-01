@@ -1,5 +1,6 @@
 mod constants;
 mod prefilter;
+mod simplify;
 
 use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
 use crate::flight::types::Track;

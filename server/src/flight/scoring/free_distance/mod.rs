@@ -1,5 +1,6 @@
 mod constants;
 mod route_search;
+mod simplify;
 mod solver;
 mod track;
 mod types;
