@@ -19,7 +19,8 @@ pub use types::{FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent};
 /// Evaluate the best FAI triangle for the track.
 ///
 /// `class`:
-/// - `None` — run both `Open` and `Closed` and return whichever scores higher.
+/// - `None` — run `Open` first; if it answers, also run `Closed` and return
+///   whichever scores higher.
 /// - `Some(c)` — run only the given class.
 pub fn evaluate_fai_triangle(
     track: &Track,
@@ -49,6 +50,9 @@ pub(super) fn evaluate_fai_triangle_with_min_side(
                 Some(FaiTriangleClass::Open),
                 min_scoring_side_km,
             );
+            let ScoringOutcome::Answer(_) = open else {
+                return open;
+            };
             let closed = evaluate_fai_triangle_with_min_side(
                 track,
                 Some(FaiTriangleClass::Closed),
@@ -91,9 +95,10 @@ pub(super) fn probe_fai_triangle(track: &Track) -> ScoringOutcome<Route> {
 /// Evaluate the best FAI triangle for the track, but only if the prefilter
 /// determines the track is a plausible candidate.
 ///
-/// Internally runs both `Open` and `Closed` classes and returns whichever
-/// scores higher. Returns `ScoringOutcome::NoAnswer` immediately when the
-/// prefilter rejects the track; `audit.skip_reason` is set in that case.
+/// Internally checks the `Open` class first; when it answers, `Closed` is also
+/// evaluated and the higher score wins. Returns `ScoringOutcome::NoAnswer`
+/// immediately when the prefilter rejects the track; `audit.skip_reason` is set
+/// in that case.
 ///
 /// When `trace` is `Some`, B&B events are emitted for the `Open` class
 /// (matching Node.js `igc-xc-score`). A rejected track emits no events.

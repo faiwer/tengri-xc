@@ -108,6 +108,23 @@ fn explicit_open_class_uses_open_subtype_and_multiplier() {
 }
 
 #[test]
+fn combined_class_accepts_open_answer_without_closed() {
+    let track = triangle_track(27_000);
+
+    assert!(matches!(
+        evaluate_fai_triangle(&track, Some(FaiTriangleClass::Open)),
+        ScoringOutcome::Answer(_),
+    ));
+    assert!(matches!(
+        evaluate_fai_triangle(&track, Some(FaiTriangleClass::Closed)),
+        ScoringOutcome::NoAnswer,
+    ));
+    let route = answer(evaluate_fai_triangle(&track, None));
+
+    assert_eq!(route.sub_type, RouteSubType::OlcOpen);
+}
+
+#[test]
 fn shape_rule_rejects_thin_triangle() {
     // Three nearly collinear points: the two shorter legs are each ~25% of the
     // perimeter, below the 28% minimum-side floor.
