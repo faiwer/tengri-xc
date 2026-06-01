@@ -2,18 +2,20 @@ use std::cmp::Ordering;
 
 use serde::Serialize;
 
-use super::super::RouteSubType;
+use super::super::{RouteSubType, RouteType};
 use super::constants::{OLC_CLOSURE_CLOSED, OLC_CLOSURE_OPEN};
 use super::geometry::{Range, RangeBoxes};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FaiTriangleClass {
+pub enum OlcTriangleClass {
     Open,   // 20% closure gap
     Closed, // 5% closure gap
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TriangleOptions {
+    /// FAI or Free Triangle.
+    pub(crate) route_type: RouteType,
     /// The OLC triangle subtype. Only `OlcOpen` and `OlcClosed` are supported.
     pub(crate) sub_type: RouteSubType,
     /// The OLC triangle scoring multiplier. Each km of triangle perimeter
@@ -62,7 +64,7 @@ pub enum TraceEventKind {
 pub struct SummaryTraceEvent {
     pub processed: u64,
     pub current_upper_bound: f64,
-    pub closure_cache_stats: FaiTriangleClosureCacheStats,
+    pub closure_cache_stats: TriangleClosureCacheStats,
 }
 
 #[derive(Debug, Clone)]
@@ -72,7 +74,7 @@ pub enum TraceEvent {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct FaiTriangleClosureCacheStats {
+pub struct TriangleClosureCacheStats {
     pub cached_prefix_trees: usize,
     pub cached_prefix_tree_points: usize,
     pub largest_cached_prefix_tree_points: usize,

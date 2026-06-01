@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 
 use super::geometry::{Box, Point, Range, RangeBoxes};
-use super::types::FaiTriangleClosureCacheStats;
+use super::types::TriangleClosureCacheStats;
 
 /// Branch-and-Bound search for the nearest (Q, W) closure pair.
 ///
@@ -203,8 +203,8 @@ impl ClosurePairs {
         }
     }
 
-    pub(super) fn cache_stats(&self) -> FaiTriangleClosureCacheStats {
-        FaiTriangleClosureCacheStats {
+    pub(super) fn cache_stats(&self) -> TriangleClosureCacheStats {
+        TriangleClosureCacheStats {
             cached_closures: self.rects.borrow().values().map(|v| v.len()).sum(),
             cached_prefix_trees: self.calls.get() as usize,
             max_cache_hits_per_lookup: self.nodes.get() as usize,

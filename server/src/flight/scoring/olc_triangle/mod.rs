@@ -5,6 +5,6 @@ mod evaluator;
 mod geometry;
 mod types;
 
-pub(super) use evaluator::FaiTriangleEvaluator;
+pub(super) use evaluator::OlcTriangleEvaluator;
 pub(super) use types::TriangleOptions;
-pub use types::{FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent};
+pub use types::{OlcTriangleClass, TraceEvent, TriangleClosureCacheStats};

@@ -4,7 +4,7 @@ use crate::flight::types::Track;
 use crate::geo::METERS_PER_KM;
 
 use super::super::types::{leg_distance_m, to_track_point};
-use super::super::{Route, RouteClosure, RouteType, RouteWaypoint, ScoringOutcome};
+use super::super::{Route, RouteClosure, RouteWaypoint, ScoringOutcome};
 use super::bounds::max_fai_distance;
 use super::closure::ClosurePairs;
 use super::geometry::{Point, Range, RangeBoxes};
@@ -13,7 +13,7 @@ use super::types::{
     TraceEvent, TraceEventKind, TriangleOptions, to_trace_ranges,
 };
 
-pub(crate) struct FaiTriangleEvaluator<'a> {
+pub(crate) struct OlcTriangleEvaluator<'a> {
     track: &'a Track,
     points: Vec<Point>,
     /// Segment tree of per-range bounding boxes used for branch bounds.
@@ -34,7 +34,7 @@ pub(crate) struct FaiTriangleEvaluator<'a> {
     min_scoring_distance_km: Option<f64>,
 }
 
-impl<'a> FaiTriangleEvaluator<'a> {
+impl<'a> OlcTriangleEvaluator<'a> {
     pub(crate) fn new(track: &'a Track, options: TriangleOptions) -> Self {
         let points = track
             .points
@@ -185,7 +185,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
                 fix: self.track.points[idx],
             })
             .collect::<Vec<_>>();
-        let leg_distances = fai_triangle_legs_m(
+        let leg_distances = triangle_legs_m(
             turnpoints
                 .as_slice()
                 .try_into()
@@ -209,7 +209,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
         ScoringOutcome::Answer(Route {
             id: 0, // A stub. Will be filled in by the caller.
             flight_id: "draft".to_owned(),
-            route_type: RouteType::FaiTriangle,
+            route_type: self.options.route_type,
             sub_type: self.options.sub_type,
             turnpoints,
             leg_distances,
@@ -334,8 +334,8 @@ impl<'a> FaiTriangleEvaluator<'a> {
     }
 }
 
-/// Calculate the legs of a FAI triangle based on the three turnpoints.
-fn fai_triangle_legs_m([a, b, c]: &[RouteWaypoint; 3]) -> Vec<u32> {
+/// Calculate the legs of a triangle based on the three turnpoints.
+fn triangle_legs_m([a, b, c]: &[RouteWaypoint; 3]) -> Vec<u32> {
     let [a, b, c] = [to_track_point(a), to_track_point(b), to_track_point(c)];
     vec![
         leg_distance_m(a, b),
