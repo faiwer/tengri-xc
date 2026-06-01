@@ -13,7 +13,7 @@ pub use fai_triangle::{
     TraceEvent, TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
 };
 pub use free_distance::evaluate_free_distance;
-pub use free_triangle::evaluate_free_triangle;
+pub use free_triangle::{evaluate_free_triangle, evaluate_free_triangle_lazy};
 pub(crate) use types::{IndexedTrackPoint, RouteClosure, RouteSubType, ScoringError};
 pub use types::{Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome};
 
@@ -67,7 +67,7 @@ fn evaluate_route(
 ) -> ScoringOutcome<Route> {
     match route_type {
         RouteType::FreeDistance => ScoringOutcome::Answer(free_distance.clone()),
-        RouteType::FreeTriangle => evaluate_free_triangle(track),
+        RouteType::FreeTriangle => evaluate_free_triangle_lazy(track, free_distance.distance),
         RouteType::FaiTriangle => {
             evaluate_fai_triangle_lazy(track, free_distance.distance, None, None)
         }

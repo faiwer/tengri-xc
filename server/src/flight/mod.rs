@@ -27,7 +27,7 @@ pub use scoring::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
     Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome, TraceEvent,
     TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
-    evaluate_free_distance, evaluate_free_triangle, evaluate_routes,
+    evaluate_free_distance, evaluate_free_triangle, evaluate_free_triangle_lazy, evaluate_routes,
 };
 pub use tengri::{TengriError, TengriFile};
 pub use types::{Track, TrackPoint};
