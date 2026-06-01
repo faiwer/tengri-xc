@@ -14,7 +14,7 @@ use super::types::{
     SummaryTraceEvent, TraceEvent, TraceEventKind, to_trace_ranges,
 };
 
-pub(super) struct FaiTriangleEvaluator<'a> {
+pub(crate) struct FaiTriangleEvaluator<'a> {
     track: &'a Track,
     points: Vec<Point>,
     /// Segment tree of per-range bounding boxes used for branch bounds.
@@ -39,7 +39,7 @@ pub(super) struct FaiTriangleEvaluator<'a> {
 }
 
 impl<'a> FaiTriangleEvaluator<'a> {
-    pub(super) fn new(track: &'a Track, class: FaiTriangleClass, min_scoring_side_km: f64) -> Self {
+    pub(crate) fn new(track: &'a Track, class: FaiTriangleClass, min_scoring_side_km: f64) -> Self {
         let points = track
             .points
             .iter()
@@ -62,7 +62,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
         }
     }
 
-    pub(super) fn new_with_closure(
+    pub(crate) fn new_with_closure(
         track: &'a Track,
         class: FaiTriangleClass,
         closing_distance_relative: f64,
@@ -73,7 +73,7 @@ impl<'a> FaiTriangleEvaluator<'a> {
         evaluator
     }
 
-    pub(super) fn evaluate(
+    pub(crate) fn evaluate(
         &mut self,
         mut trace: Option<&mut dyn FnMut(&TraceEvent)>,
     ) -> ScoringOutcome<Route> {

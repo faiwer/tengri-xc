@@ -1,20 +1,19 @@
-mod bounds;
-mod closure;
-mod constants;
-mod evaluator;
-mod geometry;
 mod prefilter;
-mod types;
 
 use crate::flight::scoring::{Route, ScoringOutcome};
 use crate::flight::types::Track;
 use crate::geo::METERS_PER_KM;
 
-pub use constants::FAI_CLOSURE_PREFILTER;
-use constants::{DEFAULT_MIN_SCORING_SIDE_KM, MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE};
-use evaluator::FaiTriangleEvaluator;
+use super::olc_triangle::{
+    DEFAULT_MIN_SCORING_SIDE_KM, FaiTriangleEvaluator, MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE,
+};
+pub use super::olc_triangle::{
+    FAI_CLOSURE_PREFILTER, FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent,
+};
 pub use prefilter::{FaiTriangleLazyAudit, FaiTriangleLazySkipReason};
-pub use types::{FaiTriangleClass, FaiTriangleClosureCacheStats, TraceEvent};
+
+#[cfg(test)]
+use super::olc_triangle::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
 
 /// Evaluate the best FAI triangle for the track.
 ///

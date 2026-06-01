@@ -1,5 +1,5 @@
+use super::constants::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
 use super::*;
-use super::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
 use crate::flight::scoring::{Route, RouteSubType, ScoringOutcome};
 use crate::flight::types::TrackPoint;
 use crate::geo::METERS_PER_KM;

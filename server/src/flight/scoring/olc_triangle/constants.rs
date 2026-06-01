@@ -1,22 +1,22 @@
 /// Minimum length of each FAI triangle side as a fraction of total triangle
 /// distance.
-pub(super) const MIN_SIDE: f64 = 0.28;
+pub(crate) const MIN_SIDE: f64 = 0.28;
 
 /// Default per-side floor for scoring FAI triangles, in kilometres. Used to
 /// avoid computing too tiny triangles where a single spiral loop would be be
 /// considered a valid FAI triangle.
-pub(super) const DEFAULT_MIN_SCORING_SIDE_KM: f64 = 1.4;
+pub(crate) const DEFAULT_MIN_SCORING_SIDE_KM: f64 = 1.4;
 
 /// Open OLC FAI triangle scoring multiplier in points per kilometre.
-pub(super) const FAI_TRIANGLE_OPEN_MULTIPLIER: f64 = 1.4;
+pub(crate) const FAI_TRIANGLE_OPEN_MULTIPLIER: f64 = 1.4;
 
 /// Closed OLC FAI triangle scoring multiplier in points per kilometre.
-pub(super) const FAI_TRIANGLE_CLOSED_MULTIPLIER: f64 = 1.6;
+pub(crate) const FAI_TRIANGLE_CLOSED_MULTIPLIER: f64 = 1.6;
 
 /// Before we start computing FAI triangles, we search for a simpler FAI
 /// triangle that is at least this fraction of the flight's free-distance result.
 /// If we find no such triangle, we skip the real FAI triangle search.
-pub(super) const MIN_FAI_TO_FREE_DISTANCE_RATIO: f64 = 0.25;
+pub(crate) const MIN_FAI_TO_FREE_DISTANCE_RATIO: f64 = 0.25;
 
 /// The closure threshold for open OLC FAI triangles. The B-C leg must be at
 /// least this fraction of the flight's free-distance result.
