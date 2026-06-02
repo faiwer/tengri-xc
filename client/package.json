@@ -13,8 +13,11 @@
     "lint:fix": "oxlint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "oxfmt \"src/**/*.{ts,tsx}\" && prettier --write \"src/**/*.scss\"",
-    "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\" && prettier --check \"src/**/*.scss\"",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install",
+    "format": "oxfmt \"src/**/*.{ts,tsx}\" \"playwright.config.ts\" \"e2e/**/*.ts\" && prettier --write \"src/**/*.scss\"",
+    "format:check": "oxfmt --check \"src/**/*.{ts,tsx}\" \"playwright.config.ts\" \"e2e/**/*.ts\" && prettier --check \"src/**/*.scss\"",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -33,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@typescript/native-preview": "^7.0.0-dev.20260506.1",
     "@vitejs/plugin-react": "^6.0.1",
     "oxlint": "^1.63.0",

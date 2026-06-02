@@ -4,7 +4,9 @@ use std::io::{self, Read};
 
 use anyhow::{Context, anyhow};
 use clap::Subcommand;
-use tengri_server::user::{CreateUser, CreateUserPassword, CreatedUser, create_user};
+use tengri_server::user::{
+    CreateUser, CreateUserPassword, CreatedUser, create_user, create_user_if_absent,
+};
 
 use super::shared::connect_pool;
 
@@ -39,6 +41,10 @@ pub enum Cmd {
         /// Print the created user as JSON.
         #[arg(long)]
         json: bool,
+
+        /// Treat an existing `id` as success.
+        #[arg(long = "if-absent")]
+        if_absent: bool,
     },
 }
 
@@ -52,6 +58,7 @@ pub async fn run(cmd: Cmd) -> anyhow::Result<()> {
             password_stdin,
             permissions,
             json,
+            if_absent,
         } => {
             add(AddArgs {
                 name,
@@ -61,6 +68,7 @@ pub async fn run(cmd: Cmd) -> anyhow::Result<()> {
                 password_stdin,
                 permissions,
                 json,
+                if_absent,
             })
             .await
         }
@@ -75,6 +83,7 @@ struct AddArgs {
     password_stdin: bool,
     permissions: i32,
     json: bool,
+    if_absent: bool,
 }
 
 async fn add(args: AddArgs) -> anyhow::Result<()> {
@@ -92,13 +101,21 @@ async fn add(args: AddArgs) -> anyhow::Result<()> {
     input.password = password;
     input.permissions = args.permissions;
 
-    let user = create_user(&pool, input).await?;
-
-    if args.json {
-        println!("{}", serde_json::to_string(&user)?);
-    } else {
-        print_added_user(&user);
+    if args.if_absent {
+        let Some(user) = create_user_if_absent(&pool, input).await? else {
+            if args.json {
+                println!("null");
+            } else {
+                println!("user already exists");
+            }
+            return Ok(());
+        };
+        print_user(&user, args.json)?;
+        return Ok(());
     }
+
+    let user = create_user(&pool, input).await?;
+    print_user(&user, args.json)?;
     Ok(())
 }
 
@@ -114,6 +131,15 @@ fn read_password_stdin() -> anyhow::Result<String> {
         return Err(anyhow!("password from stdin is empty"));
     }
     Ok(password)
+}
+
+fn print_user(user: &CreatedUser, json: bool) -> anyhow::Result<()> {
+    if json {
+        println!("{}", serde_json::to_string(user)?);
+    } else {
+        print_added_user(user);
+    }
+    Ok(())
 }
 
 fn print_added_user(user: &CreatedUser) {

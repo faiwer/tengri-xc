@@ -20,10 +20,18 @@ export const GlidersTree = (props: TreeProps) => (
   />
 );
 
-export const BrandIcon = () => <HomeOutlined className={styles.brandIcon} />;
+export const BrandIcon = () => (
+  <HomeOutlined
+    // @ts-ignore
+    className={styles.brandIcon}
+  />
+);
 
 export const ClassIcon = () => (
-  <DatabaseOutlined className={styles.classIcon} />
+  <DatabaseOutlined
+    // @ts-ignore
+    className={styles.classIcon}
+  />
 );
 
 export const KindIcon = ({ kind }: { kind: Sport }) => (
