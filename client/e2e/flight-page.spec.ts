@@ -65,6 +65,34 @@ test('chart hover updates the cursor readout', async ({ page }) => {
   await checkCursorReadout(page, readout);
 });
 
+test('chart help tooltip follows the selected chart', async ({ page }) => {
+  const { flightId } = await seedFlightFixture('fai-T-110.3.igc');
+  await page.goto(`/flight/${flightId}`);
+
+  const chartPanel = page.getByRole('region', { name: 'Flight charts' });
+  await expect(chartPanel).toBeVisible();
+
+  await checkChartHelpTooltip(page, chartPanel, 'better for absolute height');
+
+  await chartPanel.getByRole('img', { name: 'Speed' }).click();
+  await checkChartHelpTooltip(page, chartPanel, 'cross-country ground speed');
+
+  await chartPanel.getByRole('img', { name: 'Vario' }).click();
+  await checkChartHelpTooltip(page, chartPanel, 'positive vertical speed');
+});
+
+async function checkChartHelpTooltip(
+  page: Page,
+  chartPanel: Locator,
+  expectedText: string,
+) {
+  await chartPanel
+    .getByRole('img', { name: 'Explain active chart lines' })
+    .hover();
+  await expect(page.getByRole('tooltip')).toContainText(expectedText);
+  await moveMouseToPageCorner(page);
+}
+
 async function checkCursorReadout(page: Page, readout: Locator) {
   await expect(readout).toContainText('m');
   await expect(readout).toContainText('m/s');

@@ -1,6 +1,6 @@
 import { cloneElement, type ElementNode } from 'react';
 
-import { iconSvgStyle, type IconProps } from './icon';
+import { iconSvgProps, iconSvgStyle, type IconProps } from './icon';
 
 const svg = (
   <svg
@@ -24,6 +24,10 @@ const svg = (
   </svg>
 ) as ElementNode;
 
-export function SpeedIcon({ className, style }: IconProps) {
-  return cloneElement(svg, { className, style: iconSvgStyle(style) });
+export function SpeedIcon({ className, style, ...props }: IconProps) {
+  return cloneElement(svg, {
+    ...iconSvgProps(props),
+    className,
+    style: iconSvgStyle(style),
+  });
 }
