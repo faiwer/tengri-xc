@@ -5,6 +5,7 @@
 //!
 //! Three builders, one per SQL shape the codebase actually writes:
 //! - [`Sql`] — `SELECT … FROM … [JOIN …] WHERE … ORDER BY … LIMIT …`
+//! - [`Insert`] — `INSERT INTO … VALUES … [RETURNING …]`
 //! - [`Update`] — `UPDATE … SET … WHERE …`
 //! - [`Upsert`] — `INSERT … ON CONFLICT (…) DO UPDATE SET col = EXCLUDED.col, …`
 //!
@@ -39,12 +40,14 @@
 //! `prev AND name ILIKE $ OR email ILIKE $` (wrong precedence).
 
 mod binds;
+mod insert;
 mod select;
 mod update;
 mod upsert;
 mod where_clause;
 
 pub use binds::IntoBinds;
+pub use insert::Insert;
 pub use select::Sql;
 pub use update::Update;
 pub use upsert::Upsert;

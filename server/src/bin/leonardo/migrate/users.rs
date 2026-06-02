@@ -63,7 +63,9 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::{MySqlPool, PgPool, Row};
-use tengri_server::user::{Permissions, UserSource};
+use tengri_server::user::{
+    CreateUser, CreateUserPassword, Permissions, UserSource, create_user_if_absent,
+};
 
 use super::{Failure, Report};
 
@@ -376,50 +378,27 @@ fn compose_name(p: &SourcePilot) -> String {
 /// is preserved by `ON CONFLICT (id) DO NOTHING`, so a half-finished
 /// run can be completed by re-running.
 ///
-/// The IDENTITY sequence bump *does* run as part of its own implicit
-/// transaction, after all inserts; if every row failed it'll just
-/// reset to 1, which is harmless.
+/// Explicit ids are created through the shared user creation path,
+/// which keeps the `users.id` identity sequence in sync.
 async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome> {
     let mut outcome = UpsertOutcome::default();
 
     for u in users {
-        // `RETURNING id` only emits a row when the insert actually
-        // happened, which is the cleanest "did we insert it?" signal
-        // for `ON CONFLICT DO NOTHING`. We deliberately *don't*
-        // upsert auth fields on conflict: this command is for first
-        // imports and re-runs to fill gaps, not for picking up
-        // password / email changes that happened in Leonardo after
-        // the initial import. (That'd be a future
-        // `leonardo sync` command with explicit semantics.)
-        let result = sqlx::query_scalar::<_, i32>(
-            "INSERT INTO users ( \
-                 id, name, login, email, password_hash, \
-                 source, permissions, \
-                 email_verified_at, last_login_at, created_at \
-             ) \
-             VALUES ( \
-                 $1, $2, $3, $4, $5, \
-                 $6::user_source, $7, \
-                 $8, $9, COALESCE($10, now()) \
-             ) \
-             ON CONFLICT (id) DO NOTHING \
-             RETURNING id",
-        )
-        .bind(u.id)
-        .bind(&u.name)
-        .bind(&u.login)
-        .bind(&u.email)
-        .bind(&u.password_hash)
-        .bind(UserSource::Leo.pg_enum_value())
-        .bind(u.permissions.bits())
-        .bind(u.email_verified_at)
-        .bind(u.last_login_at)
-        .bind(u.created_at)
-        .fetch_optional(pg)
-        .await;
+        let mut input = CreateUser::internal(u.name.clone());
+        input.id = Some(u.id);
+        input.login = Some(u.login.clone());
+        input.email = u.email.clone();
+        input.password = Some(CreateUserPassword::Hash(u.password_hash.clone()));
+        input.permissions = u.permissions.bits();
+        input.source = UserSource::Leo;
+        input.email_verified_at = u.email_verified_at;
+        input.last_login_at = u.last_login_at;
+        input.created_at = u.created_at;
+
+        let result = create_user_if_absent(pg, input).await;
 
         match result {
-            Ok(Some(_)) => outcome.inserted += 1,
+            Ok(Some(_user)) => outcome.inserted += 1,
             Ok(None) => outcome.skipped += 1,
             Err(e) => outcome.failures.push(Failure {
                 key: format!("id={} login={:?}", u.id, u.login),
@@ -427,16 +406,6 @@ async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome
             }),
         }
     }
-
-    sqlx::query(
-        "SELECT setval( \
-             pg_get_serial_sequence('users', 'id'), \
-             GREATEST((SELECT COALESCE(MAX(id), 0) FROM users), 1) \
-         )",
-    )
-    .execute(pg)
-    .await
-    .context("advancing users.id sequence")?;
 
     Ok(outcome)
 }
