@@ -2,6 +2,8 @@ mod constants;
 mod route_search;
 mod simplify;
 mod solver;
+#[cfg(test)]
+mod tests;
 mod track;
 mod types;
 
