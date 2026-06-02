@@ -1,10 +1,11 @@
 import {
   GithubOutlined,
   LogoutOutlined,
+  PlusOutlined,
   SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Button } from 'antd';
+import { Button, Tooltip } from 'antd';
 import clsx from 'clsx';
 import { useEffect, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -59,6 +60,13 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
         </Link>
         {me && (
           <span className={styles.actions}>
+            <Tooltip title="Upload flight">
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => window.alert('todo')}
+                aria-label="Upload flight"
+              />
+            </Tooltip>
             <Link to={routes.settings.profile()}>
               <Button
                 icon={isAdmin(me) ? <SettingOutlined /> : <UserOutlined />}
