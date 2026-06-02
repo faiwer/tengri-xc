@@ -57,7 +57,7 @@ export function FlightChart({
           onChange={onActiveKindChange}
         />
       </div>
-      <div className={styles.body}>
+      <div className={styles.body} data-testid="flight-chart">
         {activeKind === 'altitude' && (
           <AltitudeChart
             track={track}

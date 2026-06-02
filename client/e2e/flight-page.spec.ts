@@ -1,5 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import { seedFlightFixture } from './support/flightFixtures';
+
+const COORDINATES_READOUT = /^[0-9]+\.[0-9]+,\s+[0-9]+\.[0-9]+$/;
 
 test(`anonymous visitor can open a flight page`, async ({ page }) => {
   const { flightId } = await seedFlightFixture('fai-T-110.3.igc');
@@ -20,3 +22,76 @@ test(`anonymous visitor can open a flight page`, async ({ page }) => {
   await expect(sidebar).toContainText('4.219 m');
   await expect(sidebar).toContainText('881 m');
 });
+
+test('map hover updates the cursor readout', async ({ page }) => {
+  const { flightId } = await seedFlightFixture('fai-T-110.3.igc');
+  await page.goto(`/flight/${flightId}`);
+
+  const readout = page.getByRole('status', { name: 'Cursor readout' });
+  await expect(readout).toBeVisible();
+
+  const map = page.getByTestId('flight-map');
+  await expect(map).toBeVisible();
+  const box = await map.boundingBox();
+  if (!box) {
+    throw new Error('Flight map has no bounding box');
+  }
+
+  await map.hover({
+    position: { x: box.width / 2, y: box.height / 2 },
+  });
+
+  await checkCursorReadout(page, readout);
+});
+
+test('chart hover updates the cursor readout', async ({ page }) => {
+  const { flightId } = await seedFlightFixture('fai-T-110.3.igc');
+  await page.goto(`/flight/${flightId}`);
+
+  const readout = page.getByRole('status', { name: 'Cursor readout' });
+  await expect(readout).toBeVisible();
+
+  const chart = page.getByTestId('flight-chart');
+  await expect(chart).toBeVisible();
+  const box = await chart.boundingBox();
+  if (!box) {
+    throw new Error('Flight chart has no bounding box');
+  }
+
+  await chart.hover({
+    position: { x: box.width / 2, y: box.height / 2 },
+  });
+
+  await checkCursorReadout(page, readout);
+});
+
+async function checkCursorReadout(page: Page, readout: Locator) {
+  await expect(readout).toContainText('m');
+  await expect(readout).toContainText('m/s');
+  await expect(readout).toContainText('km/h');
+
+  await readout
+    .getByText(/^[0-9,.]+ m$/)
+    .first()
+    .hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toContainText('GPS');
+  await expect(tooltip).toContainText(
+    'better for absolute height, noisier for altitude differences',
+  );
+
+  await moveMouseToPageCorner(page);
+
+  await expect(readout).toHaveText(COORDINATES_READOUT);
+  await expect(readout).not.toContainText('m/s');
+  await expect(readout).not.toContainText('km/h');
+}
+
+async function moveMouseToPageCorner(page: Page) {
+  const viewport = page.viewportSize();
+  if (!viewport) {
+    throw new Error('Page has no viewport size');
+  }
+
+  await page.mouse.move(viewport.width - 1, 1);
+}

@@ -55,7 +55,11 @@ export function CursorReadout({
         ];
 
   return (
-    <div className={styles.cursorReadout}>
+    <div
+      className={styles.cursorReadout}
+      role="status"
+      aria-label="Cursor readout"
+    >
       {fields.map(({ color, icon, key, tooltip, value, width }) => (
         <Tooltip key={key} title={tooltip}>
           <span

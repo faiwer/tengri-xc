@@ -40,7 +40,11 @@ export function MapView({
   });
 
   return (
-    <div className={styles.container}>
+    <div
+      className={styles.container}
+      aria-label="Flight map"
+      data-testid="flight-map"
+    >
       <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
       <APIProvider apiKey={API_KEY}>
         <Map
