@@ -14,6 +14,7 @@ import { useAsync, useErrorToast } from '../../core/hooks';
 import { isAdmin, useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
 import { useSite } from '../../core/site';
+import { useUploadFlight } from '../../features/uploadFlight';
 import styles from './PageLayout.module.scss';
 
 interface PageLayoutProps {
@@ -35,6 +36,7 @@ interface PageLayoutProps {
 export function PageLayout({ children, fit = false }: PageLayoutProps) {
   const { me, setMe } = useIdentity();
   const { site } = useSite();
+  const { openModal: openUploadFlightModal } = useUploadFlight();
   const navigate = useNavigate();
 
   // Reflect the configured site name into the browser tab. Per-page titles
@@ -63,22 +65,26 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
             <Tooltip title="Upload flight">
               <Button
                 icon={<PlusOutlined />}
-                onClick={() => window.alert('todo')}
+                onClick={openUploadFlightModal}
                 aria-label="Upload flight"
               />
             </Tooltip>
             <Link to={routes.settings.profile()}>
-              <Button
-                icon={isAdmin(me) ? <SettingOutlined /> : <UserOutlined />}
-                aria-label="Account settings"
-              />
+              <Tooltip title="Account settings">
+                <Button
+                  icon={isAdmin(me) ? <SettingOutlined /> : <UserOutlined />}
+                  aria-label="Account settings"
+                />
+              </Tooltip>
             </Link>
-            <Button
-              icon={<LogoutOutlined />}
-              loading={isSigningOut}
-              onClick={signOut}
-              aria-label="Sign out"
-            />
+            <Tooltip title="Sign out">
+              <Button
+                icon={<LogoutOutlined />}
+                loading={isSigningOut}
+                onClick={signOut}
+                aria-label="Sign out"
+              />
+            </Tooltip>
           </span>
         )}
       </header>
