@@ -1,6 +1,9 @@
 import clsx from 'clsx';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { getKeySnapshot } from '../../utils/browser';
 import styles from './DropZone.module.scss';
+
+export type DropZoneMode = 'single' | 'multiple';
 
 interface DropZoneProps {
   /** The list of valid file extensions. */
@@ -29,6 +32,21 @@ export function DropZone({
   );
   const [state, setState] = useState<DropZoneState>('idle');
   const dragDepth = useRef(0);
+
+  const submitFiles = (files: File[] | null) => {
+    if (!files || !areFilesAccepted(files, acceptedExtensions, mode)) {
+      setState('invalid');
+      return;
+    }
+
+    setState('idle');
+    onDropFiles(files);
+  };
+  const openFileDialog = useFileDialog({
+    extensions,
+    mode,
+    onFilesSelected: submitFiles,
+  });
 
   const onDragOver = (event: DragEvent) => {
     const { dataTransfer } = event;
@@ -86,12 +104,19 @@ export function DropZone({
     const files = filesFrom(dataTransfer);
     if (!files || !areFilesAccepted(files, acceptedExtensions, mode)) {
       dataTransfer.dropEffect = 'none'; // Might change the cursor.
-      setState('invalid');
+    }
+
+    submitFiles(files);
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const key = getKeySnapshot(event);
+    if (key !== 'enter' && key !== 'space') {
       return;
     }
 
-    setState('idle');
-    onDropFiles(files);
+    event.preventDefault();
+    openFileDialog();
   };
 
   return (
@@ -101,10 +126,14 @@ export function DropZone({
         state === 'valid' && styles.dropZoneValid,
         state === 'invalid' && styles.dropZoneInvalid,
       )}
+      role="button"
+      tabIndex={0}
+      onClick={openFileDialog}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      onKeyDown={onKeyDown}
       onMouseLeave={() => setState('idle')}
     >
       {state === 'invalid' ? invalidContent : children}
@@ -112,7 +141,40 @@ export function DropZone({
   );
 }
 
-type DropZoneMode = 'single' | 'multiple';
+function useFileDialog({
+  extensions,
+  mode,
+  onFilesSelected,
+}: {
+  extensions: string[];
+  mode: DropZoneMode;
+  onFilesSelected: (files: File[] | null) => void;
+}): () => void {
+  const accept = useMemo(
+    () =>
+      extensions
+        .map((ext) => `.${ext.replace(/^\./, '').toLowerCase()}`)
+        .join(','),
+    [extensions],
+  );
+
+  return () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.multiple = mode === 'multiple';
+    input.addEventListener(
+      'change',
+      () => {
+        const files = Array.from(input.files ?? []);
+        onFilesSelected(files.length === 0 ? null : files);
+        input.value = '';
+      },
+      { once: true },
+    );
+    input.click();
+  };
+}
 
 export type DropZoneState = 'idle' | 'valid' | 'invalid';
 
