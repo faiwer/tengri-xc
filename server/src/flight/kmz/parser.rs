@@ -30,6 +30,16 @@ pub fn parse_bytes(bytes: &[u8]) -> Result<Track, KmzError> {
 /// `flight_sources` (keeps the source format enum a tidy `igc/gpx/kml`
 /// rather than sprouting `kmz` for what is purely a transport wrapper).
 pub fn extract_kml_bytes(bytes: &[u8]) -> Result<Vec<u8>, KmzError> {
+    extract_kml_bytes_inner(bytes, None)
+}
+
+/// Same as `extract_kml_bytes`, but limits the decompressed size to
+/// `limit` bytes. Protects against gunzip bomb attacks.
+pub fn extract_kml_bytes_bounded(bytes: &[u8], limit: usize) -> Result<Vec<u8>, KmzError> {
+    extract_kml_bytes_inner(bytes, Some(limit))
+}
+
+fn extract_kml_bytes_inner(bytes: &[u8], limit: Option<usize>) -> Result<Vec<u8>, KmzError> {
     if bytes.is_empty() {
         return Err(KmzError::Empty);
     }
@@ -37,8 +47,22 @@ pub fn extract_kml_bytes(bytes: &[u8]) -> Result<Vec<u8>, KmzError> {
 
     let entry_index = pick_kml_entry_index(&mut zip).ok_or(KmzError::NoKmlEntry)?;
     let mut entry = zip.by_index(entry_index)?;
-    let mut buf = Vec::with_capacity(entry.size() as usize);
-    entry.read_to_end(&mut buf).map_err(KmzError::ReadEntry)?;
+    let capacity = limit
+        .map(|limit| limit.min(entry.size() as usize))
+        .unwrap_or(entry.size() as usize);
+    let mut buf = Vec::with_capacity(capacity);
+    match limit {
+        Some(limit) => {
+            let mut limited = (&mut entry).take((limit + 1) as u64);
+            limited.read_to_end(&mut buf).map_err(KmzError::ReadEntry)?;
+            if buf.len() > limit {
+                return Err(KmzError::KmlEntryTooLarge { limit });
+            }
+        }
+        None => {
+            entry.read_to_end(&mut buf).map_err(KmzError::ReadEntry)?;
+        }
+    }
     Ok(buf)
 }
 

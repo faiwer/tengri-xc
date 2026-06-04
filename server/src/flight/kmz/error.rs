@@ -16,6 +16,9 @@ pub enum KmzError {
     #[error("failed to read KML entry from archive: {0}")]
     ReadEntry(#[source] std::io::Error),
 
+    #[error("KML entry expands beyond the {limit} byte limit")]
+    KmlEntryTooLarge { limit: usize },
+
     /// The inner KML failed to parse. Wrapping `KmlError` rather than
     /// flattening preserves the parser's structured error data
     /// (length mismatches, bad coords, etc.).

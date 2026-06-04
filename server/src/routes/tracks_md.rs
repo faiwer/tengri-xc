@@ -10,6 +10,7 @@ use serde::Serialize;
 use crate::{
     AppError, AppState,
     flight::{Route, store::fetch_scored_routes},
+    geo::PointDegrees,
 };
 
 pub fn router() -> Router<AppState> {
@@ -29,8 +30,8 @@ struct TrackMd {
     /// IANA timezone names at the takeoff/landing fixes.
     takeoff_timezone: String,
     landing_timezone: String,
-    takeoff: Point,
-    landing: Point,
+    takeoff: PointDegrees,
+    landing: PointDegrees,
     /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
     compression_ratio: f32,
     routes: Vec<Route>,
@@ -65,15 +66,6 @@ struct Glider {
     brand_name: String,
     model_id: String,
     model_name: String,
-}
-
-/// Decimal degrees on WGS-84. The DB carries the column as `geography(Point,
-/// 4326)`; we cast to `geometry` only to use `ST_X` / `ST_Y`, which
-/// spatial-types-wise is a no-op for points.
-#[derive(Serialize)]
-struct Point {
-    lat: f64,
-    lon: f64,
 }
 
 async fn get_track_md(
@@ -136,11 +128,11 @@ async fn get_track_md(
         landing_at: row.landing_at,
         takeoff_timezone: row.takeoff_timezone,
         landing_timezone: row.landing_timezone,
-        takeoff: Point {
+        takeoff: PointDegrees {
             lat: row.takeoff_lat,
             lon: row.takeoff_lon,
         },
-        landing: Point {
+        landing: PointDegrees {
             lat: row.landing_lat,
             lon: row.landing_lon,
         },

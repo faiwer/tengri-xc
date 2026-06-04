@@ -9,6 +9,7 @@ mod site;
 mod tracks;
 mod tracks_list;
 mod tracks_md;
+mod tracks_peek;
 mod users;
 
 /// `users::public_router()` (login/logout) bypasses the slide
@@ -25,6 +26,7 @@ pub fn router(state: AppState) -> Router<AppState> {
         .merge(tracks::router())
         .merge(tracks_list::router())
         .merge(tracks_md::router())
+        .merge(tracks_peek::router())
         .merge(users::session_router())
         .layer(from_fn_with_state(state, session_layer));
 

@@ -132,14 +132,24 @@ impl TengriFile {
         self.write_http(&mut buf)?;
         Ok(buf)
     }
+
+    /// Plain bincode body, matching what browsers hand the client after
+    /// decompressing the HTTP wire form's `Content-Encoding: gzip`.
+    pub fn to_bincode_bytes(&self) -> Result<Vec<u8>, TengriError> {
+        Ok(encode_body(self)?)
+    }
 }
 
 fn write_gzipped_body<W: Write>(w: W, file: &TengriFile) -> Result<(), TengriError> {
-    let body = bincode::serde::encode_to_vec(file, standard())?;
+    let body = encode_body(file)?;
     let mut gz = GzEncoder::new(w, GZIP_LEVEL);
     gz.write_all(&body)?;
     gz.finish()?;
     Ok(())
+}
+
+fn encode_body(file: &TengriFile) -> Result<Vec<u8>, bincode::error::EncodeError> {
+    bincode::serde::encode_to_vec(file, standard())
 }
 
 fn read_gzipped_body<R: Read>(r: R) -> Result<TengriFile, TengriError> {
