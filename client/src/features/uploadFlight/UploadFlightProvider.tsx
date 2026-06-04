@@ -5,7 +5,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useEventHandler } from '../../core/hooks';
+import { useAsyncEffect, useEventHandler } from '../../core/hooks';
+import { useIdentity } from '../../core/identity';
 import { nullthrows } from '../../utils/nullthrows';
 import { UploadFlightModal } from './UploadFlightModal';
 
@@ -22,9 +23,15 @@ interface UploadFlightProviderProps {
 }
 
 export function UploadFlightProvider({ children }: UploadFlightProviderProps) {
+  const { me } = useIdentity();
   const [isOpen, setIsOpen] = useState(false);
   const openModal = useEventHandler(() => setIsOpen(true));
   const closeModal = useEventHandler(() => setIsOpen(false));
+
+  useOpenModalOnDocumentFileDrag({
+    enabled: !!me,
+    openModal,
+  });
 
   return (
     <UploadFlightContext.Provider
@@ -44,4 +51,30 @@ export function useUploadFlight(): UploadFlightContextValue {
     useContext(UploadFlightContext),
     'useUploadFlight must be used inside an <UploadFlightProvider>',
   );
+}
+
+function useOpenModalOnDocumentFileDrag({
+  enabled,
+  openModal,
+}: {
+  enabled: boolean;
+  openModal: () => void;
+}): void {
+  useAsyncEffect(() => {
+    if (!enabled) return;
+
+    const onDrag = (event: DragEvent) => {
+      const items = [...((event.dataTransfer ?? {})?.items ?? [])];
+      if (items.length == 1 && items[0]?.kind === 'file') {
+        openModal();
+        // By default the browser highlights the modal.
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    };
+
+    document.addEventListener('dragenter', onDrag, true);
+    return () => {
+      document.removeEventListener('dragenter', onDrag, true);
+    };
+  }, [enabled]);
 }
