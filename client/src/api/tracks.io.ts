@@ -134,6 +134,33 @@ export const TrackMetadataIo = z
 
 export type TrackMetadata = z.infer<typeof TrackMetadataIo>;
 
+export const TrackPeekMetadataIo = z
+  .object({
+    /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
+    takeoffAt: z.number().int(),
+    /** Unix epoch seconds (UTC). */
+    landingAt: z.number().int(),
+    /** IANA timezone names at the takeoff/landing fixes. */
+    takeoffTimezone: z.string(),
+    landingTimezone: z.string(),
+    takeoff: PointIo,
+    landing: PointIo,
+    sourceFormat: z.string(),
+    sourcePoints: z.number().int(),
+    flightPoints: z.number().int(),
+    scoringPoints: z.number().int(),
+    scoringMs: z.number().int(),
+    routes: z.array(RouteIo),
+  })
+  .transform(withMetadataOffsets);
+
+export type TrackPeekMetadata = z.infer<typeof TrackPeekMetadataIo>;
+
+export const TrackPeekResponseIo = z.object({
+  flight: z.string(),
+  metadata: TrackPeekMetadataIo,
+});
+
 /** One row of `GET /tracks`. Mirrors the server's `routes::tracks_list::Item`. */
 export const TrackListItemIo = z.object({
   pilot: z.object({

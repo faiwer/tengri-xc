@@ -79,6 +79,7 @@ export interface ApiRequestOptions {
 interface FetchOptions extends ApiRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
+  rawBody?: BodyInit;
 }
 
 /** Issue the request, normalize transport/HTTP failures into `ApiError` subclasses. */
@@ -94,12 +95,14 @@ async function fetchOk(path: string, options: FetchOptions): Promise<Response> {
     // no-op.
     credentials: 'include',
   };
-  if (options.body !== undefined) {
+  if (options.rawBody != null) {
+    init.body = options.rawBody;
+  } else if (options.body != null) {
     init.headers = { 'Content-Type': 'application/json' };
     // Mirror image of the inbound camelcase step: the wire is
     // snake_case, so transform the body once at this boundary.
     const wireBody =
-      options.body !== null && typeof options.body === 'object'
+      options.body != null && typeof options.body === 'object'
         ? snakecaseKeys(options.body as Record<string, unknown>, { deep: true })
         : options.body;
     init.body = JSON.stringify(wireBody);
@@ -202,6 +205,24 @@ export async function apiGet<T extends z.ZodTypeAny>(
   options: ApiRequestOptions = {},
 ): Promise<z.infer<T>> {
   const response = await fetchOk(path, options);
+  return decodeJson(response, schema);
+}
+
+/**
+ * POST a caller-prepared browser body and validate the JSON response. Use for
+ * native encodings like `FormData`, where `fetch` must set body headers itself.
+ */
+export async function apiPostRaw<T extends z.ZodTypeAny>(
+  path: string,
+  body: BodyInit,
+  schema: T,
+  options: ApiRequestOptions = {},
+): Promise<z.infer<T>> {
+  const response = await fetchOk(path, {
+    ...options,
+    method: 'POST',
+    rawBody: body,
+  });
   return decodeJson(response, schema);
 }
 

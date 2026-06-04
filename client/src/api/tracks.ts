@@ -1,11 +1,13 @@
 import { decode as bincodeDecode } from 'bincode-ts';
 import { decodeTrack, type DecodeOptions, type Track } from '../track';
-import { apiGet, apiGetBlob } from './core';
+import { apiGet, apiGetBlob, apiPostRaw, type ApiRequestOptions } from './core';
 import {
   TengriFileIo,
   TrackMetadataIo,
+  TrackPeekResponseIo,
   TracksPageIo,
   type TrackMetadata,
+  type TrackPeekMetadata,
   type TracksPage,
 } from './tracks.io';
 
@@ -46,6 +48,29 @@ export async function getTracksPage(
   });
 }
 
+export interface PeekTrackResult {
+  flight: Blob;
+  metadata: TrackPeekMetadata;
+}
+
+export async function peekTrack(
+  file: File,
+  options: ApiRequestOptions = {},
+): Promise<PeekTrackResult> {
+  const form = new FormData();
+  form.append('flight', await getPreviewFileGZipBlob(file), file.name);
+  const response = await apiPostRaw(
+    '/tracks/peek',
+    form,
+    TrackPeekResponseIo,
+    options,
+  );
+  return {
+    flight: base64ToBlob(response.flight),
+    metadata: response.metadata,
+  };
+}
+
 export type TrackKind = 'full' | 'preview';
 
 /**
@@ -75,4 +100,26 @@ export async function getTrack(
   const buffer = await blob.arrayBuffer();
   const { value } = bincodeDecode(TengriFileIo, buffer);
   return decodeTrack(value, decode);
+}
+
+async function getPreviewFileGZipBlob(file: File): Promise<Blob | File> {
+  if (extractFileExtension(file) === 'kmz') {
+    return file; // It's already a ZIP-wrapper over KML.
+  }
+
+  const compressed = file.stream().pipeThrough(new CompressionStream('gzip'));
+  // `Response` is just a local Web Streams collector here; no request is made.
+  return new Response(compressed).blob();
+}
+
+const extractFileExtension = (file: File): string =>
+  file.name.split('.').pop()?.toLowerCase() ?? '';
+
+function base64ToBlob(base64: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes]);
 }
