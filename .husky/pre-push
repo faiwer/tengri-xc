@@ -1,15 +1,44 @@
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Run the full test suites before pushing. Skip with `git push --no-verify`
 # when intentionally pushing WIP branches.
 
+log_dir="$(git rev-parse --git-path tengri-pre-push)"
+mkdir -p "$log_dir"
+
+run_with_log() {
+  local label="$1"
+  local log="$2"
+  shift 2
+
+  echo "$label" >&2
+  set +e
+  "$@" 2>&1 | tee "$log" >&2
+  local status=${PIPESTATUS[0]}
+  set -e
+
+  if [ "$status" -eq 0 ]; then
+    return 0
+  fi
+
+  echo >&2
+  echo "$label failed. Full output saved to $log" >&2
+  echo "Last 160 lines:" >&2
+  tail -n 160 "$log" >&2
+  exit "$status"
+}
+
 if [ -d server ]; then
-  echo "Running cargo test on server/..."
-  cargo test --manifest-path server/Cargo.toml --all-targets
+  run_with_log \
+    "Running cargo test on server/..." \
+    "$log_dir/cargo-test.log" \
+    cargo test --manifest-path server/Cargo.toml --all-targets
 fi
 
 if [ -d client ]; then
-  echo "Running vitest on client/..."
-  npm --prefix client test --silent
+  run_with_log \
+    "Running vitest on client/..." \
+    "$log_dir/vitest.log" \
+    npm --prefix client test --silent
 fi
