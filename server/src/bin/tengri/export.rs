@@ -8,7 +8,8 @@ use std::{
 
 use anyhow::Context;
 use clap::ValueEnum;
-use tengri_server::flight::{Track, igc, ingest::slice_time_range, store::fetch_source_track};
+use tengri_formats::{Track, igc, slice_time_range};
+use tengri_server::flight::store::fetch_source_track;
 
 use super::shared::connect_pool;
 

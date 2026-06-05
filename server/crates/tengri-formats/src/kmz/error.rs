@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::flight::KmlError;
+use crate::KmlError;
 
 #[derive(Debug, Error)]
 pub enum KmzError {

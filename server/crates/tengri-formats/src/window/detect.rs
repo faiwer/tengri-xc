@@ -16,7 +16,7 @@
 //! path: per-fix speed emissions, Viterbi smoothing, short-stop re-merge, then
 //! boundary scan for takeoff and landing indices.
 
-use crate::flight::types::{Track, TrackPoint};
+use crate::types::{Track, TrackPoint};
 use tengri_geo::{approximate_distance_m, haversine_m};
 
 use super::viterbi::{HmmParams, decode as viterbi_decode};

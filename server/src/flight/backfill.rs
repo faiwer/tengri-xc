@@ -21,10 +21,9 @@
 use anyhow::{Context, anyhow};
 use sqlx::PgPool;
 
-use super::{
-    ingest::{InputFormat, gunzip_bytes, prepare_bytes_for_storage},
-    tengri::VERSION,
-};
+use tengri_formats::{InputFormat, tengri::VERSION};
+
+use super::ingest::{gunzip_bytes, prepare_bytes_for_storage};
 
 /// Find every flight whose `flight_tracks` blob lags behind the current
 /// [`VERSION`], re-run the ingest pipeline against its `flight_sources` row,

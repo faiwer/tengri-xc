@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tengri_geo::haversine_m;
+use tengri_geo::{PointE5, haversine_m};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Route {
@@ -7,7 +7,7 @@ pub struct Route {
     pub flight_id: String,
     pub route_type: RouteType,
     pub sub_type: RouteSubType,
-    pub turnpoints: Vec<RoutePoint>,
+    pub turnpoints: Vec<RouteWaypoint>,
     pub leg_distances: Vec<u32>,
     pub distance: u32,
     pub score: f64,
@@ -57,10 +57,64 @@ pub struct RoutePoint {
     pub lon: i32,
 }
 
+impl RoutePoint {
+    pub(super) fn from(idx: usize, point: PointE5) -> Self {
+        Self {
+            idx,
+            lat: point.lat,
+            lon: point.lon,
+        }
+    }
+
+    pub(super) fn from_waypoint(point: &RouteWaypoint) -> &Self {
+        match point {
+            RouteWaypoint::Point { fix } => fix,
+            RouteWaypoint::Cylinder { track_fix, .. } | RouteWaypoint::Line { track_fix, .. } => {
+                track_fix
+            }
+        }
+    }
+}
+
+pub type RouteFix = [i32; 2];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RouteWaypoint {
+    Point {
+        fix: RoutePoint,
+    },
+    Cylinder {
+        center: RouteFix,
+        mode: Option<RouteCylinderMode>,
+        radius: u32,
+        tangents: Vec<RouteFix>,
+        track_fix: RoutePoint,
+    },
+    Line {
+        track_fix: RoutePoint,
+        projection: [RouteFix; 2],
+        tangent: RouteFix,
+    },
+}
+
+impl RouteWaypoint {
+    pub(super) fn from_route_point(fix: RoutePoint) -> Self {
+        Self::Point { fix }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RouteCylinderMode {
+    Enter,
+    Exit,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteClosure {
-    pub start: RoutePoint,
-    pub end: RoutePoint,
+    pub start: RouteWaypoint,
+    pub end: RouteWaypoint,
     pub distance: u32,
 }
 
@@ -93,10 +147,6 @@ pub enum ScoringError {
         route_type: RouteType,
         reason: &'static str,
     },
-}
-
-pub(super) fn route_point(idx: usize, lat: i32, lon: i32) -> RoutePoint {
-    RoutePoint { idx, lat, lon }
 }
 
 pub(super) fn leg_distance_m(from: &RoutePoint, to: &RoutePoint) -> u32 {

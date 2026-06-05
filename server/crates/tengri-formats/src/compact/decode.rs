@@ -9,7 +9,7 @@
 //!   override (or the initial `start_time` at idx 0) plus
 //!   `(i − anchor_idx) × interval` gives the timestamp.
 
-use crate::flight::types::{Track, TrackPoint};
+use crate::types::{Track, TrackPoint};
 
 use super::error::CompactError;
 use super::types::{

@@ -33,7 +33,7 @@ async fn track_md_returns_id_and_pilot_name() {
     )
     .bind(&flight_id)
     .bind(
-        r#"[{"type":"point","fix":{"time":1777887122,"lat":0,"lon":0,"geo_alt":0,"pressure_alt":null,"tas":null}}]"#,
+        r#"[{"type":"point","fix":{"idx":0,"lat":0,"lon":0}}]"#,
     )
     .bind(Vec::<i32>::new())
     .execute(&pool)

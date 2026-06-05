@@ -1,10 +1,10 @@
 use super::constants::FREE_DISTANCE_MULTIPLIER;
 use super::solver::{find_best_free_distance_dp, squeeze_route};
 use super::track::DedupeTrack;
-use super::types::{FreeDistanceScore, route_point};
+use super::types::FreeDistanceScore;
 use super::*;
-use crate::ScoringTrack;
 use crate::{Route, RouteSubType, RouteType, ScoringOutcome};
+use crate::{RoutePoint, ScoringTrack};
 use tengri_geo::{METERS_PER_KM, PointE5 as Point};
 
 fn point(_time: u32, lat: i32, lon: i32) -> Point {
@@ -52,8 +52,9 @@ fn route_metadata_score_and_rounding_match_free_distance_rules() {
         turnpoints: source
             .points
             .iter()
+            .copied()
             .enumerate()
-            .map(|(idx, point)| route_point(idx, point))
+            .map(|(idx, point)| RoutePoint::from(idx, point))
             .collect(),
     });
     let raw_distance = route.leg_distances.iter().copied().sum::<u32>();
@@ -78,7 +79,7 @@ fn public_scorer_returns_the_only_possible_five_point_route() {
     let indexes = route
         .turnpoints
         .iter()
-        .map(|point| point.idx)
+        .map(|point| RoutePoint::from_waypoint(point).idx)
         .collect::<Vec<_>>();
 
     assert_eq!(indexes, vec![0, 1, 2, 3, 4]);
@@ -110,8 +111,9 @@ fn scoring_track_dedupes_consecutive_positions_and_remaps_indexes() {
             .track()
             .points
             .iter()
+            .copied()
             .enumerate()
-            .map(|(idx, point)| route_point(idx, point))
+            .map(|(idx, point)| RoutePoint::from(idx, point))
             .collect(),
     });
 

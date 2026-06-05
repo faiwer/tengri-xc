@@ -2,7 +2,7 @@
 //! write to bytes → read back → decode → assert identity. Plus a couple of
 //! header-validation cases.
 
-use tengri_server::flight::{
+use tengri_formats::{
     Metadata, TengriError, TengriFile, Track, TrackPoint, decode, encode,
     tengri::{MAGIC, VERSION},
 };

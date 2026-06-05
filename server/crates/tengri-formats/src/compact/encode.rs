@@ -12,7 +12,7 @@
 //!    expectation `anchor_time + (i − anchor_idx) × interval`. On
 //!    mismatch, emit a `TimeFix(i, actual_time)` and reset the anchor.
 
-use crate::flight::types::Track;
+use crate::types::Track;
 
 use super::error::CompactError;
 use super::hash::compute as compute_hash;

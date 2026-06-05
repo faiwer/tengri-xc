@@ -3,7 +3,7 @@
 use std::{fs::File, io::BufWriter, path::PathBuf};
 
 use anyhow::Context;
-use tengri_server::flight::{Metadata, TengriFile, encode};
+use tengri_formats::{Metadata, TengriFile, encode};
 
 use super::shared::parse_input;
 

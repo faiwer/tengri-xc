@@ -2,7 +2,7 @@
 //! blob.
 //!
 //! The bytes in `flight_tracks.bytes` are the HTTP wire form of a
-//! [`TengriFile`](tengri_server::flight::TengriFile): `gzip(bincode(...))`.
+//! [`TengriFile`](tengri_formats::TengriFile): `gzip(bincode(...))`.
 //! We stream them straight to the client with `Content-Encoding: gzip` so the
 //! browser auto-decompresses; the resulting bincode is self-versioned via the
 //! struct's `version` field.

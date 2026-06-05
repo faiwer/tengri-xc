@@ -13,7 +13,8 @@ use bincode::config::standard;
 use http_body_util::BodyExt;
 use serde_json::Value;
 use serial_test::serial;
-use tengri_server::flight::{TengriFile, decode, ingest::gzip_bytes};
+use tengri_formats::{TengriFile, decode};
+use tengri_server::flight::ingest::gzip_bytes;
 use tower::ServiceExt;
 use zip::{ZipWriter, write::SimpleFileOptions};
 

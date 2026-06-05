@@ -1,4 +1,4 @@
-//! Locked compact-format types. See [`crate::flight::compact`] for the
+//! Locked compact-format types. See [`crate::compact`] for the
 //! encoder/decoder algorithms.
 
 use serde::{Deserialize, Serialize};

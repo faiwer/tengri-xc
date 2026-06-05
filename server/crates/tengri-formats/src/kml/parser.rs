@@ -45,8 +45,8 @@
 
 use roxmltree::{Document, Node};
 
-use crate::flight::geo_text::{deg_to_e5, m_to_dm, parse_gpsbabel_time_u32, parse_iso8601_u32};
-use crate::flight::types::{Track, TrackPoint};
+use crate::geo_text::{deg_to_e5, m_to_dm, parse_gpsbabel_time_u32, parse_iso8601_u32};
+use crate::types::{Track, TrackPoint};
 
 use super::error::KmlError;
 

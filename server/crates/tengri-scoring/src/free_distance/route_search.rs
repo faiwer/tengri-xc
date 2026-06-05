@@ -62,10 +62,9 @@
 //! then replacing a raw fix with its nearby simplified candidate can only move
 //! that scoring point by that local margin, not by kilometres. The DP step
 //! itself still does not miss a better route among the candidates it receives.
-use crate::ScoringTrack;
+use crate::{RoutePoint, ScoringTrack};
 use tengri_geo::PointE5 as Point;
 
-use super::super::types::route_point_from;
 use super::super::{RouteType, ScoringError};
 use super::constants::{
     RDP_MAX_TOLERANCE_M, RDP_MIN_TOLERANCE_M, RDP_TARGET_POINTS, RDP_TARGET_SPREAD,
@@ -88,7 +87,7 @@ pub(super) fn evaluate_dp(track: &ScoringTrack) -> Result<FreeDistanceScore, Sco
     Ok(FreeDistanceScore {
         turnpoints: indexes
             .into_iter()
-            .map(|idx| route_point_from(idx, track.points[idx]))
+            .map(|idx| RoutePoint::from(idx, track.points[idx]))
             .collect(),
     })
 }

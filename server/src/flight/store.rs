@@ -22,9 +22,10 @@
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
 
+use tengri_formats::{InputFormat, Track, parse_format};
+
 use super::{
-    Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome, Track,
-    ingest::{InputFormat, gunzip_bytes, parse_format},
+    Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome, ingest::gunzip_bytes,
 };
 
 /// Everything the `flights` writer needs to insert one row. Bundled so adding

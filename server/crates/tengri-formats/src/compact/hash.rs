@@ -10,7 +10,7 @@
 //! Wire ordering MUST match `client/src/track/decode/hash.ts`. Both sides
 //! walk the fields in declaration order and feed primitives as little-endian
 //! bytes. Any change here is a wire break — bump
-//! [`crate::flight::tengri::VERSION`] and update the TS side in lockstep.
+//! [`crate::tengri::VERSION`] and update the TS side in lockstep.
 
 use super::types::{CoordDual, CoordGps, FixDual, FixGps, TasBody, TasFix, TimeFix, TrackBody};
 

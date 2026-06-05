@@ -10,6 +10,10 @@ use axum::{
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use flate2::read::GzDecoder;
 use serde::Serialize;
+use tengri_formats::{
+    InputFormat, Metadata, TengriFile, Track, TrackPoint, detect_format, encode,
+    find_flight_window, kmz, parse_format, slice_flight_window,
+};
 use tengri_geo::{
     PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap,
     simplify_track_for_scoring_with_chord_cap,
@@ -19,12 +23,7 @@ use tokio::task;
 use crate::{
     AppError, AppState,
     auth::{Identity, require_permission},
-    flight::{
-        Metadata, Route, ScoringOutcome, TengriFile, Track, TrackPoint, encode, evaluate_routes,
-        find_flight_window,
-        ingest::{InputFormat, detect_format, parse_format, slice_flight_window},
-        kmz, timezone,
-    },
+    flight::{Route, ScoringOutcome, evaluate_routes, timezone},
     user::Permissions,
 };
 
@@ -94,7 +93,7 @@ fn process_upload(upload: Upload) -> Result<PeekResponse, AppError> {
 }
 
 struct FlightMetadata {
-    window: crate::flight::FlightWindow,
+    window: tengri_formats::FlightWindow,
     takeoff: TrackPoint,
     landing: TrackPoint,
     takeoff_timezone: String,
@@ -138,7 +137,7 @@ struct ScoredWindow {
     routes: Vec<Route>,
 }
 
-fn score(track: &Track, window: crate::flight::FlightWindow) -> Result<ScoredWindow, AppError> {
+fn score(track: &Track, window: tengri_formats::FlightWindow) -> Result<ScoredWindow, AppError> {
     let scoring_track = simplify_for_scoring(&slice_flight_window(track.clone(), window));
     let scoring_started = Instant::now();
     let evaluation = match evaluate_routes(&scoring_track) {

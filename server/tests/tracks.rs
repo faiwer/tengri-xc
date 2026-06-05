@@ -9,7 +9,7 @@ mod common;
 use axum::http::{StatusCode, header};
 use http_body_util::BodyExt;
 use serial_test::serial;
-use tengri_server::flight::{Metadata, TengriFile, Track, TrackPoint, encode};
+use tengri_formats::{Metadata, TengriFile, Track, TrackPoint, encode};
 use tower::ServiceExt;
 
 const TEST_USER_ID: i32 = 1;

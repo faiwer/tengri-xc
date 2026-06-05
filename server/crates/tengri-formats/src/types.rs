@@ -16,7 +16,7 @@ pub struct Track {
 
 impl Track {
     /// Select points at the given indexes.
-    pub(crate) fn select_at<I>(&self, indexes: I) -> Self
+    pub fn select_at<I>(&self, indexes: I) -> Self
     where
         I: IntoIterator<Item = usize>,
     {
@@ -48,22 +48,22 @@ pub struct TrackPoint {
     /// equator. Range: ±180 × 10⁵ = ±18 000 000.
     pub lon: i32,
 
-    /// GPS / geodetic altitude in decimeters (m × 10). 0.1 m resolution,
-    /// ~±214 km range.
+    /// GPS / geodetic altitude in decimeters (m × 10). 0.1 m resolution, ~±214
+    /// km range.
     pub geo_alt: i32,
 
-    /// Barometric pressure altitude in decimeters. `None` for tracks
-    /// recorded without a barometer (e.g. handheld GPS-only files).
-    /// Within a single track this is either `Some` for every point or
-    /// `None` for every point — mixing is rejected by the encoder.
+    /// Barometric pressure altitude in decimeters. `None` for tracks recorded
+    /// without a barometer (e.g. handheld GPS-only files). Within a single
+    /// track this is either `Some` for every point or `None` for every point —
+    /// mixing is rejected by the encoder.
     pub pressure_alt: Option<i32>,
 
-    /// True airspeed in km/h, integer. `None` for tracks whose source
-    /// has no TAS channel (most files in the wild). Within a single
-    /// track this is either `Some` for every point or `None` for
-    /// every point — mismatched-length input is rejected upstream
-    /// (parser drops the channel rather than partially populating).
-    /// Sourced today only from IGC files with an `I…TAS` extension.
+    /// True airspeed in km/h, integer. `None` for tracks whose source has no
+    /// TAS channel (most files in the wild). Within a single track this is
+    /// either `Some` for every point or `None` for every point —
+    /// mismatched-length input is rejected upstream (parser drops the channel
+    /// rather than partially populating). Sourced today only from IGC files
+    /// with an `I…TAS` extension.
     pub tas: Option<u16>,
 }
 

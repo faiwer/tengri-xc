@@ -26,13 +26,10 @@ const PointIo = z.object({
   lon: DecimalDegreeIo,
 });
 
-const TrackPointIo = z.object({
-  time: z.number().int(),
+const RoutePointIo = z.object({
+  idx: z.number().int(),
   lat: E5CoordinateIo,
   lon: E5CoordinateIo,
-  geoAlt: z.number().int(),
-  pressureAlt: z.number().int().nullable(),
-  tas: z.number().int().nullable(),
 });
 
 const RouteFixIo = z.tuple([E5CoordinateIo, E5CoordinateIo]);
@@ -40,7 +37,7 @@ const RouteFixIo = z.tuple([E5CoordinateIo, E5CoordinateIo]);
 const RouteWaypointIo = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('point'),
-    fix: TrackPointIo,
+    fix: RoutePointIo,
   }),
   z.object({
     type: z.literal('cylinder'),
@@ -48,11 +45,11 @@ const RouteWaypointIo = z.discriminatedUnion('type', [
     mode: z.enum(['enter', 'exit']).nullable(),
     radius: z.number().int(),
     tangents: z.array(RouteFixIo),
-    trackFix: TrackPointIo,
+    trackFix: RoutePointIo,
   }),
   z.object({
     type: z.literal('line'),
-    trackFix: TrackPointIo,
+    trackFix: RoutePointIo,
     projection: z.tuple([RouteFixIo, RouteFixIo]),
     tangent: RouteFixIo,
   }),

@@ -15,10 +15,10 @@ use std::path::PathBuf;
 
 use anyhow::{Context, anyhow};
 use sqlx::PgPool;
+use tengri_formats::tengri::VERSION;
 use tengri_server::flight::{
     ingest::prepare_path_for_storage,
     store::{FlightRow, insert_flight, insert_source, insert_track},
-    tengri::VERSION,
 };
 
 use super::shared::{connect_pool, ensure_user_exists, nanoid_8};

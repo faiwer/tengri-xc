@@ -7,7 +7,7 @@ use anyhow::{Context, anyhow};
 use rand::Rng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
-pub use tengri_server::flight::ingest::parse_input;
+pub use tengri_formats::parse_input;
 
 /// 8-char NanoID with the `[A-Za-z0-9_-]` alphabet declared in the schema
 /// comment. 64 symbols × 8 chars = 48 bits of entropy, ample for the

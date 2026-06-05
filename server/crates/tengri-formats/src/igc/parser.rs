@@ -36,7 +36,7 @@
 //! whole track — `pressure_alt`-style all-or-nothing invariant, which
 //! the encoder downstream depends on.
 
-use crate::flight::types::{Track, TrackPoint};
+use crate::types::{Track, TrackPoint};
 
 use super::error::IgcError;
 

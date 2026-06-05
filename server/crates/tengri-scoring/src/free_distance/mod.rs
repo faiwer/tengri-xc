@@ -10,8 +10,10 @@ mod types;
 use crate::ScoringTrack;
 use tengri_geo::METERS_PER_KM;
 
-use super::types::{leg_distance_m, route_waypoint_fix, route_waypoint_point};
-use super::{Route, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome};
+use super::types::leg_distance_m;
+use super::{
+    Route, RoutePoint, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome,
+};
 use constants::FREE_DISTANCE_MULTIPLIER;
 use route_search::evaluate_dp;
 use track::DedupeTrack;
@@ -38,7 +40,7 @@ fn route_result(score: FreeDistanceScore) -> Route {
     let turnpoints = score
         .turnpoints
         .into_iter()
-        .map(route_waypoint_point)
+        .map(RouteWaypoint::from_route_point)
         .collect::<Vec<_>>();
     let leg_distances = calc_leg_distances_m(&turnpoints);
     let distance = round_final_distance_m(leg_distances.iter().copied().sum::<u32>());
@@ -68,6 +70,11 @@ fn round_final_distance_m(distance_m: u32) -> u32 {
 fn calc_leg_distances_m(turnpoints: &[RouteWaypoint]) -> Vec<u32> {
     turnpoints
         .windows(2)
-        .map(|pair| leg_distance_m(route_waypoint_fix(&pair[0]), route_waypoint_fix(&pair[1])))
+        .map(|pair| {
+            leg_distance_m(
+                RoutePoint::from_waypoint(&pair[0]),
+                RoutePoint::from_waypoint(&pair[1]),
+            )
+        })
         .collect()
 }

@@ -20,10 +20,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, anyhow};
 use sqlx::{MySqlPool, PgPool};
+use tengri_formats::tengri::VERSION;
 use tengri_server::flight::{
     ingest::{PrepareError, Prepared, prepare_path_for_storage},
     store::{FlightRow, InsertFlightError, insert_flight_idempotent, insert_source, insert_track},
-    tengri::VERSION,
 };
 
 use super::super::shared::tracks_root;

@@ -3,8 +3,8 @@ use std::collections::BinaryHeap;
 use crate::{RoutePoint, ScoringTrack};
 use tengri_geo::METERS_PER_KM;
 
-use super::super::types::{leg_distance_m, route_point};
-use super::super::{Route, RouteClosure, ScoringOutcome};
+use super::super::types::leg_distance_m;
+use super::super::{Route, RouteClosure, RouteWaypoint, ScoringOutcome};
 use super::bounds::max_fai_distance;
 use super::closure::ClosurePairs;
 use super::geometry::{Point, Range, RangeBoxes};
@@ -178,33 +178,35 @@ impl<'a> OlcTriangleEvaluator<'a> {
         };
 
         // Map indexes to GPS-fixes.
-        let turnpoints = score_info
+        let route_points = score_info
             .turnpoints
             .into_iter()
-            .map(|idx| route_point(idx, self.track.points[idx].lat, self.track.points[idx].lon))
+            .map(|idx| RoutePoint::from(idx, self.track.points[idx]))
             .collect::<Vec<_>>();
         let leg_distances = triangle_legs_m(
-            turnpoints
+            route_points
                 .as_slice()
                 .try_into()
                 .expect("always 3 turnpoints"),
         );
         let raw_distance_m = leg_distances.iter().copied().sum::<u32>();
-        let closure_start = route_point(
+        let closure_start = RoutePoint::from(
             score_info.closure.start_idx,
-            self.track.points[score_info.closure.start_idx].lat,
-            self.track.points[score_info.closure.start_idx].lon,
+            self.track.points[score_info.closure.start_idx],
         );
-        let closure_end = route_point(
+        let closure_end = RoutePoint::from(
             score_info.closure.end_idx,
-            self.track.points[score_info.closure.end_idx].lat,
-            self.track.points[score_info.closure.end_idx].lon,
+            self.track.points[score_info.closure.end_idx],
         );
         let closure = RouteClosure {
-            start: closure_start,
-            end: closure_end,
+            start: RouteWaypoint::from_route_point(closure_start),
+            end: RouteWaypoint::from_route_point(closure_end),
             distance: leg_distance_m(&closure_start, &closure_end),
         };
+        let turnpoints = route_points
+            .into_iter()
+            .map(RouteWaypoint::from_route_point)
+            .collect::<Vec<_>>();
         let factor = self.options.multiplier;
         let distance_m = raw_distance_m.saturating_sub(closure.distance);
         ScoringOutcome::Answer(Route {

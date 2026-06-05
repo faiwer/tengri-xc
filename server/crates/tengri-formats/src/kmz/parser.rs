@@ -15,8 +15,8 @@ use std::io::{Cursor, Read};
 
 use zip::ZipArchive;
 
-use crate::flight::Track;
-use crate::flight::kml;
+use crate::Track;
+use crate::kml;
 
 use super::error::KmzError;
 
@@ -184,7 +184,7 @@ mod tests {
         // <root> isn't any KML flavor we recognise.
         assert!(matches!(
             parse_bytes(&kmz),
-            Err(KmzError::InnerKml(crate::flight::KmlError::NoTrack))
+            Err(KmzError::InnerKml(crate::KmlError::NoTrack))
         ));
     }
 

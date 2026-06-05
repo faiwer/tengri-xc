@@ -29,12 +29,9 @@ describe('track API schemas', () => {
             {
               type: 'point',
               fix: {
-                time: 1,
+                idx: 1,
                 lat: 4800000,
                 lon: 1600000,
-                geoAlt: 10000,
-                pressureAlt: null,
-                tas: null,
               },
             },
           ],

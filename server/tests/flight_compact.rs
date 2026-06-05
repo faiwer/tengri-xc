@@ -4,8 +4,11 @@
 //! precision. Pipeline tests (IGC text → Track → CompactTrack → Track) live
 //! in dedicated per-format files (e.g. `flight_igc.rs`).
 
-use tengri_server::flight::compact::{CompactTrack, TasBody, TrackBody};
-use tengri_server::flight::{Track, TrackPoint, decode, encode};
+use tengri_formats::{
+    Track, TrackPoint,
+    compact::{CompactTrack, TasBody, TrackBody},
+    decode, encode,
+};
 
 fn pt(time: u32, lat: i32, lon: i32, geo_alt: i32, pressure_alt: Option<i32>) -> TrackPoint {
     TrackPoint {

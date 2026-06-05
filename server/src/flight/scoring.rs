@@ -1,4 +1,4 @@
-use crate::flight::types::Track;
+use tengri_formats::Track;
 use tengri_geo::PointE5;
 pub use tengri_scoring::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
@@ -46,7 +46,7 @@ pub(crate) fn scoring_track(track: &Track) -> tengri_scoring::ScoringTrack {
 
 #[cfg(test)]
 mod tests {
-    use crate::flight::types::TrackPoint;
+    use tengri_formats::TrackPoint;
 
     use super::*;
 

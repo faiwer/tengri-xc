@@ -5,8 +5,8 @@ use flate2::{Compression, read::GzDecoder, write::GzEncoder};
 use serde::{Deserialize, Serialize};
 
 use super::error::TengriError;
-use crate::flight::compact::CompactTrack;
-use crate::flight::metadata::Metadata;
+use crate::compact::CompactTrack;
+use crate::metadata::Metadata;
 
 /// File magic: ASCII `"TNGR"`.
 pub const MAGIC: [u8; 4] = *b"TNGR";

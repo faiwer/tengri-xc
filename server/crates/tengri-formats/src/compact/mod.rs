@@ -3,7 +3,7 @@
 //! Designed for database storage and wire transfer. ~3× smaller than gzipped
 //! IGC; decodable in a single pass (see [`decode`]).
 //!
-//! [`Track`]: crate::flight::Track
+//! [`Track`]: crate::Track
 
 mod decode;
 mod encode;

@@ -1,4 +1,4 @@
-//! Takeoff/landing detection over a parsed [`crate::flight::Track`].
+//! Takeoff/landing detection over a parsed [`crate::Track`].
 //!
 //! Port of `igc_lib`'s two-pass algorithm: Viterbi smoothing over a
 //! ground-speed-derived flying/standing emission stream, then a

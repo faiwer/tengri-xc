@@ -6,8 +6,8 @@
 //! near the track without folding into the time/space arrays.
 //!
 //! Bincode is positional, so any change to field order or set requires a
-//! [`super::tengri::VERSION`] bump. The four `_lat` / `_lon` fields are
-//! E5 micro-degrees (deg × 10⁵), matching [`super::types::TrackPoint`]'s
+//! [`super::tengri::VERSION`] bump. The four `_lat` / `_lon` fields are E5
+//! micro-degrees (deg × 10⁵), matching [`super::types::TrackPoint`]'s
 //! coordinate units exactly so callers can pull them straight off the
 //! takeoff/landing fix.
 

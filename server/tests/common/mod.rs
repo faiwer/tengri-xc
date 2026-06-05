@@ -425,7 +425,7 @@ pub async fn seed_full_track(pool: &PgPool, flight_id: &str, bytes: Vec<u8>) -> 
          VALUES ($1, 'full', $2, $3, $4, 1.0)",
     )
     .bind(flight_id)
-    .bind(tengri_server::flight::tengri::VERSION as i16)
+    .bind(tengri_formats::tengri::VERSION as i16)
     .bind(&etag)
     .bind(&bytes)
     .execute(pool)
