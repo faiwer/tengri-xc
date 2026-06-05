@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use crate::flight::types::Track;
 
+pub(crate) use fai_triangle::simplify_track_for_scoring_with_chord_cap;
 pub use fai_triangle::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
     TraceEvent, TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,

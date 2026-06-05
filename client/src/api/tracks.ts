@@ -49,7 +49,7 @@ export async function getTracksPage(
 }
 
 export interface PeekTrackResult {
-  flight: Blob;
+  track: Track;
   metadata: TrackPeekMetadata;
 }
 
@@ -65,8 +65,9 @@ export async function peekTrack(
     TrackPeekResponseIo,
     options,
   );
+  const flight = base64ToBlob(response.flight);
   return {
-    flight: base64ToBlob(response.flight),
+    track: await decodeTrackBlob(flight),
     metadata: response.metadata,
   };
 }
@@ -84,6 +85,15 @@ export async function getTrackBlob(
   return apiGetBlob(`/tracks/${kind}/${trackId}`);
 }
 
+export async function decodeTrackBlob(
+  blob: Blob,
+  decode: DecodeOptions = {},
+): Promise<Track> {
+  const buffer = await blob.arrayBuffer();
+  const { value } = bincodeDecode(TengriFileIo, buffer);
+  return decodeTrack(value, decode);
+}
+
 /**
  * Fetch the bincode-encoded TengriFile and reconstruct the in-memory `Track`.
  * Consumers should never see the wire-level CompactTrack.
@@ -97,9 +107,7 @@ export async function getTrack(
   decode: DecodeOptions = {},
 ): Promise<Track> {
   const blob = await getTrackBlob(trackId, kind);
-  const buffer = await blob.arrayBuffer();
-  const { value } = bincodeDecode(TengriFileIo, buffer);
-  return decodeTrack(value, decode);
+  return decodeTrackBlob(blob, decode);
 }
 
 async function getPreviewFileGZipBlob(file: File): Promise<Blob | File> {

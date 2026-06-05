@@ -13,6 +13,27 @@ pub struct Track {
     pub points: Vec<TrackPoint>,
 }
 
+impl Track {
+    /// Select points at the given indexes.
+    pub(crate) fn select_at<I>(&self, indexes: I) -> Self
+    where
+        I: IntoIterator<Item = usize>,
+    {
+        let points = indexes
+            .into_iter()
+            .map(|idx| self.points[idx])
+            .collect::<Vec<_>>();
+
+        Self {
+            start_time: points
+                .first()
+                .map(|point| point.time)
+                .unwrap_or(self.start_time),
+            points,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrackPoint {
     /// Unix epoch seconds.

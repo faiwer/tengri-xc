@@ -23,6 +23,7 @@ interface MapViewProps {
   onCenterLatLng?: (point: google.maps.LatLngLiteral) => void;
   onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void;
   initialMapType?: MapType;
+  hideControls?: boolean;
 }
 
 export function MapView({
@@ -31,6 +32,7 @@ export function MapView({
   onCenterLatLng,
   onHoverLatLng,
   initialMapType: mapTypeInitial = 'terrain',
+  hideControls = false,
 }: MapViewProps) {
   const { onMousemove } = useMapHoverHandlers(onHoverLatLng);
   const [mapType, setMapType] = useLocalStorageValue('map-type', {
@@ -45,7 +47,9 @@ export function MapView({
       aria-label="Flight map"
       data-testid="flight-map"
     >
-      <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
+      {!hideControls && (
+        <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
+      )}
       <APIProvider apiKey={API_KEY}>
         <Map
           mapTypeId={mapType}
@@ -57,7 +61,7 @@ export function MapView({
           }
           gestureHandling="greedy"
           disableDefaultUI
-          fullscreenControl
+          fullscreenControl={!hideControls}
           styles={mapType === 'terrain' ? PALE_THEME : undefined}
           onMousemove={onMousemove}
         >

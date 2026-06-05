@@ -14,6 +14,7 @@ use constants::{
     MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE,
 };
 pub use prefilter::{FaiTriangleLazyAudit, FaiTriangleLazySkipReason};
+pub(crate) use simplify::simplify_track_for_scoring_with_chord_cap;
 
 /// Evaluate the best FAI triangle for the track.
 ///

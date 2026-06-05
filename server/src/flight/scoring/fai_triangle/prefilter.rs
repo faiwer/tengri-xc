@@ -116,8 +116,5 @@ pub(super) fn is_valuable(
 
 fn simplified_track(track: &Track, tolerance_m: f64, chord_cap_m: f64) -> Track {
     let indexes = simplify_track_for_scoring_with_chord_cap(track, tolerance_m, chord_cap_m);
-    Track {
-        start_time: track.start_time,
-        points: indexes.into_iter().map(|idx| track.points[idx]).collect(),
-    }
+    track.select_at(indexes)
 }

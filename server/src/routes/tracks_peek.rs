@@ -19,7 +19,7 @@ use crate::{
         Metadata, Route, ScoringOutcome, TengriFile, Track, TrackPoint, encode, evaluate_routes,
         find_flight_window,
         ingest::{InputFormat, detect_format, parse_format, slice_flight_window},
-        kmz, timezone,
+        kmz, simplify_track_for_scoring_with_chord_cap, timezone,
     },
     geo::{PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap},
     user::Permissions,
@@ -31,6 +31,8 @@ const MAX_UPLOAD_BYTES: usize = 2 * 1024 * 1024;
 const MAX_DECOMPRESSED_FLIGHT_BYTES: usize = 32 * 1024 * 1024;
 /// Too curious script kiddies might want to check our limits.
 const MAX_TRACK_POINTS: usize = 300_000;
+const SCORING_RDP_TOLERANCE_M: f64 = 500.0;
+const SCORING_RDP_CHORD_CAP_M: f64 = 500.0;
 /// No need to show the whole track in the preview.
 const PREVIEW_RDP_TOLERANCE_M: f64 = 300.0;
 
@@ -134,7 +136,7 @@ struct ScoredWindow {
 }
 
 fn score(track: &Track, window: crate::flight::FlightWindow) -> Result<ScoredWindow, AppError> {
-    let scoring_track = slice_flight_window(track.clone(), window);
+    let scoring_track = simplify_for_scoring(&slice_flight_window(track.clone(), window));
     let scoring_started = Instant::now();
     let evaluation = match evaluate_routes(&scoring_track) {
         ScoringOutcome::Answer(evaluation) => evaluation,
@@ -162,6 +164,15 @@ fn score(track: &Track, window: crate::flight::FlightWindow) -> Result<ScoredWin
         ms,
         routes,
     })
+}
+
+fn simplify_for_scoring(track: &Track) -> Track {
+    let indexes = simplify_track_for_scoring_with_chord_cap(
+        track,
+        SCORING_RDP_TOLERANCE_M,
+        SCORING_RDP_CHORD_CAP_M,
+    );
+    track.select_at(indexes)
 }
 
 struct ParsedUpload {
@@ -305,18 +316,7 @@ fn simplify_for_preview(track: &Track) -> Track {
         PREVIEW_RDP_TOLERANCE_M,
         None,
     );
-    let points = indexes
-        .into_iter()
-        .filter_map(|idx| track.points.get(idx).copied())
-        .collect::<Vec<_>>();
-
-    Track {
-        start_time: points
-            .first()
-            .map(|point| point.time)
-            .unwrap_or(track.start_time),
-        points,
-    }
+    track.select_at(indexes)
 }
 
 fn encode_preview_flight(track: Track, metadata: Metadata) -> Result<String, AppError> {
