@@ -1,5 +1,5 @@
 use crate::flight::types::Track;
-use crate::geo::{RdpCapped, project_track_points_m, rdp_indexes_capped};
+use tengri_geo::{RdpCapped, project_track_points_m, rdp_indexes_capped};
 
 /// Apply RDP to the track using binary search.
 ///

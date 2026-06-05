@@ -1,7 +1,7 @@
 use std::collections::BinaryHeap;
 
 use crate::flight::types::Track;
-use crate::geo::METERS_PER_KM;
+use tengri_geo::METERS_PER_KM;
 
 use super::super::types::{leg_distance_m, to_track_point};
 use super::super::{Route, RouteClosure, RouteWaypoint, ScoringOutcome};
@@ -39,7 +39,7 @@ impl<'a> OlcTriangleEvaluator<'a> {
         let points = track
             .points
             .iter()
-            .map(Point::from_track_point)
+            .map(Point::from_e5_coords)
             .collect::<Vec<_>>();
         let range_boxes = RangeBoxes::new(&points);
         let closure_pairs = ClosurePairs::new(&points);

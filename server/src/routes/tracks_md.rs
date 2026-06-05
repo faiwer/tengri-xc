@@ -10,8 +10,8 @@ use serde::Serialize;
 use crate::{
     AppError, AppState,
     flight::{Route, store::fetch_scored_routes},
-    geo::PointDegrees,
 };
+use tengri_geo::PointDegrees;
 
 pub fn router() -> Router<AppState> {
     Router::new().route("/tracks/{id}/md", get(get_track_md))

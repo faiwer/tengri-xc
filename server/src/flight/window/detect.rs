@@ -17,7 +17,7 @@
 //! boundary scan for takeoff and landing indices.
 
 use crate::flight::types::{Track, TrackPoint};
-use crate::geo::{approximate_distance_m, haversine_m};
+use tengri_geo::{approximate_distance_m, haversine_m};
 
 use super::viterbi::{HmmParams, decode as viterbi_decode};
 

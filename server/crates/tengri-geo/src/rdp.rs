@@ -1,11 +1,11 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct Point {
+pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
 impl Point {
-    pub(crate) const fn new(x: f64, y: f64) -> Self {
+    pub const fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
 
@@ -21,14 +21,14 @@ impl Point {
 /// the maximum distance between a point and the line between the two adjacent
 /// points. It preserves the shape of the track, but the distance between two
 /// consecutive points might be extreme.
-pub(crate) fn rdp(points: &[Point], tolerance: f64) -> Vec<Point> {
+pub fn rdp(points: &[Point], tolerance: f64) -> Vec<Point> {
     rdp_with_chord_cap(points, tolerance, None)
 }
 
 /// The same as `rdp`, but with a maximum chord length between kept points.
 /// - `chord_cap_m`: the returned track must have a point at least each
 ///   `chord_cap_m` meters (if the given track has them)
-pub(crate) fn rdp_with_chord_cap(
+pub fn rdp_with_chord_cap(
     points: &[Point],
     tolerance: f64,
     chord_cap_m: Option<f64>,
@@ -39,14 +39,14 @@ pub(crate) fn rdp_with_chord_cap(
         .collect()
 }
 
-pub(crate) enum RdpCapped {
+pub enum RdpCapped {
     Complete(Vec<usize>),
     TooMany,
 }
 
 /// The same as `rdp_indexes`, but with a maximum number of points. Once RDP
 /// reaches the maximum number of points, it returns `TooMany`.
-pub(crate) fn rdp_indexes_capped(points: &[Point], tolerance: f64, max_points: usize) -> RdpCapped {
+pub fn rdp_indexes_capped(points: &[Point], tolerance: f64, max_points: usize) -> RdpCapped {
     rdp_indexes_with_chord_cap_capped(points, tolerance, None, max_points)
 }
 
@@ -55,7 +55,7 @@ pub(crate) fn rdp_indexes_capped(points: &[Point], tolerance: f64, max_points: u
 ///   and the chord between the two adjacent points.
 /// - `chord_cap_m`: the returned track must have a point at least each `chord_cap_m`
 ///   meters (if the given track has them)
-pub(crate) fn rdp_indexes_with_chord_cap(
+pub fn rdp_indexes_with_chord_cap(
     points: &[Point],
     tolerance: f64,
     chord_cap_m: Option<f64>,

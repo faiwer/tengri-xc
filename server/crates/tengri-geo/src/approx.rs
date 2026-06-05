@@ -17,7 +17,7 @@ pub fn approximate_distance_m(lat_a_e5: i32, lon_a_e5: i32, lat_b_e5: i32, lon_b
 /// Project E5 points into an approximate local metre plane. Uses per-point
 /// `cos(lat)` for longitude scaling — more accurate than a single midpoint
 /// scale but still a flat-earth approximation.
-pub(crate) fn project_track_points_m<P: HasE5Coords>(points: &[P]) -> Vec<Point> {
+pub fn project_track_points_m<P: HasE5Coords>(points: &[P]) -> Vec<Point> {
     let n = points.len() as f64;
     let mean_lat = points
         .iter()
@@ -45,22 +45,31 @@ pub(crate) fn project_track_points_m<P: HasE5Coords>(points: &[P]) -> Vec<Point>
 
 #[cfg(test)]
 mod tests {
-    use crate::flight::types::TrackPoint;
-
     use super::*;
+
+    struct TestPoint {
+        lat: i32,
+        lon: i32,
+    }
+
+    impl HasE5Coords for TestPoint {
+        fn lat_e5(&self) -> i32 {
+            self.lat
+        }
+
+        fn lon_e5(&self) -> i32 {
+            self.lon
+        }
+    }
 
     fn e5(deg: f64) -> i32 {
         (deg * 1e5).round() as i32
     }
 
-    fn point(lat: f64, lon: f64) -> TrackPoint {
-        TrackPoint {
-            time: 0,
+    fn point(lat: f64, lon: f64) -> TestPoint {
+        TestPoint {
             lat: e5(lat),
             lon: e5(lon),
-            geo_alt: 0,
-            pressure_alt: None,
-            tas: None,
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::flight::scoring::ScoringOutcome;
 use crate::flight::types::Track;
-use crate::geo::track_aspect_ratio;
+use tengri_geo::track_aspect_ratio;
 
 use super::simplify::simplify_track_for_scoring_with_chord_cap;
 
@@ -51,7 +51,7 @@ pub(super) fn is_valuable(
         return false;
     }
 
-    let aspect_ratio = track_aspect_ratio(track);
+    let aspect_ratio = track_aspect_ratio(&track.points);
     if aspect_ratio.is_some_and(|r| r >= MAX_ASPECT_RATIO) {
         // Very elongated tracks are almost never real FAI candidates: the good
         // route is a long line, while any triangle is a small side-effect. They

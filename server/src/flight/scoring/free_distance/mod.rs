@@ -8,7 +8,7 @@ mod track;
 mod types;
 
 use crate::flight::types::Track;
-use crate::geo::METERS_PER_KM;
+use tengri_geo::METERS_PER_KM;
 
 use super::types::{leg_distance_m, to_track_point};
 use super::{Route, RouteSubType, RouteType, RouteWaypoint, ScoringError, ScoringOutcome};

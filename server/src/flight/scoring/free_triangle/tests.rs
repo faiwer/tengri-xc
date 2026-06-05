@@ -1,7 +1,7 @@
 use super::*;
 use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
 use crate::flight::types::{Track, TrackPoint};
-use crate::geo::METERS_PER_KM;
+use tengri_geo::METERS_PER_KM;
 
 fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
     TrackPoint {

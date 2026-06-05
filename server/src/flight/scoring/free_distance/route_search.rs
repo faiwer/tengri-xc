@@ -63,7 +63,7 @@
 //! that scoring point by that local margin, not by kilometres. The DP step
 //! itself still does not miss a better route among the candidates it receives.
 use crate::flight::types::Track;
-use crate::geo::PointE5 as Point;
+use tengri_geo::PointE5 as Point;
 
 use super::super::{RouteType, ScoringError};
 use super::constants::{
@@ -103,7 +103,7 @@ fn run_dp_algo(track: &Track, candidate_indexes: &[usize]) -> Result<Vec<usize>,
     let points = track
         .points
         .iter()
-        .map(Point::from_track_point)
+        .map(Point::from_e5_coords)
         .collect::<Vec<_>>();
     find_best_free_distance_dp(&points, candidate_indexes)
         .map(Vec::from)

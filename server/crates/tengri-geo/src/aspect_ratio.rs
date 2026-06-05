@@ -1,19 +1,17 @@
 use std::cmp::Ordering;
 
-use crate::flight::types::Track;
-
-use super::{Point, project_track_points_m, rdp};
+use super::{HasE5Coords, Point, project_track_points_m, rdp};
 
 const RDP_TOLERANCE_M: f64 = 100.0;
 
 /// Aspect ratio of the minimum-area rotated bounding rectangle around a track.
-pub fn track_aspect_ratio(track: &Track) -> Option<f64> {
-    if track.points.len() < 3 {
+pub fn track_aspect_ratio<P: HasE5Coords>(points: &[P]) -> Option<f64> {
+    if points.len() < 3 {
         return None;
     }
 
     // Consider a track to be lying on a flat surface.
-    let projected = project_track_points_m(&track.points);
+    let projected = project_track_points_m(points);
     let simplified = rdp(&projected, RDP_TOLERANCE_M);
 
     let hull = convex_hull(simplified);
@@ -127,8 +125,6 @@ fn min_rotated_rect_sides(hull: &[Point]) -> Option<(f64, f64)> {
 mod tests {
     use std::f64::consts::{FRAC_PI_4, TAU};
 
-    use crate::flight::types::TrackPoint;
-
     use super::*;
 
     const E5_TO_DEG: f64 = 1.0 / 1e5;
@@ -137,21 +133,27 @@ mod tests {
     const BASE_LAT_E5: i32 = 4_700_000;
     const BASE_LON_E5: i32 = 800_000;
 
-    fn track_from(points: &[(u32, i32, i32)]) -> Track {
-        Track {
-            start_time: points.first().map_or(0, |point| point.0),
-            points: points
-                .iter()
-                .map(|&(time, lat, lon)| TrackPoint {
-                    time,
-                    lat,
-                    lon,
-                    geo_alt: 0,
-                    pressure_alt: None,
-                    tas: None,
-                })
-                .collect(),
+    #[derive(Debug, Clone, Copy)]
+    struct TestPoint {
+        lat: i32,
+        lon: i32,
+    }
+
+    impl HasE5Coords for TestPoint {
+        fn lat_e5(&self) -> i32 {
+            self.lat
         }
+
+        fn lon_e5(&self) -> i32 {
+            self.lon
+        }
+    }
+
+    fn track_from(points: &[(i32, i32)]) -> Vec<TestPoint> {
+        points
+            .iter()
+            .map(|&(lat, lon)| TestPoint { lat, lon })
+            .collect()
     }
 
     fn e5_offset(lat_offset_km: f64, lon_offset_km: f64) -> (i32, i32) {
@@ -164,15 +166,8 @@ mod tests {
         )
     }
 
-    fn track_from_km(points: &[(f64, f64)]) -> Track {
-        let points: Vec<_> = points
-            .iter()
-            .enumerate()
-            .map(|(idx, &(x, y))| {
-                let (lat, lon) = e5_offset(y, x);
-                (idx as u32, lat, lon)
-            })
-            .collect();
+    fn track_from_km(points: &[(f64, f64)]) -> Vec<TestPoint> {
+        let points: Vec<_> = points.iter().map(|&(x, y)| e5_offset(y, x)).collect();
         track_from(&points)
     }
 

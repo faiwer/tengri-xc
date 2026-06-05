@@ -1,5 +1,5 @@
-pub(super) use crate::geo::PointE5 as Point;
-use crate::geo::PointE5;
+pub(super) use tengri_geo::PointE5 as Point;
+use tengri_geo::PointE5;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Range {

@@ -2547,6 +2547,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tengri-geo"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "tengri-server"
 version = "0.1.0"
 dependencies = [
@@ -2573,6 +2580,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "sqlx",
+ "tengri-geo",
  "thiserror",
  "tokio",
  "tower",

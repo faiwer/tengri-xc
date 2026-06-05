@@ -1,5 +1,5 @@
 use crate::flight::types::Track;
-use crate::geo::{project_track_points_m, rdp_indexes_with_chord_cap};
+use tengri_geo::{project_track_points_m, rdp_indexes_with_chord_cap};
 
 /// Simplify a track for scoring and cap the distance between kept points.
 ///

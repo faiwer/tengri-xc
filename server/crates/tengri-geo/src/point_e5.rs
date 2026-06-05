@@ -1,5 +1,3 @@
-use crate::flight::types::TrackPoint;
-
 use super::consts::METERS_PER_KM;
 use super::fcc::fcc_distance_km;
 use super::haversine::haversine_m;
@@ -8,15 +6,6 @@ use super::haversine::haversine_m;
 pub trait HasE5Coords {
     fn lat_e5(&self) -> i32;
     fn lon_e5(&self) -> i32;
-}
-
-impl HasE5Coords for TrackPoint {
-    fn lat_e5(&self) -> i32 {
-        self.lat
-    }
-    fn lon_e5(&self) -> i32 {
-        self.lon
-    }
 }
 
 /// An E5-encoded geographic point: lat/lon as integer micro-degrees (1 degree =
@@ -41,8 +30,8 @@ impl PointE5 {
         Self { lat, lon }
     }
 
-    pub fn from_track_point(point: &TrackPoint) -> Self {
-        Self::new(point.lat, point.lon)
+    pub fn from_e5_coords<P: HasE5Coords + ?Sized>(point: &P) -> Self {
+        Self::new(point.lat_e5(), point.lon_e5())
     }
 
     pub fn distance_fcc_km(self, other: &Self) -> f64 {

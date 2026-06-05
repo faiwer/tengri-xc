@@ -2,6 +2,7 @@
 //! preserved for analytics.
 
 use serde::{Deserialize, Serialize};
+use tengri_geo::HasE5Coords;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Track {
@@ -64,4 +65,14 @@ pub struct TrackPoint {
     /// (parser drops the channel rather than partially populating).
     /// Sourced today only from IGC files with an `I…TAS` extension.
     pub tas: Option<u16>,
+}
+
+impl HasE5Coords for TrackPoint {
+    fn lat_e5(&self) -> i32 {
+        self.lat
+    }
+
+    fn lon_e5(&self) -> i32 {
+        self.lon
+    }
 }

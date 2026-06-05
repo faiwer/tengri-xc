@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
+use tengri_geo::haversine_m;
 
 use crate::flight::types::TrackPoint;
-use crate::geo::haversine_m;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Route {

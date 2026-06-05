@@ -4,7 +4,7 @@ mod simplify;
 
 use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
 use crate::flight::types::Track;
-use crate::geo::METERS_PER_KM;
+use tengri_geo::METERS_PER_KM;
 
 pub use super::olc_triangle::{OlcTriangleClass, TraceEvent, TriangleClosureCacheStats};
 use super::olc_triangle::{OlcTriangleEvaluator, TriangleOptions};

@@ -3,7 +3,6 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod flight;
-pub mod geo;
 pub mod glider;
 pub mod migrate;
 pub mod routes;

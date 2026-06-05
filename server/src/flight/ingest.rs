@@ -17,7 +17,7 @@ use crate::flight::{
     FlightWindow, Metadata, TengriFile, Track, encode, etag_for, find_flight_window, gpx, igc, kml,
     kmz, timezone, types::TrackPoint,
 };
-use crate::geo::approximate_distance_m;
+use tengri_geo::approximate_distance_m;
 
 const MAX_PLAUSIBLE_SPEED_MPS: f64 = 277.78; // 1000 km/h
 const MAX_TRACK_GAP_SECONDS: u32 = 30 * 60; // 30 minutes

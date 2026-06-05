@@ -5,7 +5,7 @@ use super::types::{FreeDistanceScore, route_point};
 use super::*;
 use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
 use crate::flight::types::{Track, TrackPoint};
-use crate::geo::{METERS_PER_KM, PointE5 as Point};
+use tengri_geo::{METERS_PER_KM, PointE5 as Point};
 
 fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
     TrackPoint {
@@ -158,7 +158,7 @@ fn dp_finds_best_ordered_five_point_route_inside_seed_set() {
         point(5, 200_000, 0),
     ]
     .iter()
-    .map(Point::from_track_point)
+    .map(Point::from_e5_coords)
     .collect::<Vec<_>>();
 
     assert_eq!(
@@ -172,7 +172,7 @@ fn dp_rejects_too_few_seed_points() {
     let points = five_point_track()
         .points
         .iter()
-        .map(Point::from_track_point)
+        .map(Point::from_e5_coords)
         .collect::<Vec<_>>();
 
     assert_eq!(find_best_free_distance_dp(&points, &[0, 1, 2, 3]), None);

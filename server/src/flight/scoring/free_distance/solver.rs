@@ -1,4 +1,4 @@
-use crate::geo::PointE5 as Point;
+use tengri_geo::PointE5 as Point;
 
 /// Number of points in the valid free-distance route.
 const ROUTE_POINTS: usize = 5;

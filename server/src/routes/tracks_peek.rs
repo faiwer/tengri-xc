@@ -10,6 +10,7 @@ use axum::{
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use flate2::read::GzDecoder;
 use serde::Serialize;
+use tengri_geo::{PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap};
 use tokio::task;
 
 use crate::{
@@ -21,7 +22,6 @@ use crate::{
         ingest::{InputFormat, detect_format, parse_format, slice_flight_window},
         kmz, simplify_track_for_scoring_with_chord_cap, timezone,
     },
-    geo::{PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap},
     user::Permissions,
 };
 

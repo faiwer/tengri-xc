@@ -2,7 +2,7 @@ use super::*;
 use super::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
 use crate::flight::scoring::{Route, RouteSubType, ScoringOutcome};
 use crate::flight::types::TrackPoint;
-use crate::geo::METERS_PER_KM;
+use tengri_geo::METERS_PER_KM;
 
 fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
     TrackPoint {
