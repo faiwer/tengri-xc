@@ -1,4 +1,4 @@
-use crate::flight::types::Track;
+use crate::ScoringTrack;
 use tengri_geo::{RdpCapped, project_track_points_m, rdp_indexes_capped};
 
 /// Apply RDP to the track using binary search.
@@ -8,7 +8,7 @@ use tengri_geo::{RdpCapped, project_track_points_m, rdp_indexes_capped};
 /// this helps find a simplified track that balances algorithm time and
 /// accuracy.
 pub(super) fn simplify_track_to_target_count(
-    track: &Track,
+    track: &ScoringTrack,
     min_points: usize,
     max_points: usize,
     min_tolerance_m: f64,

@@ -3,24 +3,27 @@ mod constants;
 #[cfg(test)]
 mod tests;
 
-use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
-use crate::flight::types::Track;
+use crate::ScoringTrack;
+use crate::{Route, RouteSubType, RouteType, ScoringOutcome};
 
 use super::olc_triangle::{OlcTriangleClass, OlcTriangleEvaluator, TriangleOptions};
 use constants::{
     FREE_TRIANGLE_CLOSED_MULTIPLIER, FREE_TRIANGLE_OPEN_MULTIPLIER, MIN_FREE_TO_FREE_DISTANCE_RATIO,
 };
 
-pub fn evaluate_free_triangle(track: &Track) -> ScoringOutcome<Route> {
+pub fn evaluate_free_triangle(track: &ScoringTrack) -> ScoringOutcome<Route> {
     evaluate_free_triangle_with_floor(track, None)
 }
 
-pub fn evaluate_free_triangle_lazy(track: &Track, free_distance_m: u32) -> ScoringOutcome<Route> {
+pub fn evaluate_free_triangle_lazy(
+    track: &ScoringTrack,
+    free_distance_m: u32,
+) -> ScoringOutcome<Route> {
     evaluate_free_triangle_with_floor(track, Some(free_distance_m))
 }
 
 fn evaluate_free_triangle_with_floor(
-    track: &Track,
+    track: &ScoringTrack,
     free_distance_m: Option<u32>,
 ) -> ScoringOutcome<Route> {
     let open = evaluate_free_triangle_class(track, OlcTriangleClass::Open);
@@ -38,7 +41,10 @@ fn evaluate_free_triangle_with_floor(
     best_outcome(open, closed)
 }
 
-fn evaluate_free_triangle_class(track: &Track, class: OlcTriangleClass) -> ScoringOutcome<Route> {
+fn evaluate_free_triangle_class(
+    track: &ScoringTrack,
+    class: OlcTriangleClass,
+) -> ScoringOutcome<Route> {
     let mut evaluator = OlcTriangleEvaluator::new(track, options_for_class(class));
     evaluator.evaluate(None)
 }

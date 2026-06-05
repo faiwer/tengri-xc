@@ -1,23 +1,15 @@
 use super::*;
 use super::{FAI_TRIANGLE_CLOSED_MULTIPLIER, FAI_TRIANGLE_OPEN_MULTIPLIER};
-use crate::flight::scoring::{Route, RouteSubType, ScoringOutcome};
-use crate::flight::types::TrackPoint;
+use crate::{Route, RouteSubType, ScoringOutcome, ScoringTrack};
 use tengri_geo::METERS_PER_KM;
+use tengri_geo::PointE5;
 
-fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
-    TrackPoint {
-        time,
-        lat,
-        lon,
-        geo_alt: 0,
-        pressure_alt: None,
-        tas: None,
-    }
+fn point(_time: u32, lat: i32, lon: i32) -> PointE5 {
+    PointE5 { lat, lon }
 }
 
-fn triangle_track(return_lon: i32) -> Track {
-    Track {
-        start_time: 0,
+fn triangle_track(return_lon: i32) -> ScoringTrack {
+    ScoringTrack {
         points: vec![
             point(0, 0, 0),
             point(1, 0, 90_000),
@@ -128,8 +120,7 @@ fn combined_class_accepts_open_answer_without_closed() {
 fn shape_rule_rejects_thin_triangle() {
     // Three nearly collinear points: the two shorter legs are each ~25% of the
     // perimeter, below the 28% minimum-side floor.
-    let track = Track {
-        start_time: 0,
+    let track = ScoringTrack {
         points: vec![
             point(0, 0, 0),
             point(1, 1_000, 50_000), // 0.01°N, 0.5°E — barely off the axis
@@ -148,8 +139,7 @@ fn straight_track_has_no_triangle() {
     // All fixes on the equator — every candidate triangle is degenerate (one
     // leg equals the sum of the other two), so the 28% shape rule kills all
     // of them.
-    let track = Track {
-        start_time: 0,
+    let track = ScoringTrack {
         points: vec![
             point(0, 0, 0),
             point(1, 0, 33_333),

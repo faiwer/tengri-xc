@@ -1,0 +1,13 @@
+[package]
+name = "tengri-scoring"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", optional = true, default-features = false, features = ["postgres"] }
+tengri-geo = { path = "../tengri-geo" }
+thiserror = "2.0.18"
+
+[features]
+sqlx = ["dep:sqlx"]

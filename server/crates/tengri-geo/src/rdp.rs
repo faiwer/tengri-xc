@@ -1,3 +1,6 @@
+use super::approx::project_track_points_m;
+use super::point_e5::HasE5Coords;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
     pub x: f64,
@@ -82,6 +85,22 @@ pub fn rdp_indexes_with_chord_cap(
         .enumerate()
         .filter_map(|(idx, keep)| keep.then_some(idx))
         .collect()
+}
+
+pub fn simplify_track_for_scoring_with_chord_cap<P: HasE5Coords>(
+    points: &[P],
+    tolerance_m: f64,
+    chord_cap_m: f64,
+) -> Vec<usize> {
+    let n = points.len();
+    if n <= 2 {
+        return (0..n).collect();
+    }
+    rdp_indexes_with_chord_cap(
+        &project_track_points_m(points),
+        tolerance_m,
+        Some(chord_cap_m),
+    )
 }
 
 /// The RDP implementation limited by a maximum number of points.

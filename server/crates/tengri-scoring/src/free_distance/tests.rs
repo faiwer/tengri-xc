@@ -1,31 +1,21 @@
 use super::constants::FREE_DISTANCE_MULTIPLIER;
 use super::solver::{find_best_free_distance_dp, squeeze_route};
-use super::track::ScoringTrack;
+use super::track::DedupeTrack;
 use super::types::{FreeDistanceScore, route_point};
 use super::*;
-use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
-use crate::flight::types::{Track, TrackPoint};
+use crate::ScoringTrack;
+use crate::{Route, RouteSubType, RouteType, ScoringOutcome};
 use tengri_geo::{METERS_PER_KM, PointE5 as Point};
 
-fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
-    TrackPoint {
-        time,
-        lat,
-        lon,
-        geo_alt: 0,
-        pressure_alt: None,
-        tas: None,
-    }
+fn point(_time: u32, lat: i32, lon: i32) -> Point {
+    Point { lat, lon }
 }
 
-fn track(points: Vec<TrackPoint>) -> Track {
-    Track {
-        start_time: 0,
-        points,
-    }
+fn track(points: Vec<Point>) -> ScoringTrack {
+    ScoringTrack { points }
 }
 
-fn five_point_track() -> Track {
+fn five_point_track() -> ScoringTrack {
     track(vec![
         point(0, 0, 0),
         point(1, 0, 100_000),
@@ -85,14 +75,13 @@ fn route_metadata_score_and_rounding_match_free_distance_rules() {
 #[test]
 fn public_scorer_returns_the_only_possible_five_point_route() {
     let route = answer(evaluate_free_distance(&five_point_track()));
-    let times = route
+    let indexes = route
         .turnpoints
         .iter()
-        .map(|waypoint| *to_track_point(waypoint))
-        .map(|point| point.time)
+        .map(|point| point.idx)
         .collect::<Vec<_>>();
 
-    assert_eq!(times, vec![0, 1, 2, 3, 4]);
+    assert_eq!(indexes, vec![0, 1, 2, 3, 4]);
 }
 
 #[test]
@@ -104,16 +93,16 @@ fn scoring_track_dedupes_consecutive_positions_and_remaps_indexes() {
         point(3, 0, 100_000),
         point(4, 100_000, 100_000),
     ]);
-    let scoring_track = ScoringTrack::new(&source);
+    let scoring_track = DedupeTrack::new(&source);
 
     assert_eq!(
         scoring_track
             .track()
             .points
             .iter()
-            .map(|point| point.time)
+            .map(|point| point.lon)
             .collect::<Vec<_>>(),
-        vec![0, 2, 4],
+        vec![0, 100_000, 100_000],
     );
 
     let remapped = scoring_track.remap_score(FreeDistanceScore {
@@ -130,7 +119,7 @@ fn scoring_track_dedupes_consecutive_positions_and_remaps_indexes() {
         remapped
             .turnpoints
             .iter()
-            .map(|point| point.track_idx)
+            .map(|point| point.idx)
             .collect::<Vec<_>>(),
         vec![0, 2, 4],
     );

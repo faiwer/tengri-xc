@@ -1,10 +1,10 @@
 use std::collections::BinaryHeap;
 
-use crate::flight::types::Track;
+use crate::{RoutePoint, ScoringTrack};
 use tengri_geo::METERS_PER_KM;
 
-use super::super::types::{leg_distance_m, to_track_point};
-use super::super::{Route, RouteClosure, RouteWaypoint, ScoringOutcome};
+use super::super::types::{leg_distance_m, route_point};
+use super::super::{Route, RouteClosure, ScoringOutcome};
 use super::bounds::max_fai_distance;
 use super::closure::ClosurePairs;
 use super::geometry::{Point, Range, RangeBoxes};
@@ -14,7 +14,7 @@ use super::types::{
 };
 
 pub(crate) struct OlcTriangleEvaluator<'a> {
-    track: &'a Track,
+    track: &'a ScoringTrack,
     points: Vec<Point>,
     /// Segment tree of per-range bounding boxes used for branch bounds.
     range_boxes: RangeBoxes,
@@ -35,7 +35,7 @@ pub(crate) struct OlcTriangleEvaluator<'a> {
 }
 
 impl<'a> OlcTriangleEvaluator<'a> {
-    pub(crate) fn new(track: &'a Track, options: TriangleOptions) -> Self {
+    pub(crate) fn new(track: &'a ScoringTrack, options: TriangleOptions) -> Self {
         let points = track
             .points
             .iter()
@@ -64,7 +64,7 @@ impl<'a> OlcTriangleEvaluator<'a> {
     }
 
     pub(crate) fn new_with_closure(
-        track: &'a Track,
+        track: &'a ScoringTrack,
         options: TriangleOptions,
         closing_distance_relative: f64,
     ) -> Self {
@@ -181,9 +181,7 @@ impl<'a> OlcTriangleEvaluator<'a> {
         let turnpoints = score_info
             .turnpoints
             .into_iter()
-            .map(|idx| RouteWaypoint::Point {
-                fix: self.track.points[idx],
-            })
+            .map(|idx| route_point(idx, self.track.points[idx].lat, self.track.points[idx].lon))
             .collect::<Vec<_>>();
         let leg_distances = triangle_legs_m(
             turnpoints
@@ -192,17 +190,20 @@ impl<'a> OlcTriangleEvaluator<'a> {
                 .expect("always 3 turnpoints"),
         );
         let raw_distance_m = leg_distances.iter().copied().sum::<u32>();
+        let closure_start = route_point(
+            score_info.closure.start_idx,
+            self.track.points[score_info.closure.start_idx].lat,
+            self.track.points[score_info.closure.start_idx].lon,
+        );
+        let closure_end = route_point(
+            score_info.closure.end_idx,
+            self.track.points[score_info.closure.end_idx].lat,
+            self.track.points[score_info.closure.end_idx].lon,
+        );
         let closure = RouteClosure {
-            start: RouteWaypoint::Point {
-                fix: self.track.points[score_info.closure.start_idx],
-            },
-            end: RouteWaypoint::Point {
-                fix: self.track.points[score_info.closure.end_idx],
-            },
-            distance: leg_distance_m(
-                &self.track.points[score_info.closure.start_idx],
-                &self.track.points[score_info.closure.end_idx],
-            ),
+            start: closure_start,
+            end: closure_end,
+            distance: leg_distance_m(&closure_start, &closure_end),
         };
         let factor = self.options.multiplier;
         let distance_m = raw_distance_m.saturating_sub(closure.distance);
@@ -335,8 +336,7 @@ impl<'a> OlcTriangleEvaluator<'a> {
 }
 
 /// Calculate the legs of a triangle based on the three turnpoints.
-fn triangle_legs_m([a, b, c]: &[RouteWaypoint; 3]) -> Vec<u32> {
-    let [a, b, c] = [to_track_point(a), to_track_point(b), to_track_point(c)];
+fn triangle_legs_m([a, b, c]: &[RoutePoint; 3]) -> Vec<u32> {
     vec![
         leg_distance_m(a, b),
         leg_distance_m(b, c),

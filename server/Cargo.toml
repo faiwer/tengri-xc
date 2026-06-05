@@ -7,7 +7,7 @@ edition = "2024"
 default-run = "tengri-server"
 
 [workspace]
-members = ["crates/tengri-geo"]
+members = ["crates/tengri-geo", "crates/tengri-scoring"]
 resolver = "3"
 
 [dependencies]
@@ -33,6 +33,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "postgres", "mysql", "uuid", "chrono", "bigdecimal", "macros", "migrate"] }
 tengri-geo = { path = "crates/tengri-geo" }
+tengri-scoring = { path = "crates/tengri-scoring", features = ["sqlx"] }
 thiserror = "2.0.18"
 tokio = { version = "1.52.2", features = ["full"] }
 tower-http = { version = "0.6.9", features = ["trace", "cors"] }
@@ -53,4 +54,7 @@ tower = { version = "0.5.3", features = ["util"] }
 opt-level = 1
 
 [profile.dev.package.tengri-geo]
+opt-level = 3
+
+[profile.dev.package.tengri-scoring]
 opt-level = 3

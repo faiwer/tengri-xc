@@ -10,7 +10,10 @@ use axum::{
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use flate2::read::GzDecoder;
 use serde::Serialize;
-use tengri_geo::{PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap};
+use tengri_geo::{
+    PointDegrees, project_track_points_m, rdp_indexes_with_chord_cap,
+    simplify_track_for_scoring_with_chord_cap,
+};
 use tokio::task;
 
 use crate::{
@@ -20,7 +23,7 @@ use crate::{
         Metadata, Route, ScoringOutcome, TengriFile, Track, TrackPoint, encode, evaluate_routes,
         find_flight_window,
         ingest::{InputFormat, detect_format, parse_format, slice_flight_window},
-        kmz, simplify_track_for_scoring_with_chord_cap, timezone,
+        kmz, timezone,
     },
     user::Permissions,
 };
@@ -168,7 +171,7 @@ fn score(track: &Track, window: crate::flight::FlightWindow) -> Result<ScoredWin
 
 fn simplify_for_scoring(track: &Track) -> Track {
     let indexes = simplify_track_for_scoring_with_chord_cap(
-        track,
+        &track.points,
         SCORING_RDP_TOLERANCE_M,
         SCORING_RDP_CHORD_CAP_M,
     );

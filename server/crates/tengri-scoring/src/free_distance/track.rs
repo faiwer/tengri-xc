@@ -1,4 +1,4 @@
-use crate::flight::types::Track;
+use crate::ScoringTrack;
 
 use super::types::FreeDistanceScore;
 
@@ -14,14 +14,14 @@ use super::types::FreeDistanceScore;
 /// that contract, the wrapper remembers which original fix each working fix
 /// came from and rewrites the winning route back to source indexes before
 /// returning it.
-pub(super) struct ScoringTrack<'a> {
-    source: &'a Track,
-    deduped: Option<Track>,
+pub(super) struct DedupeTrack<'a> {
+    source: &'a ScoringTrack,
+    deduped: Option<ScoringTrack>,
     index_map: Vec<usize>,
 }
 
-impl<'a> ScoringTrack<'a> {
-    pub(super) fn new(source: &'a Track) -> Self {
+impl<'a> DedupeTrack<'a> {
+    pub(super) fn new(source: &'a ScoringTrack) -> Self {
         let mut points = Vec::with_capacity(source.points.len());
         let mut index_map = Vec::with_capacity(source.points.len());
         let mut previous_position = None;
@@ -45,16 +45,13 @@ impl<'a> ScoringTrack<'a> {
         } else {
             Self {
                 source,
-                deduped: Some(Track {
-                    start_time: source.start_time,
-                    points,
-                }),
+                deduped: Some(ScoringTrack { points }),
                 index_map,
             }
         }
     }
 
-    pub(super) fn track(&self) -> &Track {
+    pub(super) fn track(&self) -> &ScoringTrack {
         self.deduped.as_ref().unwrap_or(self.source)
     }
 
@@ -64,7 +61,7 @@ impl<'a> ScoringTrack<'a> {
         }
 
         for point in &mut score.turnpoints {
-            point.track_idx = self.index_map[point.track_idx];
+            point.idx = self.index_map[point.idx];
         }
         score
     }

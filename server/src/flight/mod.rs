@@ -23,10 +23,9 @@ pub use kml::KmlError;
 pub use kmz::KmzError;
 pub use metadata::Metadata;
 pub(crate) use scoring::RouteSubType;
-pub(crate) use scoring::simplify_track_for_scoring_with_chord_cap;
 pub use scoring::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
-    Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome, TraceEvent,
+    Route, RouteEvaluation, RoutePoint, RouteType, RouteWaypoint, ScoringOutcome, TraceEvent,
     TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
     evaluate_free_distance, evaluate_free_triangle, evaluate_free_triangle_lazy, evaluate_routes,
 };

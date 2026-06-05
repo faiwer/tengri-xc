@@ -62,9 +62,10 @@
 //! then replacing a raw fix with its nearby simplified candidate can only move
 //! that scoring point by that local margin, not by kilometres. The DP step
 //! itself still does not miss a better route among the candidates it receives.
-use crate::flight::types::Track;
+use crate::ScoringTrack;
 use tengri_geo::PointE5 as Point;
 
+use super::super::types::route_point_from;
 use super::super::{RouteType, ScoringError};
 use super::constants::{
     RDP_MAX_TOLERANCE_M, RDP_MIN_TOLERANCE_M, RDP_TARGET_POINTS, RDP_TARGET_SPREAD,
@@ -72,9 +73,9 @@ use super::constants::{
 };
 use super::simplify::simplify_track_to_target_count;
 use super::solver::{find_best_free_distance_dp, squeeze_route};
-use super::types::{FreeDistanceScore, route_point};
+use super::types::FreeDistanceScore;
 
-pub(super) fn evaluate_dp(track: &Track) -> Result<FreeDistanceScore, ScoringError> {
+pub(super) fn evaluate_dp(track: &ScoringTrack) -> Result<FreeDistanceScore, ScoringError> {
     if track.points.len() < 5 {
         return Err(ScoringError::SolverFailed {
             route_type: RouteType::FreeDistance,
@@ -87,12 +88,15 @@ pub(super) fn evaluate_dp(track: &Track) -> Result<FreeDistanceScore, ScoringErr
     Ok(FreeDistanceScore {
         turnpoints: indexes
             .into_iter()
-            .map(|idx| route_point(idx, &track.points[idx]))
+            .map(|idx| route_point_from(idx, track.points[idx]))
             .collect(),
     })
 }
 
-fn run_dp_algo(track: &Track, candidate_indexes: &[usize]) -> Result<Vec<usize>, ScoringError> {
+fn run_dp_algo(
+    track: &ScoringTrack,
+    candidate_indexes: &[usize],
+) -> Result<Vec<usize>, ScoringError> {
     if candidate_indexes.len() < 5 {
         return Err(ScoringError::SolverFailed {
             route_type: RouteType::FreeDistance,
@@ -115,7 +119,7 @@ fn run_dp_algo(track: &Track, candidate_indexes: &[usize]) -> Result<Vec<usize>,
 
 // Iteratively find the best solution by RDP-simplifying the track and running
 // the DP-algo on the result. Return the indexes of the solution points (5 points).
-fn find_solution(track: &Track) -> Result<Vec<usize>, ScoringError> {
+fn find_solution(track: &ScoringTrack) -> Result<Vec<usize>, ScoringError> {
     let mut working_track_indexes = get_initial_rdp_track_indexes(track);
     let mut fd_solution = run_dp_algo(track, &working_track_indexes)?;
 
@@ -144,14 +148,13 @@ fn find_solution(track: &Track) -> Result<Vec<usize>, ScoringError> {
 
 // The 1st iteration is the longest. Find a simple RDP-track that has a good
 // accuracy/speed trade-off.
-fn get_initial_rdp_track_indexes(track: &Track) -> Vec<usize> {
+fn get_initial_rdp_track_indexes(track: &ScoringTrack) -> Vec<usize> {
     simplify_track_for_dp(track).unwrap_or_else(|| (0..track.points.len()).collect())
 }
 
-fn rdp_from_indexes(track: &Track, indexes: &[usize]) -> Vec<usize> {
+fn rdp_from_indexes(track: &ScoringTrack, indexes: &[usize]) -> Vec<usize> {
     // […, idx1, idx2, …] -> [point1, point2, …]
-    let compact_track = Track {
-        start_time: track.start_time,
+    let compact_track = ScoringTrack {
         points: indexes.iter().map(|&idx| track.points[idx]).collect(),
     };
 
@@ -160,7 +163,7 @@ fn rdp_from_indexes(track: &Track, indexes: &[usize]) -> Vec<usize> {
         .unwrap_or_else(|| indexes.to_vec())
 }
 
-fn simplify_track_for_dp(track: &Track) -> Option<Vec<usize>> {
+fn simplify_track_for_dp(track: &ScoringTrack) -> Option<Vec<usize>> {
     simplify_track_to_target_count(
         track,
         // Keep the RDP track near the target size tuned for accuracy/speed.

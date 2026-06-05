@@ -1,8 +1,5 @@
-use crate::flight::scoring::ScoringOutcome;
-use crate::flight::types::Track;
-use tengri_geo::track_aspect_ratio;
-
-use super::simplify::simplify_track_for_scoring_with_chord_cap;
+use crate::{ScoringOutcome, ScoringTrack};
+use tengri_geo::{simplify_track_for_scoring_with_chord_cap, track_aspect_ratio};
 
 pub(super) const MIN_FREE_DISTANCE_M: u32 = 5_000;
 pub(super) const MAX_ASPECT_RATIO: f64 = 8.0;
@@ -37,7 +34,7 @@ pub struct FaiTriangleLazyAudit {
 /// full search should proceed. Returns `false` (and sets `audit.skip_reason`)
 /// if the track passes one of the early-exit filters.
 pub(super) fn is_valuable(
-    track: &Track,
+    track: &ScoringTrack,
     free_distance_m: u32,
     audit: Option<&mut FaiTriangleLazyAudit>,
 ) -> bool {
@@ -114,7 +111,8 @@ pub(super) fn is_valuable(
     valuable
 }
 
-fn simplified_track(track: &Track, tolerance_m: f64, chord_cap_m: f64) -> Track {
-    let indexes = simplify_track_for_scoring_with_chord_cap(track, tolerance_m, chord_cap_m);
+fn simplified_track(track: &ScoringTrack, tolerance_m: f64, chord_cap_m: f64) -> ScoringTrack {
+    let indexes =
+        simplify_track_for_scoring_with_chord_cap(&track.points, tolerance_m, chord_cap_m);
     track.select_at(indexes)
 }

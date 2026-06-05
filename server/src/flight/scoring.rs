@@ -1,78 +1,46 @@
-mod fai_triangle;
-mod free_distance;
-mod free_triangle;
-mod olc_triangle;
-mod types;
-
-use std::time::Instant;
-
 use crate::flight::types::Track;
-
-pub(crate) use fai_triangle::simplify_track_for_scoring_with_chord_cap;
-pub use fai_triangle::{
+use tengri_geo::PointE5;
+pub use tengri_scoring::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,
-    TraceEvent, TriangleClosureCacheStats, evaluate_fai_triangle, evaluate_fai_triangle_lazy,
+    Route, RouteClosure, RouteCylinderMode, RouteEvaluation, RouteFix, RoutePoint, RouteSubType,
+    RouteType, RouteWaypoint, ScoringError, ScoringOutcome, TraceEvent, TriangleClosureCacheStats,
 };
-pub use free_distance::evaluate_free_distance;
-pub use free_triangle::{evaluate_free_triangle, evaluate_free_triangle_lazy};
-pub(crate) use types::{IndexedTrackPoint, RouteClosure, RouteSubType, ScoringError};
-pub use types::{Route, RouteEvaluation, RouteType, RouteWaypoint, ScoringOutcome};
 
 pub fn evaluate_routes(track: &Track) -> ScoringOutcome<RouteEvaluation> {
-    let t = Instant::now();
-    let mut free_distance = match evaluate_free_distance(track) {
-        ScoringOutcome::Answer(route) => route,
-        ScoringOutcome::NoAnswer => {
-            return ScoringOutcome::Error(ScoringError::SolverFailed {
-                route_type: RouteType::FreeDistance,
-                reason: "no free-distance route found",
-            });
-        }
-        ScoringOutcome::Error(error) => return ScoringOutcome::Error(error),
-    };
-    free_distance.scored_ms = t.elapsed().as_millis() as u32;
-
-    let routes = std::thread::scope(|scope| {
-        let handles: Vec<_> = RouteType::SCORABLE
-            .into_iter()
-            .map(|route_type| {
-                let free_distance = free_distance.clone();
-                scope.spawn(move || {
-                    if route_type == RouteType::FreeDistance {
-                        return ScoringOutcome::Answer(free_distance);
-                    }
-                    let t = Instant::now();
-                    let outcome = evaluate_route(track, route_type, &free_distance);
-                    let ms = t.elapsed().as_millis() as u32;
-                    outcome.map_answer(|mut route| {
-                        route.scored_ms = ms;
-                        route
-                    })
-                })
-            })
-            .collect();
-
-        handles
-            .into_iter()
-            .map(|handle| handle.join().expect("route evaluation thread panicked"))
-            .collect()
-    });
-
-    ScoringOutcome::Answer(RouteEvaluation { routes })
+    tengri_scoring::evaluate_routes(&scoring_track(track))
 }
 
-fn evaluate_route(
+pub fn evaluate_free_distance(track: &Track) -> ScoringOutcome<Route> {
+    tengri_scoring::evaluate_free_distance(&scoring_track(track))
+}
+
+pub fn evaluate_free_triangle(track: &Track) -> ScoringOutcome<Route> {
+    tengri_scoring::evaluate_free_triangle(&scoring_track(track))
+}
+
+pub fn evaluate_free_triangle_lazy(track: &Track, free_distance_m: u32) -> ScoringOutcome<Route> {
+    tengri_scoring::evaluate_free_triangle_lazy(&scoring_track(track), free_distance_m)
+}
+
+pub fn evaluate_fai_triangle(
     track: &Track,
-    route_type: RouteType,
-    free_distance: &Route,
+    class: Option<OlcTriangleClass>,
 ) -> ScoringOutcome<Route> {
-    match route_type {
-        RouteType::FreeDistance => ScoringOutcome::Answer(free_distance.clone()),
-        RouteType::FreeTriangle => evaluate_free_triangle_lazy(track, free_distance.distance),
-        RouteType::FaiTriangle => {
-            evaluate_fai_triangle_lazy(track, free_distance.distance, None, None)
-        }
-        RouteType::Task => ScoringOutcome::NoAnswer,
+    tengri_scoring::evaluate_fai_triangle(&scoring_track(track), class)
+}
+
+pub fn evaluate_fai_triangle_lazy(
+    track: &Track,
+    free_distance_m: u32,
+    audit: Option<&mut FaiTriangleLazyAudit>,
+    trace: Option<&mut dyn FnMut(&TraceEvent)>,
+) -> ScoringOutcome<Route> {
+    tengri_scoring::evaluate_fai_triangle_lazy(&scoring_track(track), free_distance_m, audit, trace)
+}
+
+pub(crate) fn scoring_track(track: &Track) -> tengri_scoring::ScoringTrack {
+    tengri_scoring::ScoringTrack {
+        points: track.points.iter().map(PointE5::from_e5_coords).collect(),
     }
 }
 

@@ -1,9 +1,8 @@
 mod constants;
 mod prefilter;
-mod simplify;
 
-use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
-use crate::flight::types::Track;
+use crate::ScoringTrack;
+use crate::{Route, RouteSubType, RouteType, ScoringOutcome};
 use tengri_geo::METERS_PER_KM;
 
 pub use super::olc_triangle::{OlcTriangleClass, TraceEvent, TriangleClosureCacheStats};
@@ -14,7 +13,6 @@ use constants::{
     MIN_FAI_TO_FREE_DISTANCE_RATIO, MIN_SIDE,
 };
 pub use prefilter::{FaiTriangleLazyAudit, FaiTriangleLazySkipReason};
-pub(crate) use simplify::simplify_track_for_scoring_with_chord_cap;
 
 /// Evaluate the best FAI triangle for the track.
 ///
@@ -23,7 +21,7 @@ pub(crate) use simplify::simplify_track_for_scoring_with_chord_cap;
 ///   whichever scores higher.
 /// - `Some(c)` — run only the given class.
 pub fn evaluate_fai_triangle(
-    track: &Track,
+    track: &ScoringTrack,
     class: Option<OlcTriangleClass>,
 ) -> ScoringOutcome<Route> {
     evaluate_fai_triangle_with_min_side(track, class, DEFAULT_MIN_SCORING_SIDE_KM)
@@ -35,7 +33,7 @@ pub fn evaluate_fai_triangle(
 /// given threshold, which avoids noise when comparing against a free-distance
 /// result.
 pub(super) fn evaluate_fai_triangle_with_min_side(
-    track: &Track,
+    track: &ScoringTrack,
     class: Option<OlcTriangleClass>,
     min_scoring_side_km: f64,
 ) -> ScoringOutcome<Route> {
@@ -68,7 +66,7 @@ pub(super) fn evaluate_fai_triangle_with_min_side(
 /// B&B node. Useful for comparing the algorithm step-by-step against the
 /// Node.js reference scorer.
 fn evaluate_fai_triangle_with_min_side_traced(
-    track: &Track,
+    track: &ScoringTrack,
     class: OlcTriangleClass,
     min_scoring_side_km: f64,
     trace: &mut dyn FnMut(&TraceEvent),
@@ -84,7 +82,7 @@ fn evaluate_fai_triangle_with_min_side_traced(
 /// negatives caused by RDP simplification shifting triangle closure slightly.
 /// The result is a signal, not a lower bound — the strict solver may still
 /// reject the candidate.
-pub(super) fn probe_fai_triangle(track: &Track) -> ScoringOutcome<Route> {
+pub(super) fn probe_fai_triangle(track: &ScoringTrack) -> ScoringOutcome<Route> {
     let mut evaluator = OlcTriangleEvaluator::new_with_closure(
         track,
         options_for_class(OlcTriangleClass::Open, DEFAULT_MIN_SCORING_SIDE_KM),
@@ -104,7 +102,7 @@ pub(super) fn probe_fai_triangle(track: &Track) -> ScoringOutcome<Route> {
 /// When `trace` is `Some`, B&B events are emitted for the `Open` class
 /// (matching Node.js `igc-xc-score`). A rejected track emits no events.
 pub fn evaluate_fai_triangle_lazy(
-    track: &Track,
+    track: &ScoringTrack,
     free_distance_m: u32,
     audit: Option<&mut FaiTriangleLazyAudit>,
     trace: Option<&mut dyn FnMut(&TraceEvent)>,

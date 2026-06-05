@@ -18,4 +18,7 @@ pub use fcc::fcc_distance_km;
 pub use haversine::haversine_m;
 pub use point_degrees::PointDegrees;
 pub use point_e5::{HasE5Coords, PointE5};
-pub use rdp::{Point, RdpCapped, rdp, rdp_indexes_capped, rdp_indexes_with_chord_cap};
+pub use rdp::{
+    Point, RdpCapped, rdp, rdp_indexes_capped, rdp_indexes_with_chord_cap,
+    simplify_track_for_scoring_with_chord_cap,
+};

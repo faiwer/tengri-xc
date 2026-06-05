@@ -2554,6 +2554,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tengri-scoring"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sqlx",
+ "tengri-geo",
+ "thiserror",
+]
+
+[[package]]
 name = "tengri-server"
 version = "0.1.0"
 dependencies = [
@@ -2581,6 +2591,7 @@ dependencies = [
  "serial_test",
  "sqlx",
  "tengri-geo",
+ "tengri-scoring",
  "thiserror",
  "tokio",
  "tower",

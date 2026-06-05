@@ -4,8 +4,8 @@ use std::time::Instant;
 
 use anyhow::{Context, anyhow};
 use tengri_server::flight::{
-    Route, RouteType, RouteWaypoint, ScoringOutcome, TengriFile, decode, evaluate_routes,
-    find_flight_window, ingest::slice_flight_window, store::upsert_scored_routes,
+    Route, RoutePoint, RouteType, RouteWaypoint, ScoringOutcome, TengriFile, Track, decode,
+    evaluate_routes, find_flight_window, ingest::slice_flight_window, store::upsert_scored_routes,
 };
 
 use super::shared::connect_pool;
@@ -53,13 +53,13 @@ pub async fn run(flight_id: String, update_db: bool) -> anyhow::Result<()> {
         "route", "distance_m", "score", "optimal"
     );
     for (route_type, route) in RouteType::SCORABLE.into_iter().zip(evaluation.routes) {
-        print_route(route_type, route);
+        print_route(route_type, route, &track);
     }
 
     Ok(())
 }
 
-fn print_route(route_type: RouteType, route: ScoringOutcome<Route>) {
+fn print_route(route_type: RouteType, route: ScoringOutcome<Route>, track: &Track) {
     match route {
         ScoringOutcome::Answer(route) => println!(
             "{:<22} {:>12} {:>12.2} {:>8}  {}",
@@ -67,7 +67,7 @@ fn print_route(route_type: RouteType, route: ScoringOutcome<Route>) {
             route.distance,
             route.score,
             route.optimal,
-            format_turnpoints(&route.turnpoints)
+            format_turnpoints(&route.turnpoints, track)
         ),
         ScoringOutcome::NoAnswer => println!(
             "{:<22} {:>12} {:>12} {:>8}  -",
@@ -102,32 +102,35 @@ impl RouteTypeLabel for RouteType {
     }
 }
 
-fn format_turnpoints(points: &[RouteWaypoint]) -> String {
+fn format_turnpoints(points: &[RouteWaypoint], track: &Track) -> String {
     if points.is_empty() {
         return "-".to_string();
     }
 
     points
         .iter()
-        .map(|point| match point {
-            RouteWaypoint::Point { fix } => {
-                format!(
-                    "@{} ({:.5}, {:.5})",
-                    fix.time,
-                    fix.lat as f64 / 1e5,
-                    fix.lon as f64 / 1e5
-                )
-            }
-            // TODO: Find a better way to represent cylinder and line crossings.
-            RouteWaypoint::Cylinder { track_fix, .. } | RouteWaypoint::Line { track_fix, .. } => {
-                format!(
-                    "@{} ({:.5}, {:.5})",
-                    track_fix.time,
-                    track_fix.lat as f64 / 1e5,
-                    track_fix.lon as f64 / 1e5
-                )
-            }
+        .map(|point| {
+            let point = route_waypoint_fix(point);
+            let time = track
+                .points
+                .get(point.idx)
+                .map_or_else(|| "?".to_owned(), |fix| fix.time.to_string());
+            format!(
+                "@{} ({:.5}, {:.5})",
+                time,
+                point.lat as f64 / 1e5,
+                point.lon as f64 / 1e5
+            )
         })
         .collect::<Vec<_>>()
         .join(" -> ")
+}
+
+fn route_waypoint_fix(point: &RouteWaypoint) -> &RoutePoint {
+    match point {
+        RouteWaypoint::Point { fix } => fix,
+        RouteWaypoint::Cylinder { track_fix, .. } | RouteWaypoint::Line { track_fix, .. } => {
+            track_fix
+        }
+    }
 }

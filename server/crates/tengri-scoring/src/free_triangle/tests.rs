@@ -1,22 +1,14 @@
 use super::*;
-use crate::flight::scoring::{Route, RouteSubType, RouteType, ScoringOutcome};
-use crate::flight::types::{Track, TrackPoint};
+use crate::{Route, RouteSubType, RouteType, ScoringOutcome, ScoringTrack};
 use tengri_geo::METERS_PER_KM;
+use tengri_geo::PointE5;
 
-fn point(time: u32, lat: i32, lon: i32) -> TrackPoint {
-    TrackPoint {
-        time,
-        lat,
-        lon,
-        geo_alt: 0,
-        pressure_alt: None,
-        tas: None,
-    }
+fn point(_time: u32, lat: i32, lon: i32) -> PointE5 {
+    PointE5 { lat, lon }
 }
 
-fn triangle_track(return_lon: i32) -> Track {
-    Track {
-        start_time: 0,
+fn triangle_track(return_lon: i32) -> ScoringTrack {
+    ScoringTrack {
         points: vec![
             point(0, 0, 0),
             point(1, 0, 90_000),
