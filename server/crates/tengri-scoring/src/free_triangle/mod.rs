@@ -5,10 +5,13 @@ mod tests;
 
 use crate::ScoringTrack;
 use crate::{Route, RouteSubType, RouteType, ScoringOutcome};
+use tengri_geo::simplify_track_for_scoring;
 
 use super::olc_triangle::{OlcTriangleClass, OlcTriangleEvaluator, TriangleOptions};
 use constants::{
-    FREE_TRIANGLE_CLOSED_MULTIPLIER, FREE_TRIANGLE_OPEN_MULTIPLIER, MIN_FREE_TO_FREE_DISTANCE_RATIO,
+    FREE_TRIANGLE_CLOSED_MULTIPLIER, FREE_TRIANGLE_CLOSURE_PREFILTER,
+    FREE_TRIANGLE_OPEN_MULTIPLIER, MIN_COARSE_TO_FREE_DISTANCE_RATIO,
+    MIN_FREE_TO_FREE_DISTANCE_RATIO, PROBE_RDP_TOLERANCE_M,
 };
 
 pub fn evaluate_free_triangle(track: &ScoringTrack) -> ScoringOutcome<Route> {
@@ -19,6 +22,9 @@ pub fn evaluate_free_triangle_lazy(
     track: &ScoringTrack,
     free_distance_m: u32,
 ) -> ScoringOutcome<Route> {
+    if !is_valuable(track, free_distance_m) {
+        return ScoringOutcome::NoAnswer;
+    }
     evaluate_free_triangle_with_floor(track, Some(free_distance_m))
 }
 
@@ -47,6 +53,36 @@ fn evaluate_free_triangle_class(
 ) -> ScoringOutcome<Route> {
     let mut evaluator = OlcTriangleEvaluator::new(track, options_for_class(class));
     evaluator.evaluate(None)
+}
+
+/// Since calculating the exact free triangle is expensive, we first check if
+/// the track is a plausible candidate by probing a simplified track with a
+/// relaxed closure threshold.
+fn is_valuable(track: &ScoringTrack, free_distance_m: u32) -> bool {
+    // Unlike FAI triangles, free triangles are not sensitive to the number of
+    // points in the track that are lying on the same line. So we can simplify
+    // it a lot, ignoring the chord points.
+    let simplified = simplified_track(track, PROBE_RDP_TOLERANCE_M);
+    let coarse_free_triangle_distance_m = match probe_free_triangle(&simplified) {
+        ScoringOutcome::Answer(route) => route.distance,
+        _ => 0,
+    };
+    f64::from(coarse_free_triangle_distance_m)
+        >= f64::from(free_distance_m) * MIN_COARSE_TO_FREE_DISTANCE_RATIO
+}
+
+fn probe_free_triangle(track: &ScoringTrack) -> ScoringOutcome<Route> {
+    let mut evaluator = OlcTriangleEvaluator::new_with_closure(
+        track,
+        options_for_class(OlcTriangleClass::Open),
+        FREE_TRIANGLE_CLOSURE_PREFILTER,
+    );
+    evaluator.evaluate(None)
+}
+
+fn simplified_track(track: &ScoringTrack, tolerance_m: f64) -> ScoringTrack {
+    let indexes = simplify_track_for_scoring(&track.points, tolerance_m);
+    track.select_at(indexes)
 }
 
 fn options_for_class(class: OlcTriangleClass) -> TriangleOptions {

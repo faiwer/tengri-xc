@@ -89,3 +89,24 @@ fn lazy_scoring_filters_free_triangles_below_free_distance_floor() {
         ScoringOutcome::NoAnswer,
     ));
 }
+
+#[test]
+fn lazy_scoring_prefilters_free_triangles_below_coarse_free_distance_floor() {
+    let track = triangle_track(27_000);
+
+    assert!(matches!(
+        // Assuming the track has a way bigger free distance path.
+        evaluate_free_triangle_lazy(&track, 600_000),
+        ScoringOutcome::NoAnswer,
+    ));
+}
+
+#[test]
+fn lazy_scoring_allows_free_triangles_that_pass_coarse_floor() {
+    let track = triangle_track(27_000);
+
+    assert!(matches!(
+        evaluate_free_triangle_lazy(&track, 400_000),
+        ScoringOutcome::Answer(_),
+    ));
+}

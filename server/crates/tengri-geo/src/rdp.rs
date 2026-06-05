@@ -87,6 +87,14 @@ pub fn rdp_indexes_with_chord_cap(
         .collect()
 }
 
+pub fn simplify_track_for_scoring<P: HasE5Coords>(points: &[P], tolerance_m: f64) -> Vec<usize> {
+    let n = points.len();
+    if n <= 2 {
+        return (0..n).collect();
+    }
+    rdp_indexes_with_chord_cap(&project_track_points_m(points), tolerance_m, None)
+}
+
 pub fn simplify_track_for_scoring_with_chord_cap<P: HasE5Coords>(
     points: &[P],
     tolerance_m: f64,
