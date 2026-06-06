@@ -6,3 +6,6 @@ node_modules/
 todo.md
 .cursor
 docs/
+# experiments with igc-xc-score
+scripts/
+.scratch/
