@@ -218,6 +218,7 @@ fn detect_sustained_flight(points: &[TrackPoint], hma: &[f64], vma: &[f64]) -> V
     let n = points.len();
     let mut out = vec![false; n];
     let mut start: Option<usize> = None;
+    let mut confirmed_end: Option<usize> = None;
 
     for i in 0..n.saturating_sub(1) {
         if start.is_none()
@@ -225,17 +226,26 @@ fn detect_sustained_flight(points: &[TrackPoint], hma: &[f64], vma: &[f64]) -> V
             && vma[i] > FLIGHT_INITIAL_VSPEED_MPS
         {
             start = Some(i);
+            confirmed_end = None;
         }
 
         if let Some(start_idx) = start {
             if hma[i] > FLIGHT_CONTINUE_HSPEED_MPS && vma[i] > FLIGHT_CONTINUE_VSPEED_MPS {
                 if points[i].time > points[start_idx].time.saturating_add(FLIGHT_DETECT_TIME_S) {
-                    out[start_idx..=i].fill(true);
+                    confirmed_end = Some(i);
                 }
             } else {
+                if let Some(end_idx) = confirmed_end {
+                    out[start_idx..=end_idx].fill(true);
+                }
                 start = None;
+                confirmed_end = None;
             }
         }
+    }
+
+    if let (Some(start_idx), Some(end_idx)) = (start, confirmed_end) {
+        out[start_idx..=end_idx].fill(true);
     }
 
     out
@@ -250,21 +260,31 @@ fn detect_sustained_ground(points: &[TrackPoint], hma: &[f64], vma: &[f64]) -> V
     let n = points.len();
     let mut out = vec![false; n];
     let mut start: Option<usize> = None;
+    let mut confirmed_end: Option<usize> = None;
 
     for i in 0..n.saturating_sub(1) {
         if start.is_none() && hma[i] < GROUND_MAX_HSPEED_MPS && vma[i] < GROUND_MAX_VSPEED_MPS {
             start = Some(i);
+            confirmed_end = None;
         }
 
         if let Some(start_idx) = start {
             if hma[i] < GROUND_MAX_HSPEED_MPS && vma[i] < GROUND_MAX_VSPEED_MPS {
                 if points[i].time > points[start_idx].time.saturating_add(GROUND_DETECT_TIME_S) {
-                    out[start_idx..=i].fill(true);
+                    confirmed_end = Some(i);
                 }
             } else {
+                if let Some(end_idx) = confirmed_end {
+                    out[start_idx..=end_idx].fill(true);
+                }
                 start = None;
+                confirmed_end = None;
             }
         }
+    }
+
+    if let (Some(start_idx), Some(end_idx)) = (start, confirmed_end) {
+        out[start_idx..=end_idx].fill(true);
     }
 
     out
