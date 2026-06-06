@@ -18,6 +18,7 @@ pub(crate) fn simplify_track_to_target_count(
     if n <= 2 {
         return Some((0..n).collect());
     }
+    let min_points = min_points.min(n);
 
     let points = project_track_points_m(&track.points);
     let mut too_dense_m = min_tolerance_m;
