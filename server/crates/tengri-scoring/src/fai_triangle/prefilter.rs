@@ -2,9 +2,10 @@ use crate::{ScoringOutcome, ScoringTrack};
 use tengri_geo::{simplify_track_for_scoring_with_chord_cap, track_aspect_ratio};
 
 pub(super) const MIN_FREE_DISTANCE_M: u32 = 5_000;
-pub(super) const MAX_ASPECT_RATIO: f64 = 8.0;
+pub(super) const MAX_ASPECT_RATIO: f64 = 7.0;
 pub(super) const PROBE_RDP_TOLERANCE_M: f64 = 250.0;
 pub(super) const CHORD_RDP_CAP_M: f64 = 500.0;
+pub(super) const CHORD_RDP_FREE_DISTANCE_RATIO: f64 = 0.00125;
 pub(super) const MIN_COARSE_DISTANCE_M: u32 = 10_000;
 pub(super) const MIN_COARSE_TO_FREE_DISTANCE_RATIO: f64 = 0.25;
 
@@ -60,7 +61,10 @@ pub(super) fn is_valuable(
         return false;
     }
 
-    let simplified = simplified_track(track, PROBE_RDP_TOLERANCE_M, CHORD_RDP_CAP_M);
+    // Use a dynamic chord cap based on the flight's free distance for huge tracks.
+    let chord_cap_m =
+        CHORD_RDP_CAP_M.max(f64::from(free_distance_m) * CHORD_RDP_FREE_DISTANCE_RATIO);
+    let simplified = simplified_track(track, PROBE_RDP_TOLERANCE_M, chord_cap_m);
     let coarse_fai_distance_m = match super::probe_fai_triangle(&simplified) {
         ScoringOutcome::Answer(route) => route.distance,
         _ => {

@@ -3,6 +3,7 @@ mod fai_triangle;
 mod free_distance;
 mod free_triangle;
 mod olc_triangle;
+mod shared;
 mod track;
 mod types;
 

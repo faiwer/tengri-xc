@@ -7,7 +7,7 @@ use tengri_geo::{RdpCapped, project_track_points_m, rdp_indexes_capped};
 /// between `min_points` and `max_points` points. Since RDP is relatively cheap,
 /// this helps find a simplified track that balances algorithm time and
 /// accuracy.
-pub(super) fn simplify_track_to_target_count(
+pub(crate) fn simplify_track_to_target_count(
     track: &ScoringTrack,
     min_points: usize,
     max_points: usize,

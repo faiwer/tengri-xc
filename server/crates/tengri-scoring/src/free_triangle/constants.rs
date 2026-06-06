@@ -8,8 +8,14 @@ pub(super) const FREE_TRIANGLE_CLOSED_MULTIPLIER: f64 = 1.4;
 /// not worth returning from FD-aware scoring.
 pub(super) const MIN_FREE_TO_FREE_DISTANCE_RATIO: f64 = 0.25;
 
-/// RDP tolerance for the cheap Free Triangle probe.
-pub(super) const PROBE_RDP_TOLERANCE_M: f64 = 250.0;
+/// Minimum point count for the cheap Free Triangle probe.
+pub(super) const PROBE_MIN_POINTS: usize = 100;
+/// Maximum point count for the cheap Free Triangle probe.
+pub(super) const PROBE_MAX_POINTS: usize = 200;
+/// Smallest RDP tolerance to try for the cheap Free Triangle probe.
+pub(super) const PROBE_MIN_TOLERANCE_M: f64 = 0.0;
+/// Biggest RDP tolerance to try for the cheap Free Triangle probe.
+pub(super) const PROBE_MAX_TOLERANCE_M: f64 = 500.0;
 
 /// Relaxed closure threshold for simplified-track Free Triangle probes.
 pub(super) const FREE_TRIANGLE_CLOSURE_PREFILTER: f64 = 0.25;
