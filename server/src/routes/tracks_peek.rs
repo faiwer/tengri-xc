@@ -36,7 +36,7 @@ const MAX_TRACK_POINTS: usize = 300_000;
 const SCORING_RDP_TOLERANCE_M: f64 = 500.0;
 const SCORING_RDP_CHORD_CAP_M: f64 = 500.0;
 /// No need to show the whole track in the preview.
-const PREVIEW_RDP_TOLERANCE_M: f64 = 300.0;
+const PREVIEW_RDP_TOLERANCE_M: f64 = 200.0;
 
 pub fn router() -> Router<AppState> {
     Router::new().route(
