@@ -34,7 +34,7 @@ tengri-geo = { path = "crates/tengri-geo" }
 tengri-scoring = { path = "crates/tengri-scoring", features = ["sqlx"] }
 thiserror = "2.0.18"
 tokio = { version = "1.52.2", features = ["full"] }
-tower-http = { version = "0.6.9", features = ["trace", "cors"] }
+tower-http = { version = "0.6.9", features = ["trace", "cors", "compression-gzip"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_64"] }

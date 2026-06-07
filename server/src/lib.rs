@@ -12,8 +12,15 @@ pub mod telemetry;
 pub mod user;
 pub mod validation;
 
-use axum::{Router, http::HeaderValue};
+use axum::{
+    Router,
+    http::{Extensions, HeaderMap, HeaderValue, StatusCode, Version, header},
+};
 use tower_http::{
+    compression::{
+        CompressionLayer,
+        predicate::{DefaultPredicate, Predicate},
+    },
     cors::CorsLayer,
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
@@ -51,4 +58,26 @@ pub fn build_app(state: AppState) -> Router {
         .with_state(state)
         .layer(cors)
         .layer(trace)
+        .layer(CompressionLayer::new().compress_when(DefaultPredicate::new().and(is_json_response)))
+}
+
+fn is_json_response(
+    _status: StatusCode,
+    _version: Version,
+    headers: &HeaderMap,
+    _extensions: &Extensions,
+) -> bool {
+    let Some(content_type) = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return false;
+    };
+
+    let media_type = content_type
+        .split_once(';')
+        .map_or(content_type, |(media_type, _)| media_type)
+        .trim();
+
+    media_type.eq_ignore_ascii_case("application/json")
 }
