@@ -1,5 +1,5 @@
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { type ReactNode } from 'react';
+import { type ReactNode, useError } from 'react';
 import { MapCenterReporter } from './MapCenterReporter';
 import PALE_THEME from './paleTheme.json' with { type: 'json' };
 import { MapWhitener } from './MapWhitener';
@@ -8,6 +8,8 @@ import { useMapHoverHandlers } from './useMapHoverHandlers';
 import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
 import { MAP_TYPE_SCHEMA, type MapType } from './types';
 import { MapTypeSwitcher } from './MapTypeSwitcher';
+import { ErrorPane } from '../ErrorPane';
+import { useState } from 'react';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -20,15 +22,17 @@ interface MapViewProps {
   /** Overlays rendered inside <Map>; they may use `useMap()` to attach. */
   children?: ReactNode;
   initialBounds?: google.maps.LatLngBoundsLiteral | null;
+  initialPadding?: number;
   onCenterLatLng?: (point: google.maps.LatLngLiteral) => void;
   onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void;
   initialMapType?: MapType;
   hideControls?: boolean;
 }
 
-export function MapView({
+function MapViewInternal({
   children,
   initialBounds,
+  initialPadding = PADDING,
   onCenterLatLng,
   onHoverLatLng,
   initialMapType: mapTypeInitial = 'terrain',
@@ -57,7 +61,9 @@ export function MapView({
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={DEFAULT_ZOOM}
           defaultBounds={
-            initialBounds ? { ...initialBounds, padding: PADDING } : undefined
+            initialBounds
+              ? { ...initialBounds, padding: initialPadding }
+              : undefined
           }
           gestureHandling="greedy"
           disableDefaultUI
@@ -76,4 +82,11 @@ export function MapView({
       </APIProvider>
     </div>
   );
+}
+
+export function MapView(props: MapViewProps) {
+  const [error, setError] = useState<unknown>(null);
+  useError(setError);
+
+  return error ? <ErrorPane error={error} /> : <MapViewInternal {...props} />;
 }
