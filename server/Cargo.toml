@@ -49,6 +49,9 @@ serial_test = "3.4.0"
 tower = { version = "0.5.3", features = ["util"] }
 zip = { version = "5.1.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
+[profile.test]
+opt-level = 3
+
 [profile.dev.package.tengri-geo]
 opt-level = 3
 
