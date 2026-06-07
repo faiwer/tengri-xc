@@ -18,6 +18,7 @@ import { useRoute } from './useRoute';
 import { useTrackHoverPoint } from './useTrackHoverPoint';
 import { useTrackPageData } from './useTrackPageData';
 import { LoadingIcon } from '../components/icons/LoadingIcon';
+import { ErrorPane } from '../components/ErrorPane/ErrorPane';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
@@ -49,7 +50,7 @@ export function TrackPage() {
   return (
     <PageLayout>
       <div className={styles.layout}>
-        <aside className={styles.left}>
+        <aside className={styles.left} tengri-theme="dark">
           {state.status === 'loading' && <Loading inverseTheme />}
           {state.status === 'ok' && (
             <TrackMetaPanel
@@ -62,20 +63,19 @@ export function TrackPage() {
             />
           )}
           {state.status === 'error' && (
-            <ErrorMessage
+            <ErrorPane
               title="Could not download flight metadata"
               error={state.error}
-              className={styles.statusMessage}
+              valign="top"
             />
           )}
         </aside>
         <div className={styles.right} onPointerLeave={clearHover}>
           <div className={styles.mapSlot}>
             {trackState.status === 'error' ? (
-              <ErrorMessage
+              <ErrorPane
                 title="Couldn't load flight track"
                 error={trackState.error}
-                className={styles.mapError}
               />
             ) : trackState.status === 'loading' ? (
               <Loading />
@@ -120,25 +120,6 @@ export function TrackPage() {
     </PageLayout>
   );
 }
-
-const ErrorMessage = ({
-  error,
-  className,
-  title,
-}: {
-  error: unknown;
-  className: string;
-  title: string;
-}) => {
-  const msg = error instanceof Error ? error.message : String(error);
-  return (
-    <div className={className}>
-      {title}:
-      <br />
-      {msg}
-    </div>
-  );
-};
 
 const Loading = ({ inverseTheme = false }: { inverseTheme?: boolean }) => (
   <div className={styles.loading}>
