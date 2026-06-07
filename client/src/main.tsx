@@ -10,7 +10,10 @@ createRoot(
         testMode: true,
         transformSource: (source) => ({
           ...source,
-          fileName: source.fileName.replace(/^.+\/src/, location.origin),
+          fileName: source.fileName.replace(
+            /^.+\/src/,
+            location.origin + '/src',
+          ),
         }),
       }
     : undefined,
