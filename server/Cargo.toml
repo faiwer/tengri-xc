@@ -7,7 +7,12 @@ edition = "2024"
 default-run = "tengri-server"
 
 [workspace]
-members = ["crates/tengri-geo", "crates/tengri-scoring", "crates/tengri-formats"]
+members = [
+    "crates/tengri-geo",
+    "crates/tengri-scoring",
+    "crates/tengri-formats",
+    "crates/tengri-maps",
+]
 resolver = "3"
 
 [dependencies]

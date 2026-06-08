@@ -1,0 +1,9 @@
+[package]
+name = "tengri-maps"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+png = "0.18.1"
+tiff = "0.11.3"
+zstd = "0.13.3"
