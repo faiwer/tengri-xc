@@ -1,10 +1,10 @@
+use std::io::Write;
+use std::path::PathBuf;
 
-use super::compress::compress_tile;
-use super::progress::ProgressWriter;
-use super::pyramid::write_parent_levels;
-use super::resolution::{resize_dem_matrix, target_dem_resolution};
+use super::dem_export_adapter::DemExportAdapter;
 use super::source::DemSource;
-use super::tile_file::write_tile;
+use crate::tree::{TileTreeError, TileTreeExportReport, TileTreeExporter};
+
 pub struct DemTree;
 
 pub struct DemTreeBuilder<S> {
@@ -12,10 +12,10 @@ pub struct DemTreeBuilder<S> {
     output: Option<PathBuf>,
     threads: usize,
     progress: Option<Box<dyn Write + Send>>,
-    log: Option<Box<dyn Write + Send>>,
 }
 
-pub struct DemTreeExportReport {
+pub type DemTreeExportReport = TileTreeExportReport;
+
 impl DemTree {
     pub fn builder<S: DemSource + 'static>(source: S) -> DemTreeBuilder<S> {
         DemTreeBuilder::new(source)
@@ -29,7 +29,6 @@ impl<S: DemSource + 'static> DemTreeBuilder<S> {
             output: None,
             threads: default_thread_count(),
             progress: None,
-            log: None,
         }
     }
 
@@ -48,83 +47,166 @@ impl<S: DemSource + 'static> DemTreeBuilder<S> {
         self
     }
 
-    pub fn build(mut self) -> Result<DemTreeExportReport, DemTreeError> {
+    pub fn build(mut self) -> Result<DemTreeExportReport, TileTreeError> {
         let output = self
             .output
             .take()
-            .ok_or(DemTreeError::MissingBuilderField("output"))?;
-        let tree_bounds = self.source.tile_bounds();
-        let tiles = tree_bounds.tiles_at(tree_bounds.zoom)?;
-        let total = usize::try_from(tree_bounds.total_index_entries()?)
-            .map_err(|_| DemTreeError::InvalidBounds("index is too large"))?;
-        let mut progress = self.progress.take().map(ProgressWriter::new);
-
-        log(
-            &mut self.log,
-            format_args!(
-                "exporting {total} DEM tree tiles at z={} with {worker_count} workers",
-                tree_bounds.zoom
-            ),
-        );
-
-        let started = Instant::now();
-        let mut tree = DemTreeFile::create(output)
-            .tile_kind(TileKind::Dem)
-            .bounds(tree_bounds)
-            .finish_header()?;
-fn write_source_tiles<S: DemSource + 'static>(
-    tree: &mut DemTreeFile,
-    source: S,
-    tiles: Vec<XyzTile>,
-    worker_count: usize,
-    progress: &mut Option<ProgressWriter>,
-    total: usize,
-) -> Result<usize, DemTreeError> {
-    let tiles = Arc::new(tiles);
-    let source = Arc::new(source);
-    let next = Arc::new(AtomicUsize::new(0));
-    let cancel = Arc::new(AtomicBool::new(false));
-    let (send, receive) = mpsc::channel();
-    let mut workers = Vec::with_capacity(worker_count);
-
-    for _ in 0..worker_count {
-        let source = Arc::clone(&source);
-        let tiles = Arc::clone(&tiles);
-        let next = Arc::clone(&next);
-        let cancel = Arc::clone(&cancel);
-        let send = send.clone();
-        workers.push(thread::spawn(move || {
-            source_worker(source, tiles, next, cancel, send)
-        }));
+            .ok_or(TileTreeError::MissingBuilderField("output"))?;
+        let mut exporter = TileTreeExporter::new(
+            DemExportAdapter {
+                source: self.source,
+            },
+            output,
+        )
+        .threads(self.threads);
+        if let Some(progress) = self.progress.take() {
+            exporter = exporter.progress(progress);
+        }
+        exporter.build()
     }
-    drop(send);
+}
 
-    let mut done = 0;
-    for _ in 0..tiles.len() {
-        match receive
-            .recv()
-            .map_err(|_| DemTreeError::CorruptFile("leaf workers stopped"))?
-        {
-            Ok(result) => {
-                tree.add(
-                    result.tile.z,
-                    result.tile.x as u16,
-                    result.tile.y as u16,
-                    &result.payload,
-                )?;
-                done += 1;
-                if let Some(progress) = progress.as_mut() {
-                    progress.update(done, total);
-                }
-            }
-            Err(error) => {
-                cancel.store(true, Ordering::Relaxed);
-                join_workers(workers)?;
-                return Err(error);
-            }
+fn default_thread_count() -> usize {
+    std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    use super::*;
+    use crate::dem::DemChunk;
+    use crate::dem::decompress::decompress_tile;
+    use crate::dem::source::DemSourceReader;
+    use crate::dem::tile_file::read_tile;
+    use crate::geo::XyzTile;
+    use crate::tree::{TileTreeReader, XYZBounds};
+
+    struct FakeSource {
+        bounds: XYZBounds,
+    }
+
+    struct FakeReader;
+
+    struct MissingIntermediateSource {
+        bounds: XYZBounds,
+    }
+
+    struct MissingIntermediateReader;
+
+    impl DemSource for FakeSource {
+        fn tile_bounds(&self) -> XYZBounds {
+            self.bounds
+        }
+
+        fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
+            Ok(Box::new(FakeReader))
         }
     }
 
-    join_workers(workers)?;
-    Ok(done)
+    impl DemSourceReader for FakeReader {
+        fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
+            let elevation = (tile.x + tile.y * 2 + 1) as i16 * 8;
+            Ok(DemChunk::from_i16(1, 1, vec![elevation]))
+        }
+    }
+
+    impl DemSource for MissingIntermediateSource {
+        fn tile_bounds(&self) -> XYZBounds {
+            self.bounds
+        }
+
+        fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
+            Ok(Box::new(MissingIntermediateReader))
+        }
+
+        fn reads_intermediate_tiles(&self) -> bool {
+            true
+        }
+    }
+
+    impl DemSourceReader for MissingIntermediateReader {
+        fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
+            if tile.z < 2 {
+                return Err(TileTreeError::MissingTile {
+                    z: tile.z,
+                    x: tile.x as u16,
+                    y: tile.y as u16,
+                });
+            }
+
+            let elevation = (tile.x + tile.y * 2 + 1) as i16 * 8;
+            Ok(DemChunk::from_i16(1, 1, vec![elevation]))
+        }
+    }
+
+    #[test]
+    fn builder_uses_source_abstraction_for_leaf_tiles() {
+        let path = test_path("tengri-fake-source");
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+        let bounds = XYZBounds::new(1, 0, 0, 1, 1).unwrap();
+
+        let report = DemTree::builder(FakeSource { bounds })
+            .output(&path)
+            .threads(2)
+            .build()
+            .unwrap();
+
+        assert_eq!(report.zoom, 1);
+        assert_eq!(report.tiles_written, 5);
+
+        let mut reader = TileTreeReader::open(&path).unwrap();
+        let compressed = read_tile(reader.read(1, 1, 1).unwrap().as_slice()).unwrap();
+        let tile = decompress_tile(&compressed).unwrap();
+        assert_eq!(tile.width, 16);
+        assert_eq!(tile.height, 16);
+        assert!(tile.pixels.iter().all(|&elevation| elevation == 32));
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+    }
+
+    #[test]
+    fn missing_intermediate_source_tiles_fall_back_to_reduction() {
+        let path = test_path("tengri-missing-intermediate");
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+        let bounds = XYZBounds::new(2, 0, 0, 1, 1).unwrap();
+
+        let report = DemTree::builder(MissingIntermediateSource { bounds })
+            .output(&path)
+            .threads(1)
+            .build()
+            .unwrap();
+
+        assert_eq!(report.zoom, 2);
+        assert_eq!(report.tiles_written, 6);
+
+        let mut reader = TileTreeReader::open(&path).unwrap();
+        let compressed = read_tile(reader.read(1, 0, 0).unwrap().as_slice()).unwrap();
+        let tile = decompress_tile(&compressed).unwrap();
+        assert_eq!(tile.width, 32);
+        assert_eq!(tile.height, 32);
+        assert!(tile.pixels.contains(&8));
+        assert!(tile.pixels.contains(&32));
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+    }
+
+    fn test_path(name: &str) -> PathBuf {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/output/tree-tests");
+        fs::create_dir_all(&dir).unwrap();
+        dir.join(format!("{name}-{}.tengri-dem", std::process::id()))
+    }
+
+    fn temp_path_for(path: &Path) -> PathBuf {
+        let mut file_name = path.file_name().unwrap().to_os_string();
+        file_name.push(".tmp");
+        path.with_file_name(file_name)
+    }
 }

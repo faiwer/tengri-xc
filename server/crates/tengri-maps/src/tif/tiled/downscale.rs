@@ -1,4 +1,5 @@
 use crate::dem::constants::MAX_DEM_TILE_SIDE;
+use crate::matrix::area_resample;
 use crate::tif::error::TiffReadError;
 
 use super::types::PixelRegion;
@@ -44,65 +45,17 @@ fn downscale_pixels(
     width: u16,
     height: u16,
 ) -> Vec<i16> {
-    let width = usize::from(width);
-    let height = usize::from(height);
-    let mut output = Vec::with_capacity(width * height);
-    for y in 0..height {
-        for x in 0..width {
-            output.push(area_average(
-                source,
-                source_width,
-                source_height,
-                x,
-                y,
-                width,
-                height,
-            ));
-        }
-    }
-    output
-}
-
-fn area_average(
-    source: &[i16],
-    source_width: usize,
-    source_height: usize,
-    x: usize,
-    y: usize,
-    width: usize,
-    height: usize,
-) -> i16 {
-    let x_range = source_range(x, width, source_width);
-    let y_range = source_range(y, height, source_height);
-    let x_start = x_range.0.floor() as usize;
-    let x_end = x_range.1.ceil() as usize;
-    let y_start = y_range.0.floor() as usize;
-    let y_end = y_range.1.ceil() as usize;
-    let mut weighted_sum = 0.0;
-    let mut weight_sum = 0.0;
-
-    for source_y in y_start..y_end.min(source_height) {
-        let y_weight = overlap(y_range, source_y);
-        for source_x in x_start..x_end.min(source_width) {
-            let weight = overlap(x_range, source_x) * y_weight;
-            weighted_sum += f64::from(source[source_y * source_width + source_x].max(0)) * weight;
-            weight_sum += weight;
-        }
-    }
-
-    (weighted_sum / weight_sum).round() as i16
-}
-
-fn source_range(output_idx: usize, output_len: usize, source_len: usize) -> (f64, f64) {
-    let scale = source_len as f64 / output_len as f64;
-    let start = output_idx as f64 * scale;
-    (start, start + scale)
-}
-
-fn overlap(range: (f64, f64), idx: usize) -> f64 {
-    let start = range.0.max(idx as f64);
-    let end = range.1.min(idx as f64 + 1.0);
-    (end - start).max(0.0)
+    area_resample(
+        source,
+        source_width,
+        source_height,
+        usize::from(width),
+        usize::from(height),
+        |value| f64::from(value.max(0)),
+    )
+    .into_iter()
+    .map(|value| value.round() as i16)
+    .collect()
 }
 
 #[cfg(test)]

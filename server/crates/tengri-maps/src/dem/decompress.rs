@@ -3,9 +3,9 @@ use super::constants::{
     DEM_QUANTIZATION_METERS, MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS,
 };
 use super::error::DemError;
-use super::types::{CompressedDemTile, Fix, UncompressedDemTile};
+use super::types::{CompressedDemTile, DemChunk, Fix};
 
-pub fn decompress_tile(source: &CompressedDemTile) -> Result<UncompressedDemTile, DemError> {
+pub fn decompress_tile(source: &CompressedDemTile) -> Result<DemChunk, DemError> {
     validate_delta_size(source.size_per_delta)?;
     validate_dimensions(source.width, source.height)?;
     validate_fixes(&source.fixes)?;
@@ -40,17 +40,15 @@ pub fn decompress_tile(source: &CompressedDemTile) -> Result<UncompressedDemTile
         let reference = i32::from(stored_elevations[reference_idx(idx, width)]);
         stored_elevations.push(normalize_stored_elevation(reference + i32::from(delta)));
     }
-    let elevations = stored_elevations
+    let pixels = stored_elevations
         .into_iter()
-        .map(restore_elevation)
-        .collect::<Vec<_>>();
+        .map(|elevation| restore_elevation(elevation) as i16)
+        .collect();
 
-    Ok(UncompressedDemTile {
-        start: restore_elevation(normalize_stored_elevation(i32::from(source.start))) as i16,
-        fixes: source.fixes.clone(),
+    Ok(DemChunk {
         width: source.width,
         height: source.height,
-        elevations: elevations.into_boxed_slice(),
+        pixels,
     })
 }
 

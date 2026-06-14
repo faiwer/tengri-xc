@@ -1,28 +1,65 @@
-#[derive(Debug)]
+use super::error::DemError;
+use super::{decompress, tile_file};
+
+#[derive(Debug, Clone)]
 pub struct DemChunk {
     pub width: u16,
     pub height: u16,
-    pub pixels: DemPixelMatrix,
+    /// Raw elevation samples in source units (metres). Quantization to the
+    /// DEM's storage step happens later, in `compress`.
+    pub pixels: Vec<i16>,
 }
 
-#[derive(Debug)]
-pub enum DemPixelMatrix {
-    I16(Vec<i16>),
-    I32(Vec<i32>),
-    F32(Vec<f32>),
-}
+impl DemChunk {
+    /// Decodes a stored `.tengri-dem` tile payload back into a chunk.
+    /// Elevations come back quantized to `DEM_QUANTIZATION_METERS`, clamped
+    /// to `[0, i16::MAX]`.
+    pub fn from_payload(payload: &[u8]) -> Result<Self, DemError> {
+        let compressed = tile_file::read_tile(payload)?;
+        decompress::decompress_tile(&compressed)
+    }
 
-impl DemPixelMatrix {
-    pub fn len(&self) -> usize {
-        match self {
-            DemPixelMatrix::I16(pixels) => pixels.len(),
-            DemPixelMatrix::I32(pixels) => pixels.len(),
-            DemPixelMatrix::F32(pixels) => pixels.len(),
+    pub fn from_i16(width: u16, height: u16, pixels: Vec<i16>) -> Self {
+        Self {
+            width,
+            height,
+            pixels,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    /// Clamps each sample to `[0, i16::MAX]`. Values above `i16::MAX` saturate;
+    /// negatives (bathymetry, nodata sentinels) collapse to `0` — the DEM
+    /// pipeline downstream is non-negative.
+    pub fn from_i32(width: u16, height: u16, pixels: &[i32]) -> Self {
+        let pixels = pixels
+            .iter()
+            .map(|&value| value.clamp(0, i32::from(i16::MAX)) as i16)
+            .collect();
+        Self {
+            width,
+            height,
+            pixels,
+        }
+    }
+
+    /// Rounds each sample, clamps to `[0, i16::MAX]`, and maps non-finite
+    /// values to `0`.
+    pub fn from_f32(width: u16, height: u16, pixels: &[f32]) -> Self {
+        let pixels = pixels
+            .iter()
+            .map(|&value| {
+                if value.is_finite() {
+                    value.round().clamp(0.0, f32::from(i16::MAX)) as i16
+                } else {
+                    0
+                }
+            })
+            .collect();
+        Self {
+            width,
+            height,
+            pixels,
+        }
     }
 }
 
@@ -41,13 +78,4 @@ pub struct CompressedDemTile {
 pub struct Fix {
     pub idx: u16,
     pub elevation: i16,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UncompressedDemTile {
-    pub start: i16,
-    pub fixes: Box<[Fix]>,
-    pub width: u16,
-    pub height: u16,
-    pub elevations: Box<[u16]>,
 }

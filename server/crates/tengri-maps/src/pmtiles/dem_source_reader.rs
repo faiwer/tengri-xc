@@ -21,8 +21,8 @@ impl DemSourceReader for PmtilesDemSourceReader {
             .block_on(self.reader.get_tile_decompressed(coord))?
             .ok_or(TileTreeError::MissingTile {
                 z: tile.z,
-                lng: to_u16(tile.x)?,
-                lat: to_u16(tile.y)?,
+                x: to_u16(tile.x)?,
+                y: to_u16(tile.y)?,
             })?;
 
         decode_terrarium_webp(&bytes)

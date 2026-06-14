@@ -56,7 +56,7 @@ Chunks are read once before copying. Do not re-read a source TIFF chunk per row.
 
 ## Normalization
 
-The returned `DemChunk` always contains `DemPixelMatrix::I16`.
+The returned `DemChunk` always holds `Vec<i16>`.
 
 In `copy.rs`:
 

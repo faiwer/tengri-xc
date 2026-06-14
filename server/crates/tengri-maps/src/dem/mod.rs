@@ -4,8 +4,8 @@ mod bitpack;
 mod compress;
 pub(crate) mod constants;
 mod decompress;
+mod dem_export_adapter;
 mod error;
-mod progress;
 mod pyramid;
 mod resolution;
 pub(crate) mod serve;
@@ -17,6 +17,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
+pub use error::DemError;
 pub use source::{DemSource, DemSourceReader};
 pub use tree_export::{DemTree, DemTreeBuilder, DemTreeExportReport};
-pub use types::{DemChunk, DemPixelMatrix};
+pub use types::DemChunk;

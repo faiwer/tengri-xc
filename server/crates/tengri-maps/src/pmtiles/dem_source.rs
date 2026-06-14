@@ -6,11 +6,11 @@ use super::dem_source_reader::PmtilesDemSourceReader;
 
 use crate::dem::{DemSource, DemSourceReader};
 use crate::geo::{Bounds, xyz_tiles_for_bounds};
-use crate::tree::{MAX_WEB_MERCATOR_TREE_ZOOM, TileTreeError, WebMercatorTileBounds};
+use crate::tree::{MAX_WEB_MERCATOR_TREE_ZOOM, TileTreeError, XYZBounds};
 
 pub struct PmtilesDemSource {
     path: PathBuf,
-    tile_bounds: WebMercatorTileBounds,
+    tile_bounds: XYZBounds,
 }
 
 impl PmtilesDemSource {
@@ -34,14 +34,14 @@ impl PmtilesDemSource {
         };
         let read_bounds = bounds.unwrap_or(source_bounds);
         let tiles = xyz_tiles_for_bounds(read_bounds, zoom)?;
-        let tile_bounds = WebMercatorTileBounds::from_tiles(zoom, &tiles)?;
+        let tile_bounds = XYZBounds::from_tiles(zoom, &tiles)?;
 
         Ok(Self { path, tile_bounds })
     }
 }
 
 impl DemSource for PmtilesDemSource {
-    fn tile_bounds(&self) -> WebMercatorTileBounds {
+    fn tile_bounds(&self) -> XYZBounds {
         self.tile_bounds
     }
 

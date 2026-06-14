@@ -5,7 +5,7 @@ use super::constants::{
     DEM_QUANTIZATION_METERS, MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS,
 };
 use super::error::DemError;
-use super::types::{CompressedDemTile, DemChunk, DemPixelMatrix, Fix};
+use super::types::{CompressedDemTile, DemChunk, Fix};
 
 const DELTA_WIDTH_BUCKETS: usize = (MAX_DELTA_BITS - MIN_DELTA_BITS + 1) as usize;
 const OUTLIER_BUCKET: usize = DELTA_WIDTH_BUCKETS;
@@ -14,14 +14,18 @@ const ZSTD_LEVEL: i32 = 3;
 
 pub fn compress_tile(source: DemChunk) -> Result<CompressedDemTile, DemError> {
     let (width, height) = tile_dimensions(source.width, source.height)?;
-    let elevations = elevations_from_pixels(source.pixels)?;
     let expected = pixel_count(source.width, source.height)?;
-    if elevations.len() != expected {
+    if source.pixels.len() != expected {
         return Err(DemError::UnexpectedPixelCount {
             expected,
-            actual: elevations.len(),
+            actual: source.pixels.len(),
         });
     }
+    let elevations: Vec<i16> = source
+        .pixels
+        .iter()
+        .map(|&elevation| quantize_elevation(f64::from(elevation.max(0))))
+        .collect();
 
     let start = elevations[0];
     let source_deltas = source_deltas(&elevations, source.width as usize);
@@ -57,34 +61,6 @@ fn pixel_count(width: u16, height: u16) -> Result<usize, DemError> {
             width: u32::from(width),
             height: u32::from(height),
         })
-}
-
-fn elevations_from_pixels(pixels: DemPixelMatrix) -> Result<Vec<i16>, DemError> {
-    match pixels {
-        DemPixelMatrix::I16(pixels) => Ok(pixels
-            .into_iter()
-            .map(|elevation| normalize_elevation(i64::from(elevation)))
-            .collect()),
-        DemPixelMatrix::I32(pixels) => Ok(pixels
-            .into_iter()
-            .map(|elevation| normalize_elevation(i64::from(elevation)))
-            .collect()),
-        DemPixelMatrix::F32(pixels) => {
-            Ok(pixels.into_iter().map(normalize_float_elevation).collect())
-        }
-    }
-}
-
-fn normalize_elevation(elevation: i64) -> i16 {
-    quantize_elevation(elevation.clamp(0, i64::from(i16::MAX)) as f64)
-}
-
-fn normalize_float_elevation(elevation: f32) -> i16 {
-    if !elevation.is_finite() {
-        return 0;
-    }
-
-    quantize_elevation(f64::from(elevation).clamp(0.0, f64::from(i16::MAX)))
 }
 
 fn quantize_elevation(elevation: f64) -> i16 {

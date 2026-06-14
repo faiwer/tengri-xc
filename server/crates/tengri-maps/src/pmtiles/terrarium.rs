@@ -2,10 +2,7 @@ use std::io::{BufReader, Cursor};
 
 use image_webp::WebPDecoder;
 
-use crate::{
-    dem::{DemChunk, DemPixelMatrix},
-    tree::TileTreeError,
-};
+use crate::{dem::DemChunk, tree::TileTreeError};
 use super::constants::MAX_SOURCE_TILE_SIDE;
 
 pub fn decode_terrarium_webp(bytes: &[u8]) -> Result<DemChunk, TileTreeError> {
@@ -46,11 +43,7 @@ pub fn decode_terrarium_webp(bytes: &[u8]) -> Result<DemChunk, TileTreeError> {
         pixels.push(terrarium_elevation(pixel[0], pixel[1], pixel[2]));
     }
 
-    Ok(DemChunk {
-        width: width as u16,
-        height: height as u16,
-        pixels: DemPixelMatrix::I16(pixels),
-    })
+    Ok(DemChunk::from_i16(width as u16, height as u16, pixels))
 }
 
 fn terrarium_elevation(red: u8, green: u8, blue: u8) -> i16 {

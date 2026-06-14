@@ -6,7 +6,7 @@ use ::tiff::ColorType;
 use ::tiff::decoder::Decoder;
 use ::tiff::tags::Tag;
 
-use crate::dem::{DemChunk, DemPixelMatrix};
+use crate::dem::DemChunk;
 use crate::geo::Bounds;
 use crate::tif::error::TiffReadError;
 use crate::tif::types::TifPixelMatrix;
@@ -144,10 +144,6 @@ impl TiledTifReader {
         }
         let (width, height, pixels) = downscale_to_dem_tile(region, pixels);
 
-        Ok(DemChunk {
-            width,
-            height,
-            pixels: DemPixelMatrix::I16(pixels),
-        })
+        Ok(DemChunk::from_i16(width, height, pixels))
     }
 }

@@ -5,11 +5,11 @@ use crate::dem::{DemSource, DemSourceReader};
 use crate::geo::{Bounds, xyz_tiles_for_bounds};
 use crate::tif::TiledTifReader;
 use crate::tif::tif_dem_source_reader::TifDemSourceReader;
-use crate::tree::{TileTreeError, WebMercatorTileBounds};
+use crate::tree::{TileTreeError, XYZBounds};
 
 pub struct TifDemSource {
     path: PathBuf,
-    tile_bounds: WebMercatorTileBounds,
+    tile_bounds: XYZBounds,
     read_bounds: Bounds,
 }
 
@@ -20,7 +20,7 @@ impl TifDemSource {
         let zoom = source_backed_leaf_zoom(info.pixel_width_degrees);
         let read_bounds = bounds.unwrap_or(info.bounds);
         let tiles = xyz_tiles_for_bounds(read_bounds, zoom)?;
-        let tile_bounds = WebMercatorTileBounds::from_tiles(zoom, &tiles)?;
+        let tile_bounds = XYZBounds::from_tiles(zoom, &tiles)?;
 
         Ok(Self {
             path: path.as_ref().to_owned(),
@@ -31,7 +31,7 @@ impl TifDemSource {
 }
 
 impl DemSource for TifDemSource {
-    fn tile_bounds(&self) -> WebMercatorTileBounds {
+    fn tile_bounds(&self) -> XYZBounds {
         self.tile_bounds
     }
 
