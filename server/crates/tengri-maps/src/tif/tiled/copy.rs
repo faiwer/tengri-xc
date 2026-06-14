@@ -1,4 +1,5 @@
-use crate::tif::{TifPixelMatrix, TiffReadError};
+use crate::tif::error::TiffReadError;
+use crate::tif::types::TifPixelMatrix;
 
 use super::types::{PixelRegion, TiledTifChunk, TiledTifInfo};
 

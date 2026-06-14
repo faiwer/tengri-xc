@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::constants::{MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS};
+use super::constants::{MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS};
 
 #[derive(Debug)]
 pub enum DemError {
@@ -60,5 +60,11 @@ impl std::error::Error for DemError {
 impl From<std::io::Error> for DemError {
     fn from(error: std::io::Error) -> Self {
         DemError::Io(error)
+    }
+}
+
+impl From<DemError> for crate::tree::TileTreeError {
+    fn from(error: DemError) -> Self {
+        crate::tree::TileTreeError::external(error)
     }
 }

@@ -2,7 +2,7 @@ use std::fmt;
 
 use ::tiff::{ColorType, TiffError};
 
-use crate::constants::MAX_DEM_TILE_SIDE;
+use crate::dem::constants::MAX_DEM_TILE_SIDE;
 
 #[derive(Debug)]
 pub enum TiffReadError {
@@ -74,5 +74,11 @@ impl From<std::io::Error> for TiffReadError {
 impl From<TiffError> for TiffReadError {
     fn from(error: TiffError) -> Self {
         TiffReadError::Decode(error)
+    }
+}
+
+impl From<TiffReadError> for crate::tree::TileTreeError {
+    fn from(error: TiffReadError) -> Self {
+        crate::tree::TileTreeError::external(error)
     }
 }

@@ -1,6 +1,6 @@
 use crate::geo::Bounds;
 
-use crate::tif::TifPixelMatrix;
+use crate::tif::types::TifPixelMatrix;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct PixelRegion {

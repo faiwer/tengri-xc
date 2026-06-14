@@ -1,0 +1,1 @@
+pub const MAX_SOURCE_TILE_SIDE: u32 = crate::dem::constants::MAX_DEM_TILE_SIDE as u32 * 2;

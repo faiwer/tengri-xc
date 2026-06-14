@@ -1,14 +1,6 @@
 use ::tiff::decoder::DecodingResult;
 
-use super::TiffReadError;
-
-#[derive(Debug)]
-pub struct TifChunk {
-    pub width: u16,
-    pub height: u16,
-    pub bits_per_pixel: u8,
-    pub pixels: TifPixelMatrix,
-}
+use super::error::TiffReadError;
 
 #[derive(Debug)]
 pub enum TifPixelMatrix {

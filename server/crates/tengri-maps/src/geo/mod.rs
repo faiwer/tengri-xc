@@ -1,3 +1,7 @@
+pub mod xyz;
+
+pub use xyz::{WEB_MERCATOR_MAX_LAT, XyzTile, XyzTileError, xyz_tile_bounds, xyz_tiles_for_bounds};
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bounds {
     pub min_lat: f64,

@@ -1,19 +1,18 @@
 use std::mem;
 
 use super::bitpack::BitWriter;
-use super::error::DemError;
-use super::types::{CompressedDemTile, Fix};
-use crate::constants::{
+use super::constants::{
     DEM_QUANTIZATION_METERS, MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS,
 };
-use crate::tif::{TifPixelMatrix, TifChunk};
+use super::error::DemError;
+use super::types::{CompressedDemTile, DemChunk, DemPixelMatrix, Fix};
 
 const DELTA_WIDTH_BUCKETS: usize = (MAX_DELTA_BITS - MIN_DELTA_BITS + 1) as usize;
 const OUTLIER_BUCKET: usize = DELTA_WIDTH_BUCKETS;
 const DELTA_BUCKETS: usize = DELTA_WIDTH_BUCKETS + 1;
 const ZSTD_LEVEL: i32 = 3;
 
-pub fn compress_tile(source: TifChunk) -> Result<CompressedDemTile, DemError> {
+pub fn compress_tile(source: DemChunk) -> Result<CompressedDemTile, DemError> {
     let (width, height) = tile_dimensions(source.width, source.height)?;
     let elevations = elevations_from_pixels(source.pixels)?;
     let expected = pixel_count(source.width, source.height)?;
@@ -60,17 +59,19 @@ fn pixel_count(width: u16, height: u16) -> Result<usize, DemError> {
         })
 }
 
-fn elevations_from_pixels(pixels: TifPixelMatrix) -> Result<Vec<i16>, DemError> {
+fn elevations_from_pixels(pixels: DemPixelMatrix) -> Result<Vec<i16>, DemError> {
     match pixels {
-        TifPixelMatrix::I16(pixels) => Ok(pixels
+        DemPixelMatrix::I16(pixels) => Ok(pixels
             .into_iter()
             .map(|elevation| normalize_elevation(i64::from(elevation)))
             .collect()),
-        TifPixelMatrix::I32(pixels) => Ok(pixels
+        DemPixelMatrix::I32(pixels) => Ok(pixels
             .into_iter()
             .map(|elevation| normalize_elevation(i64::from(elevation)))
             .collect()),
-        TifPixelMatrix::F32(pixels) => Ok(pixels.into_iter().map(normalize_float_elevation).collect()),
+        DemPixelMatrix::F32(pixels) => {
+            Ok(pixels.into_iter().map(normalize_float_elevation).collect())
+        }
     }
 }
 

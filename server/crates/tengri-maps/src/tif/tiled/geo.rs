@@ -1,6 +1,6 @@
 use crate::geo::Bounds;
 
-use crate::tif::TiffReadError;
+use crate::tif::error::TiffReadError;
 
 use super::types::{PixelRegion, TiledTifInfo};
 

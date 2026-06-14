@@ -1,7 +1,9 @@
 use super::bitpack::BitReader;
+use super::constants::{
+    DEM_QUANTIZATION_METERS, MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS,
+};
 use super::error::DemError;
-use super::types::{CompressedDemTile, UncompressedDemTile};
-use crate::constants::{DEM_QUANTIZATION_METERS, MAX_DELTA_BITS, MAX_DEM_TILE_SIDE, MIN_DELTA_BITS};
+use super::types::{CompressedDemTile, Fix, UncompressedDemTile};
 
 pub fn decompress_tile(source: &CompressedDemTile) -> Result<UncompressedDemTile, DemError> {
     validate_delta_size(source.size_per_delta)?;
@@ -70,7 +72,7 @@ fn validate_delta_size(size_per_delta: u8) -> Result<(), DemError> {
     }
 }
 
-fn validate_fixes(fixes: &[super::Fix]) -> Result<(), DemError> {
+fn validate_fixes(fixes: &[Fix]) -> Result<(), DemError> {
     let mut previous_idx = 0;
     for (offset, fix) in fixes.iter().enumerate() {
         if offset > 0 && fix.idx <= previous_idx {

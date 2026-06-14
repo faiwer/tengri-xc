@@ -1,7 +1,8 @@
 mod error;
+mod tif_dem_source_reader;
+mod tif_source;
 mod tiled;
 mod types;
 
-pub use error::TiffReadError;
-pub use tiled::{TiledTifChunk, TiledTifInfo, TiledTifReader};
-pub use types::{TifPixelMatrix, TifChunk};
+pub use tif_source::TifDemSource;
+pub use tiled::TiledTifReader;

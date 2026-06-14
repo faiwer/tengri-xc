@@ -6,8 +6,10 @@ use ::tiff::ColorType;
 use ::tiff::decoder::Decoder;
 use ::tiff::tags::Tag;
 
+use crate::dem::{DemChunk, DemPixelMatrix};
 use crate::geo::Bounds;
-use crate::tif::{TifChunk, TifPixelMatrix, TiffReadError};
+use crate::tif::error::TiffReadError;
+use crate::tif::types::TifPixelMatrix;
 
 use super::copy::{copy_chunk_slice, pixel_count};
 use super::downscale::{downscale_to_dem_tile, validate_exact_region_dimensions};
@@ -120,7 +122,7 @@ impl TiledTifReader {
         })
     }
 
-    pub fn read_region(&mut self, bounds: Bounds) -> Result<TifChunk, TiffReadError> {
+    pub fn read_region(&mut self, bounds: Bounds) -> Result<DemChunk, TiffReadError> {
         let region = pixel_region_for_bounds(bounds, self.info)?;
         validate_exact_region_dimensions(region)?;
         let mut pixels = vec![0; pixel_count(region.width, region.height)?];
@@ -142,11 +144,10 @@ impl TiledTifReader {
         }
         let (width, height, pixels) = downscale_to_dem_tile(region, pixels);
 
-        Ok(TifChunk {
+        Ok(DemChunk {
             width,
             height,
-            bits_per_pixel: 16,
-            pixels: TifPixelMatrix::I16(pixels),
+            pixels: DemPixelMatrix::I16(pixels),
         })
     }
 }
