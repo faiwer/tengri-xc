@@ -7,8 +7,8 @@ type ExternalError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug)]
 pub enum TileTreeError {
     InvalidBounds(&'static str),
-    TileOutOfBounds { z: u8, lng: u16, lat: u16 },
-    DuplicateTile { z: u8, lng: u16, lat: u16 },
+    TileOutOfBounds { z: u8, x: u16, y: u16 },
+    DuplicateTile { z: u8, x: u16, y: u16 },
     MissingTile { z: u8, x: u16, y: u16 },
     MissingBuilderField(&'static str),
     TileTooLarge(u64),
@@ -32,13 +32,13 @@ impl fmt::Display for TileTreeError {
             TileTreeError::InvalidBounds(message) => {
                 write!(formatter, "invalid tile tree bounds: {message}")
             }
-            TileTreeError::TileOutOfBounds { z, lng, lat } => {
+            TileTreeError::TileOutOfBounds { z, x: lng, y: lat } => {
                 write!(
                     formatter,
                     "tile tree tile z={z} lng={lng} lat={lat} is outside the tree bounds"
                 )
             }
-            TileTreeError::DuplicateTile { z, lng, lat } => {
+            TileTreeError::DuplicateTile { z, x: lng, y: lat } => {
                 write!(
                     formatter,
                     "tile tree tile z={z} lng={lng} lat={lat} was already written"

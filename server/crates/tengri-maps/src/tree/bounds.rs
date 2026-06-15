@@ -31,10 +31,59 @@ impl XYZBounds {
         Ok(bounds)
     }
 
+    /// Returns the bounds that contains all the given tiles.
     pub fn from_tiles(zoom: u8, tiles: &[XyzTile]) -> Result<Self, TileTreeError> {
+        if tiles.is_empty() {
+            return Err(TileTreeError::InvalidBounds(
+                "bounds need at least one tile",
+            ));
+        }
+
+        let mut min_lng = u32::MAX;
+        let mut min_lat = u32::MAX;
+        let mut max_lng = 0;
+        let mut max_lat = 0;
+        for tile in tiles {
+            if tile.z != zoom {
+                return Err(TileTreeError::InvalidBounds(
+                    "all tiles must use the same zoom",
+                ));
+            }
+            min_lng = min_lng.min(tile.x);
+            min_lat = min_lat.min(tile.y);
+            max_lng = max_lng.max(tile.x);
+            max_lat = max_lat.max(tile.y);
+        }
+
+        Self::new(
+            zoom,
+            to_u16(min_lng)?,
+            to_u16(min_lat)?,
+            to_u16(max_lng)?,
+            to_u16(max_lat)?,
+        )
     }
 
     pub fn validate(self) -> Result<(), TileTreeError> {
+        if self.zoom > MAX_WEB_MERCATOR_TREE_ZOOM {
+            return Err(TileTreeError::InvalidBounds(
+                "zoom is higher than the tile tree limit",
+            ));
+        }
+        if self.min_x > self.max_x || self.min_y > self.max_y {
+            return Err(TileTreeError::InvalidBounds(
+                "minimum tile coordinate exceeds maximum",
+            ));
+        }
+
+        let max_coord = (1u32 << u32::from(self.zoom)) - 1;
+        if u32::from(self.max_x) > max_coord || u32::from(self.max_y) > max_coord {
+            return Err(TileTreeError::InvalidBounds(
+                "tile coordinate exceeds zoom range",
+            ));
+        }
+
+        Ok(())
     }
 
     pub fn level_bounds(self, zoom: u8) -> Result<Self, TileTreeError> {
@@ -52,16 +101,28 @@ impl XYZBounds {
         )
     }
 
-    pub fn lng_tiles(self) -> u64 {
+    pub fn x_tiles_count(self) -> u64 {
+        u64::from(self.max_x - self.min_x) + 1
     }
 
-    pub fn lat_tiles(self) -> u64 {
+    pub fn y_tiles_count(self) -> u64 {
+        u64::from(self.max_y - self.min_y) + 1
     }
 
-    pub fn tile_count(self) -> u64 {
+    pub fn xy_tiles_count(self) -> u64 {
+        self.x_tiles_count() * self.y_tiles_count()
     }
 
     pub fn contains(self, z: u8, lng: u16, lat: u16) -> bool {
+        let Ok(bounds) = self.level_bounds(z) else {
+            return false;
+        };
+        bounds.min_x <= lng
+            && lng <= bounds.max_x
+            && bounds.min_y <= lat
+            && lat <= bounds.max_y
+    }
+
     /// Returns Vec of { x, y, z } tiles at the given zoom level.
     pub fn tiles_at(self, zoom: u8) -> Result<Vec<XyzTile>, TileTreeError> {
         let bounds = self.level_bounds(zoom)?;
@@ -96,24 +157,8 @@ mod tests {
 
         assert_eq!(
             bounds.level_bounds(3).unwrap(),
-            XYZBounds {
-                zoom: 3,
-                min_x: 4,
-                min_y: 2,
-                max_x: 6,
-                max_y: 3,
-            }
+            XYZBounds::new(3, 4, 2, 6, 3).unwrap(),
         );
     }
 
-    #[test]
-    fn slot_is_stable_across_level_arrays() {
-        let bounds = XYZBounds::new(2, 1, 1, 2, 2).unwrap();
-
-        assert_eq!(bounds.slot(2, 1, 1).unwrap(), 0);
-        assert_eq!(bounds.slot(2, 2, 2).unwrap(), 3);
-        assert_eq!(bounds.slot(1, 0, 0).unwrap(), 4);
-        assert_eq!(bounds.slot(0, 0, 0).unwrap(), 8);
-        assert_eq!(bounds.total_index_entries().unwrap(), 9);
-    }
 }

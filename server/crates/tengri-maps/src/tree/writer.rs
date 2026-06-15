@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use super::builder::TileTreeFileBuilder;
@@ -7,9 +7,17 @@ use super::error::TileTreeError;
 use super::format::{index_offset, write_index_entry, write_magic};
 use super::index::TileTreeIndexEntry;
 use super::metadata::TileTreeMetadata;
+use super::slot_index::SlotIndex;
 
 pub struct TileTreeFile {
     pub(super) path: PathBuf,
+    pub(super) tmp_path: PathBuf,
+    pub(super) file: File,
+    pub(super) metadata: TileTreeMetadata,
+    pub(super) index: SlotIndex,
+    pub(super) entries: Vec<TileTreeIndexEntry>,
+}
+
 impl TileTreeFile {
     pub fn create(path: impl AsRef<Path>) -> TileTreeFileBuilder {
         TileTreeFileBuilder::new(path.as_ref().to_owned())
@@ -22,23 +30,48 @@ impl TileTreeFile {
         y: u16,
         payload: &[u8],
     ) -> Result<&mut Self, TileTreeError> {
-        let slot = self.metadata.bounds.slot(z, x, y)?;
-    }
+        let slot = self.index.slot(z, x, y)?;
+        if !self.entries[slot].is_empty() {
+            return Err(TileTreeError::DuplicateTile { z, x, y });
+        }
 
-    pub fn read(&mut self, z: u8, lng: u16, lat: u16) -> Result<Vec<u8>, TileTreeError> {
+        self.file.seek(SeekFrom::End(0))?;
+        let offset = self.file.stream_position()?;
+        self.file.write_all(payload)?;
+        let end = self.file.stream_position()?;
+        let length = end - offset;
+        let length = u32::try_from(length).map_err(|_| TileTreeError::TileTooLarge(length))?;
+        let entry = TileTreeIndexEntry { offset, length };
+
+        self.entries[slot] = entry;
+        self.file.seek(SeekFrom::Start(index_offset(slot)))?;
+        write_index_entry(&mut self.file, entry)?;
+        self.file.seek(SeekFrom::End(0))?;
+        Ok(self)
     }
 
     pub fn finish(mut self) -> Result<(), TileTreeError> {
-
-    pub(crate) fn entry(
-    ) -> Result<TileTreeIndexEntry, TileTreeError> {
+        self.ensure_complete()?;
+        self.file.seek(SeekFrom::End(0))?;
+        write_magic(&mut self.file)?;
+        self.file.flush()?;
+        drop(self.file);
+        fs::rename(&self.tmp_path, &self.path)?;
+        Ok(())
     }
 
-    fn read_entry(
-    ) -> Result<Vec<u8>, TileTreeError> {
-    }
-
+    /// Ensures that all tiles are present in the tree.
     fn ensure_complete(&self) -> Result<(), TileTreeError> {
+        for z in (0..=self.metadata.bounds.zoom).rev() {
+            for tile in self.metadata.bounds.tiles_at(z)? {
+                let x = tile.x as u16;
+                let y = tile.y as u16;
+                let slot = self.index.slot(z, x, y)?;
+                if self.entries[slot].is_empty() {
+                    return Err(TileTreeError::MissingTile { z, x, y });
+                }
+            }
+        }
         Ok(())
     }
 }

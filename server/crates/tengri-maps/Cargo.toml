@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+image-webp = "0.2.4"
+pmtiles = { version = "0.23.0", default-features = false, features = ["mmap-async-tokio"] }
 png = "0.18.1"
 tiff = "0.11.3"
+tokio = { version = "1.52.2", default-features = false, features = ["rt"] }
 zstd = "0.13.3"
