@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::OpenOptions;
 use std::io::{Seek, SeekFrom};
@@ -73,6 +74,7 @@ impl TileTreeFileBuilder {
             metadata,
             index,
             entries,
+            payloads: HashMap::new(),
         })
     }
 }

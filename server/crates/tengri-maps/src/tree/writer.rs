@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, File};
+use std::hash::{Hash, Hasher};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
@@ -16,6 +19,10 @@ pub struct TileTreeFile {
     pub(super) metadata: TileTreeMetadata,
     pub(super) index: SlotIndex,
     pub(super) entries: Vec<TileTreeIndexEntry>,
+    /// Maps `hash(payload) -> entry` so identical payloads share a single
+    /// on-disk copy. SipHash-64; collision probability at 1M tiles is ~1e-8,
+    /// which we trust for this build.
+    pub(super) payloads: HashMap<u64, TileTreeIndexEntry>,
 }
 
 impl TileTreeFile {
@@ -35,19 +42,30 @@ impl TileTreeFile {
             return Err(TileTreeError::DuplicateTile { z, x, y });
         }
 
-        self.file.seek(SeekFrom::End(0))?;
-        let offset = self.file.stream_position()?;
-        self.file.write_all(payload)?;
-        let end = self.file.stream_position()?;
-        let length = end - offset;
-        let length = u32::try_from(length).map_err(|_| TileTreeError::TileTooLarge(length))?;
-        let entry = TileTreeIndexEntry { offset, length };
+        let hash = hash_payload(payload);
+        let entry = if let Some(&existing) = self.payloads.get(&hash) {
+            existing
+        } else {
+            let entry: TileTreeIndexEntry = self.write_payload(payload)?;
+            self.payloads.insert(hash, entry);
+            entry
+        };
 
         self.entries[slot] = entry;
         self.file.seek(SeekFrom::Start(index_offset(slot)))?;
         write_index_entry(&mut self.file, entry)?;
         self.file.seek(SeekFrom::End(0))?;
         Ok(self)
+    }
+
+    fn write_payload(&mut self, payload: &[u8]) -> Result<TileTreeIndexEntry, TileTreeError> {
+        self.file.seek(SeekFrom::End(0))?;
+        let offset = self.file.stream_position()?;
+        self.file.write_all(payload)?;
+        let end = self.file.stream_position()?;
+        let length = end - offset;
+        let length = u32::try_from(length).map_err(|_| TileTreeError::TileTooLarge(length))?;
+        Ok(TileTreeIndexEntry { offset, length })
     }
 
     pub fn finish(mut self) -> Result<(), TileTreeError> {
@@ -74,6 +92,12 @@ impl TileTreeFile {
         }
         Ok(())
     }
+}
+
+fn hash_payload(payload: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    payload.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[cfg(test)]
@@ -104,6 +128,49 @@ mod tests {
                 y: 0
             })
         ));
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+    }
+
+    #[test]
+    fn identical_payloads_share_a_single_on_disk_copy() {
+        let path = test_path("tengri-dedup");
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(temp_path_for(&path));
+        let bounds = XYZBounds::new(1, 0, 0, 1, 1).unwrap();
+        let shared = b"identical-tile-payload";
+        let unique = b"unique-tile-payload";
+
+        let mut tree = TileTreeFile::create(&path)
+            .tile_kind(TileKind::Dem)
+            .bounds(bounds)
+            .finish_header()
+            .unwrap();
+        tree.add(0, 0, 0, shared).unwrap();
+        tree.add(1, 0, 0, shared).unwrap();
+        tree.add(1, 1, 0, shared).unwrap();
+        tree.add(1, 0, 1, unique).unwrap();
+        tree.add(1, 1, 1, shared).unwrap();
+
+        let shared_entry = tree.entries[tree.index.slot(0, 0, 0).unwrap()];
+        for (z, x, y) in [(1, 0, 0), (1, 1, 0), (1, 1, 1)] {
+            assert_eq!(
+                tree.entries[tree.index.slot(z, x, y).unwrap()],
+                shared_entry,
+                "tile ({z},{x},{y}) should reuse the shared payload's entry",
+            );
+        }
+        let unique_entry = tree.entries[tree.index.slot(1, 0, 1).unwrap()];
+        assert_ne!(unique_entry, shared_entry);
+
+        tree.finish().unwrap();
+
+        let mut reader = TileTreeReader::open(&path).unwrap();
+        for (z, x, y) in [(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)] {
+            assert_eq!(reader.read(z, x, y).unwrap(), shared.to_vec());
+        }
+        assert_eq!(reader.read(1, 0, 1).unwrap(), unique.to_vec());
 
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(temp_path_for(&path));
