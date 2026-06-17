@@ -162,8 +162,8 @@ mod tests {
         let mut reader = TileTreeReader::open(&path).unwrap();
         let compressed = read_tile(reader.read(1, 1, 1).unwrap().as_slice()).unwrap();
         let tile = decompress_tile(&compressed).unwrap();
-        assert_eq!(tile.width, 16);
-        assert_eq!(tile.height, 16);
+        assert_eq!(tile.width, 1);
+        assert_eq!(tile.height, 1);
         assert!(tile.pixels.iter().all(|&elevation| elevation == 32));
 
         let _ = fs::remove_file(&path);
@@ -189,8 +189,8 @@ mod tests {
         let mut reader = TileTreeReader::open(&path).unwrap();
         let compressed = read_tile(reader.read(1, 0, 0).unwrap().as_slice()).unwrap();
         let tile = decompress_tile(&compressed).unwrap();
-        assert_eq!(tile.width, 32);
-        assert_eq!(tile.height, 32);
+        assert_eq!(tile.width, 2);
+        assert_eq!(tile.height, 2);
         assert!(tile.pixels.contains(&8));
         assert!(tile.pixels.contains(&32));
 

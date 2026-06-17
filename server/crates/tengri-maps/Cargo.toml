@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+blake3 = "1.5.4"
 image-webp = "0.2.4"
 pmtiles = { version = "0.23.0", default-features = false, features = ["mmap-async-tokio"] }
 png = "0.18.1"

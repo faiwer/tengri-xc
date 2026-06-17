@@ -17,6 +17,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
+pub use constants::DEM_QUANTIZATION_METERS;
 pub use error::DemError;
 pub use source::{DemSource, DemSourceReader};
 pub use tree_export::{DemTree, DemTreeBuilder, DemTreeExportReport};

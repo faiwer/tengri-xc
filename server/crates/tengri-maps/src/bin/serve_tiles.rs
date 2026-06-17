@@ -198,13 +198,13 @@ mod tests {
     fn tree_missing_errors_are_not_found() {
         assert!(tree_error_is_not_found(&TileTreeError::MissingTile {
             z: 8,
-            lng: 123,
-            lat: 45,
+            x: 123,
+            y: 45,
         }));
         assert!(tree_error_is_not_found(&TileTreeError::TileOutOfBounds {
             z: 8,
-            lng: 123,
-            lat: 45,
+            x: 123,
+            y: 45,
         }));
         assert!(!tree_error_is_not_found(&TileTreeError::CorruptFile("bad")));
     }

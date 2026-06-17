@@ -3,10 +3,10 @@ use std::io::{Read, Write};
 use super::DemChunk;
 use super::compress::compress_tile;
 use super::pyramid::build_parent_chunk;
-use super::resolution::{resize_dem_matrix, target_dem_resolution};
+use super::resolution::cap_dem_matrix;
 use super::source::{DemSource, DemSourceReader};
 use super::tile_file::write_tile;
-use crate::geo::{XyzTile, xyz_tile_bounds};
+use crate::geo::XyzTile;
 use crate::tree::{
     CachedChild, TileKind, TileTreeError, TileTreeExportAdapter, XYZBounds,
 };
@@ -50,9 +50,7 @@ impl<S: DemSource + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
             }
             Err(error) => return Err(error),
         };
-        let bounds = xyz_tile_bounds(tile.z, tile.x, tile.y)?;
-        let target = target_dem_resolution(bounds, matrix.width, matrix.height);
-        Ok(Some(resize_dem_matrix(matrix, target)?))
+        Ok(Some(cap_dem_matrix(matrix)?))
     }
 
     fn encode_payload(&self, tile: &Self::SourceTile) -> Result<Vec<u8>, TileTreeError> {
