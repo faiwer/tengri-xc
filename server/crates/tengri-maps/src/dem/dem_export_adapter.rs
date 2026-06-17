@@ -31,6 +31,13 @@ impl<S: DemSource + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
         self.source.open_reader()
     }
 
+    fn supplies_all_zooms(&self) -> bool {
+        // The DEM `reads_intermediate_tiles` flag is the strict
+        // "dense pyramid" guarantee (see its docstring), so it maps
+        // 1:1 to the orchestrator's cache-skip condition.
+        self.source.reads_intermediate_tiles()
+    }
+
     fn try_read_source_tile(
         &self,
         reader: &mut Self::Reader,
@@ -40,17 +47,11 @@ impl<S: DemSource + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
         if tile.z != source_bounds.zoom && !self.source.reads_intermediate_tiles() {
             return Ok(None);
         }
-
-        let matrix = match reader.read(tile) {
-            Ok(matrix) => matrix,
-            Err(TileTreeError::MissingTile { .. })
-                if tile.z != source_bounds.zoom && self.source.reads_intermediate_tiles() =>
-            {
-                return Ok(None);
-            }
-            Err(error) => return Err(error),
-        };
-        Ok(Some(cap_dem_matrix(matrix)?))
+        // Any other read error (including `MissingTile`) bubbles up: a
+        // source declaring `reads_intermediate_tiles == true` promises
+        // a dense pyramid, so a miss inside its bounds is a contract
+        // bug, not something to silently reduce around.
+        Ok(Some(cap_dem_matrix(reader.read(tile)?)?))
     }
 
     fn encode_payload(&self, tile: &Self::SourceTile) -> Result<Vec<u8>, TileTreeError> {

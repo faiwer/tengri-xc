@@ -91,12 +91,6 @@ mod tests {
 
     struct FakeReader;
 
-    struct MissingIntermediateSource {
-        bounds: XYZBounds,
-    }
-
-    struct MissingIntermediateReader;
-
     impl DemSource for FakeSource {
         fn tile_bounds(&self) -> XYZBounds {
             self.bounds
@@ -109,35 +103,6 @@ mod tests {
 
     impl DemSourceReader for FakeReader {
         fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
-            let elevation = (tile.x + tile.y * 2 + 1) as i16 * 8;
-            Ok(DemChunk::from_i16(1, 1, vec![elevation]))
-        }
-    }
-
-    impl DemSource for MissingIntermediateSource {
-        fn tile_bounds(&self) -> XYZBounds {
-            self.bounds
-        }
-
-        fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
-            Ok(Box::new(MissingIntermediateReader))
-        }
-
-        fn reads_intermediate_tiles(&self) -> bool {
-            true
-        }
-    }
-
-    impl DemSourceReader for MissingIntermediateReader {
-        fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
-            if tile.z < 2 {
-                return Err(TileTreeError::MissingTile {
-                    z: tile.z,
-                    x: tile.x as u16,
-                    y: tile.y as u16,
-                });
-            }
-
             let elevation = (tile.x + tile.y * 2 + 1) as i16 * 8;
             Ok(DemChunk::from_i16(1, 1, vec![elevation]))
         }
@@ -165,34 +130,6 @@ mod tests {
         assert_eq!(tile.width, 1);
         assert_eq!(tile.height, 1);
         assert!(tile.pixels.iter().all(|&elevation| elevation == 32));
-
-        let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(temp_path_for(&path));
-    }
-
-    #[test]
-    fn missing_intermediate_source_tiles_fall_back_to_reduction() {
-        let path = test_path("tengri-missing-intermediate");
-        let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(temp_path_for(&path));
-        let bounds = XYZBounds::new(2, 0, 0, 1, 1).unwrap();
-
-        let report = DemTree::builder(MissingIntermediateSource { bounds })
-            .output(&path)
-            .threads(1)
-            .build()
-            .unwrap();
-
-        assert_eq!(report.zoom, 2);
-        assert_eq!(report.tiles_written, 6);
-
-        let mut reader = TileTreeReader::open(&path).unwrap();
-        let compressed = read_tile(reader.read(1, 0, 0).unwrap().as_slice()).unwrap();
-        let tile = decompress_tile(&compressed).unwrap();
-        assert_eq!(tile.width, 2);
-        assert_eq!(tile.height, 2);
-        assert!(tile.pixels.contains(&8));
-        assert!(tile.pixels.contains(&32));
 
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(temp_path_for(&path));

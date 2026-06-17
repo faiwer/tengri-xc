@@ -14,11 +14,15 @@ pub trait DemSource: Send + Sync {
 
     fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError>;
 
-    /// `true` when the source can serve tiles at zoom levels above the leaf
-    /// zoom directly (e.g. PMTiles ships pre-rendered overviews). The exporter
-    /// then prefers the source's tile and only falls back to pyramid reduction
-    /// on [`TileTreeError::MissingTile`]. `false` (the default) means leaves
-    /// only — every parent is built by reducing children.
+    /// `true` when the source ships a dense pyramid — every tile at every zoom
+    /// inside `tile_bounds()` is present and the source will serve it directly
+    /// (PMTiles is the canonical case). The exporter then source-directs every
+    /// block and skips the raw-tile cache entirely; reduce-from-children
+    /// becomes unreachable. A source that returns `true` here MUST NOT raise
+    /// `MissingTile` for any tile inside its bounds — that's a contract bug.
+    ///
+    /// `false` (default) means leaves only: every parent block is built by
+    /// reducing its children through the raw cache.
     fn reads_intermediate_tiles(&self) -> bool {
         false
     }
