@@ -14,6 +14,7 @@ use crate::tif::types::TifPixelMatrix;
 use super::copy::{copy_chunk_slice, pixel_count};
 use super::downscale::{downscale_to_dem_tile, validate_exact_region_dimensions};
 use super::geo::{pixel_region_for_bounds, source_bounds};
+use super::projection::{TifProjection, parse_geo_key_directory};
 use super::types::{TiledTifChunk, TiledTifInfo};
 
 pub struct TiledTifReader {
@@ -70,9 +71,27 @@ impl TiledTifReader {
             ));
         }
 
-        let origin_lon = tiepoint[3] - tiepoint[0] * scale[0];
-        let origin_lat = tiepoint[4] + tiepoint[1] * scale[1];
-        let bounds = source_bounds(width, height, origin_lon, origin_lat, scale[0], scale[1]);
+        // CRS detection. Most real-world DEMs are EPSG:4326; if the file
+        // doesn't declare a CRS at all (legacy tiepoint-only) we treat that as
+        // 4326 too — same behaviour as before this branch existed.
+        let geo_keys = decoder
+            .find_tag_unsigned_vec::<u16>(Tag::GeoKeyDirectoryTag)?
+            .unwrap_or_default();
+        let projection = parse_geo_key_directory(&geo_keys)?.unwrap_or(TifProjection::Wgs84);
+
+        let origin_x = tiepoint[3] - tiepoint[0] * scale[0];
+        let origin_y = tiepoint[4] + tiepoint[1] * scale[1];
+        let pixel_width = scale[0];
+        let pixel_height = scale[1];
+        let bounds = source_bounds(
+            width,
+            height,
+            projection,
+            origin_x,
+            origin_y,
+            pixel_width,
+            pixel_height,
+        );
 
         Ok(Self {
             decoder,
@@ -83,10 +102,11 @@ impl TiledTifReader {
                 tile_height,
                 tiles_across,
                 tiles_down,
-                origin_lon,
-                origin_lat,
-                pixel_width_degrees: scale[0],
-                pixel_height_degrees: scale[1],
+                projection,
+                origin_x,
+                origin_y,
+                pixel_width,
+                pixel_height,
                 bounds,
             },
         })

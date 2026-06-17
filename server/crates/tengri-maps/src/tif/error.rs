@@ -15,6 +15,9 @@ pub enum TiffReadError {
     UnsupportedColorType(ColorType),
     UnsupportedLayout(&'static str),
     UnsupportedSampleType(&'static str),
+    /// Source declares an EPSG code we don't accept (anything other than 4326 /
+    /// 3857). Carries the code so the failure log is actionable.
+    UnsupportedProjection(u16),
 }
 
 impl fmt::Display for TiffReadError {
@@ -45,6 +48,10 @@ impl fmt::Display for TiffReadError {
                 formatter,
                 "unsupported TIFF sample type {sample_type}; only signed i16/i32 or float32 grayscale TIFFs are supported"
             ),
+            TiffReadError::UnsupportedProjection(epsg) => write!(
+                formatter,
+                "unsupported GeoTIFF projection EPSG:{epsg}; only EPSG:4326 (WGS84 lat/lon) and EPSG:3857 (Web Mercator) are accepted"
+            ),
         }
     }
 }
@@ -60,7 +67,8 @@ impl std::error::Error for TiffReadError {
             | TiffReadError::RegionOutOfBounds
             | TiffReadError::UnsupportedColorType(_)
             | TiffReadError::UnsupportedLayout(_)
-            | TiffReadError::UnsupportedSampleType(_) => None,
+            | TiffReadError::UnsupportedSampleType(_)
+            | TiffReadError::UnsupportedProjection(_) => None,
         }
     }
 }

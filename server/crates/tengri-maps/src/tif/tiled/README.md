@@ -24,18 +24,31 @@ tiled, single-channel GeoTIFFs without loading the whole source image into RAM.
 - tiled TIFF layout (`TileWidth` and `TileLength`)
 - signed integer or float sample format (`SampleFormat = 2` or `3`)
 - GeoTIFF metadata with `ModelPixelScaleTag` and `ModelTiepointTag`
+- EPSG:4326 (WGS84 lat/lon, default when no `GeoKeyDirectoryTag` is present)
+  or EPSG:3857 (Web Mercator). Anything else fails open with
+  `TiffReadError::UnsupportedProjection(epsg)`.
 
 The TIFF's internal tile size is not required to be `256x256`; Copernicus COGs
 use `1024x1024` internal tiles and edge tiles may be cut off.
 
 ## Bounds And Regions
 
-`TiledTifInfo.bounds` is derived from the tiepoint, pixel scale, and image
-dimensions. `read_region(bounds)` converts geographic bounds to an exact source
-pixel rectangle by rounding outward:
+`TiledTifInfo.bounds` is always lat/lon degrees — for Mercator sources the
+metric corners are inverse-projected at open time so callers don't have to
+know the source projection. `TiledTifInfo.origin_x` / `origin_y` /
+`pixel_width` / `pixel_height` are in the source's *native* units (degrees
+for WGS84, metres for Mercator); the projection branch of
+`pixel_region_for_bounds` does the matching forward-projection.
+
+`read_region(bounds)` converts geographic bounds to an exact source pixel
+rectangle by rounding outward:
 
 - west/east use `floor`/`ceil`
 - north/south use `floor`/`ceil` against the north-up origin
+- inputs first projected to native units when the source is Mercator
+- snap-to-nearest within `1e-6` of a pixel before floor/ceil so an
+  XYZ-tile edge that lands exactly on a Mercator pixel boundary doesn't
+  acquire a 1-pixel overshoot from `asinh(tan(lat))` ULP error
 
 Requests must already be valid and inside the source bounds. There is no silent
 clamping in this layer. The exporter clips edge XYZ tile bounds to the source

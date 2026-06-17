@@ -2,6 +2,8 @@ use crate::tif::error::TiffReadError;
 use crate::tif::types::TifPixelMatrix;
 
 use super::types::{PixelRegion, TiledTifChunk, TiledTifInfo};
+#[cfg(test)]
+use super::projection::TifProjection;
 
 pub(super) fn copy_chunk_slice(
     chunk: &TiledTifChunk,
@@ -87,10 +89,11 @@ mod tests {
             tile_height: 4,
             tiles_across: 2,
             tiles_down: 1,
-            origin_lon: 0.0,
-            origin_lat: 4.0,
-            pixel_width_degrees: 1.0,
-            pixel_height_degrees: 1.0,
+            projection: TifProjection::Wgs84,
+            origin_x: 0.0,
+            origin_y: 4.0,
+            pixel_width: 1.0,
+            pixel_height: 1.0,
             bounds: Bounds {
                 min_lat: 0.0,
                 min_lon: 0.0,
