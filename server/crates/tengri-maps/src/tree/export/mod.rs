@@ -1,29 +1,30 @@
-//! Exporting a [`super::TileTreeFile`] from a tile source.
+//! Exporter from a [`TileTreeExportAdapter`] source to a `.tengri-dem` archive.
 //!
-//! - [`adapter`] — the [`TileTreeExportAdapter`] trait callers implement
-//!   to plug a source format into the exporter.
-//! - [`exporter`] — the [`TileTreeExporter`] builder and its `build()`
-//!   driver that picks single- vs. multi-threaded paths.
-//! - [`subtree`] — single-threaded recursion that walks a parent down
-//!   to leaves and emits payloads.
-//! - [`parallel`] — multi-threaded split-zoom frontier that fans out
-//!   subtrees across worker threads.
-//! - [`reduce`] — post-frontier reduction that drains cached raw tiles
-//!   and emits intermediate parents.
-//! - [`cache`] — on-disk cache for raw tiles handed off between the
-//!   frontier and the reduction pass.
-//! - [`progress`] — optional progress-line writer with a rolling-window
-//!   ETA.
+//! - [`adapter`] — the [`TileTreeExportAdapter`] trait callers implement to
+//!   plug a source format into the exporter.
+//! - [`exporter`] — thin builder over [`orchestrator::Orchestrator`].
+//! - [`orchestrator`] — DFS that walks the block grid bottom-up, fans every
+//!   block's tiles out to [`worker_pool::WorkerPool`], and writes encoded
+//!   tile-data plus the 16 KiB envelope to the destination directly.
+//! - [`worker_pool`] — N-thread pool, one source reader per worker, mpsc
+//!   round-robin dispatch.
+//! - [`raw_cache`] — per-block raw-tile cache spilled to `temp_dir` between
+//!   children DFS and parent reduce.
+//! - [`encode`] — per-block size-stream encoding and 16 KiB envelope assembly.
+//! - [`pack_extras`] — end-pass that fills each envelope's leftover headroom
+//!   with neighbour self-payloads.
+//! - [`progress`] — optional progress-line writer with a rolling-window ETA.
 
 mod adapter;
-mod cache;
+mod encode;
 mod exporter;
-mod parallel;
+mod orchestrator;
+mod pack_extras;
 mod progress;
-mod reduce;
-mod subtree;
+mod raw_cache;
 #[cfg(test)]
 mod tests;
+mod worker_pool;
 
 pub use adapter::{CachedChild, TileTreeExportAdapter, TileTreeExportReport};
 pub use exporter::TileTreeExporter;

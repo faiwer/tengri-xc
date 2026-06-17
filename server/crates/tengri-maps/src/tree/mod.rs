@@ -1,15 +1,14 @@
 //! Single-file tile tree container.
 
+mod blocks;
 mod bounds;
-mod builder;
 mod error;
 mod export;
 mod format;
-mod index;
 mod metadata;
 mod reader;
+mod size_stream;
 mod slot_index;
-mod writer;
 
 pub use bounds::{MAX_WEB_MERCATOR_TREE_ZOOM, XYZBounds};
 pub use error::TileTreeError;

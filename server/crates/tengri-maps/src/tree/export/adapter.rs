@@ -22,6 +22,14 @@ pub trait TileTreeExportAdapter: Send + Sync + 'static {
     fn bounds(&self) -> XYZBounds;
     /// Opens a reader for the source. Each worker thread opens its own reader.
     fn open_reader(&self) -> Result<Self::Reader, TileTreeError>;
+    /// `true` when the source can serve every tile at every zoom in
+    /// `bounds()` directly (e.g. a full PMTiles pyramid). The orchestrator
+    /// uses this to short-circuit the raw-tile cache: if every parent will
+    /// also source-direct, there is nothing to reduce from and nothing to
+    /// spill. Defaults to `false` — conservative, costs only some disk.
+    fn supplies_all_zooms(&self) -> bool {
+        false
+    }
     /// Reads the source raw tile when possible. Not every source supports it.
     fn try_read_source_tile(
         &self,
