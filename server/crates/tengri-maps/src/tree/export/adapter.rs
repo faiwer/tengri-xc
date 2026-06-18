@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use crate::geo::XyzTile;
 use crate::tree::{TileKind, TileTreeError, XYZBounds};
 
+#[derive(Debug)]
 pub struct TileTreeExportReport {
     pub zoom: u8,
     pub tiles_written: usize,
@@ -33,6 +34,20 @@ pub trait TileTreeExportAdapter: Send + Sync + 'static {
     /// must commit to one of these.
     fn supplies_all_zooms(&self) -> bool {
         false
+    }
+    /// Maximum number of zoom levels the source can downsample below its
+    /// native pixel pitch when producing a single leaf tile. Only consulted
+    /// when [`supplies_all_zooms`] is `false` and an export `max_zoom` cap
+    /// places the leaf below the source's native zoom.
+    ///
+    /// `u8::MAX` (the default) means "no constraint at the leaf"; sources
+    /// like [`TifDemSource`] override to a small number (1) because their
+    /// per-tile read path can't materialise a region wider than a couple
+    /// of native tiles.
+    ///
+    /// [`TifDemSource`]: crate::tif::TifDemSource
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        u8::MAX
     }
     /// Reads the raw tile from the source. The orchestrator only calls this
     /// when [`supplies_all_zooms`] or `tile.z == bounds().zoom` already

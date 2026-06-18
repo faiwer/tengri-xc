@@ -43,6 +43,14 @@ impl DemSource for TifDemSource {
             read_bounds: self.read_bounds,
         }))
     }
+
+    /// `read_region` rejects native pixel rectangles wider than `2 ×
+    /// MAX_DEM_TILE_SIDE` (the `validate_exact_region_dimensions` guard in
+    /// `tif/tiled/downscale.rs`), so a leaf read can pull at most one zoom
+    /// level below the source's native pixel pitch.
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        1
+    }
 }
 
 /// Largest XYZ zoom whose tile grid fits inside the source raster at one DEM

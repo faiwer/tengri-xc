@@ -26,6 +26,15 @@ pub trait DemSource: Send + Sync {
     fn reads_intermediate_tiles(&self) -> bool {
         false
     }
+
+    /// Maximum number of zoom levels this source can downsample below its
+    /// native pixel pitch when serving a single leaf tile read. Default
+    /// `u8::MAX` (no constraint); [`TifDemSource`](crate::tif::TifDemSource)
+    /// overrides to `1` because its per-tile read path can't materialise a
+    /// region wider than two native tiles per side.
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        u8::MAX
+    }
 }
 
 /// Reader handle owned by a single worker thread. Readers are stateful (file
@@ -45,5 +54,9 @@ impl<T: DemSource + ?Sized> DemSource for Box<T> {
 
     fn reads_intermediate_tiles(&self) -> bool {
         (**self).reads_intermediate_tiles()
+    }
+
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        (**self).max_leaf_downsample_steps()
     }
 }

@@ -11,6 +11,8 @@ pub struct DemTreeBuilder<S> {
     source: S,
     output: Option<PathBuf>,
     threads: usize,
+    min_zoom: u8,
+    max_zoom: Option<u8>,
     progress: Option<Box<dyn Write + Send>>,
 }
 
@@ -28,6 +30,8 @@ impl<S: DemSource + 'static> DemTreeBuilder<S> {
             source,
             output: None,
             threads: default_thread_count(),
+            min_zoom: 0,
+            max_zoom: None,
             progress: None,
         }
     }
@@ -39,6 +43,16 @@ impl<S: DemSource + 'static> DemTreeBuilder<S> {
 
     pub fn threads(mut self, threads: usize) -> Self {
         self.threads = threads.max(1);
+        self
+    }
+
+    pub fn min_zoom(mut self, min_zoom: u8) -> Self {
+        self.min_zoom = min_zoom;
+        self
+    }
+
+    pub fn max_zoom(mut self, max_zoom: u8) -> Self {
+        self.max_zoom = Some(max_zoom);
         self
     }
 
@@ -58,7 +72,11 @@ impl<S: DemSource + 'static> DemTreeBuilder<S> {
             },
             output,
         )
-        .threads(self.threads);
+        .threads(self.threads)
+        .min_zoom(self.min_zoom);
+        if let Some(max_zoom) = self.max_zoom {
+            exporter = exporter.max_zoom(max_zoom);
+        }
         if let Some(progress) = self.progress.take() {
             exporter = exporter.progress(progress);
         }

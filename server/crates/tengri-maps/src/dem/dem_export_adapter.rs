@@ -38,6 +38,10 @@ impl<S: DemSource + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
         self.source.reads_intermediate_tiles()
     }
 
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        self.source.max_leaf_downsample_steps()
+    }
+
     fn read_source_tile(
         &self,
         reader: &mut Self::Reader,

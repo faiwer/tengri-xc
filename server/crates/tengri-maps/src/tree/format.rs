@@ -43,9 +43,6 @@ pub const EXTRA_PREFIX_LEN: u64 = 2;
 /// it back before decoding.
 pub const ZSTD_FRAME_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
 
-/// v1 hardcodes the shallowest zoom present.
-pub const MIN_ZOOM: u8 = 0;
-
 /// Decoded form of the on-disk header. Several fields are validated during
 /// decode and not re-used by the runtime; they're still exposed for tooling.
 #[derive(Debug, Clone, Copy)]
@@ -69,14 +66,18 @@ impl CompactHeader {
 pub fn write_header(
     writer: &mut impl Write,
     metadata: TileTreeMetadata,
+    min_zoom: u8,
     tile_data_len: u64,
     payload_hash: [u8; 32],
 ) -> Result<(), TileTreeError> {
     let bounds = metadata.bounds;
+    if min_zoom > bounds.zoom {
+        return Err(TileTreeError::InvalidBounds("min_zoom exceeds max_zoom"));
+    }
     writer.write_all(&MAGIC)?;
     writer.write_all(&[VERSION])?;
     writer.write_all(&[metadata.tile_kind.to_u8()])?;
-    writer.write_all(&[MIN_ZOOM])?;
+    writer.write_all(&[min_zoom])?;
     writer.write_all(&[bounds.zoom])?;
     writer.write_all(&bounds.min_x.to_le_bytes())?;
     writer.write_all(&bounds.min_y.to_le_bytes())?;
@@ -248,17 +249,26 @@ mod tests {
         let metadata = TileTreeMetadata::new(TileKind::Dem, bounds);
         let mut buf = Vec::new();
         let hash = [7u8; 32];
-        write_header(&mut buf, metadata, 12_345_678, hash).unwrap();
+        write_header(&mut buf, metadata, 4, 12_345_678, hash).unwrap();
         assert_eq!(buf.len() as u64, HEADER_LEN);
 
         let mut slice = buf.as_slice();
         let header = read_header(&mut slice).unwrap();
         assert_eq!(header.tile_kind, TileKind::Dem);
         assert_eq!(header.bounds, bounds);
-        assert_eq!(header.min_zoom, MIN_ZOOM);
+        assert_eq!(header.min_zoom, 4);
         assert_eq!(header.block_w, BLOCK_W);
         assert_eq!(header.block_h, BLOCK_H);
         assert_eq!(header.tile_data_len, 12_345_678);
         assert_eq!(header.payload_hash, hash);
+    }
+
+    #[test]
+    fn write_header_rejects_min_zoom_above_max() {
+        let bounds = XYZBounds::new(4, 0, 0, 0, 0).unwrap();
+        let metadata = TileTreeMetadata::new(TileKind::Dem, bounds);
+        let mut buf = Vec::new();
+        let err = write_header(&mut buf, metadata, 5, 0, [0u8; 32]).unwrap_err();
+        assert!(matches!(err, TileTreeError::InvalidBounds(_)));
     }
 }

@@ -23,7 +23,7 @@ use super::worker_pool::{ChildLoc, JobResult, WorkerPool};
 use crate::geo::XyzTile;
 use crate::tree::blocks::{BlockDescriptor, BlockGrid};
 use crate::tree::error::TileTreeError;
-use crate::tree::format::{BLOCK_SIZE, HEADER_LEN, MAGIC, MIN_ZOOM, write_header};
+use crate::tree::format::{BLOCK_SIZE, HEADER_LEN, MAGIC, write_header};
 use crate::tree::metadata::TileTreeMetadata;
 
 const ZSTD_LEVEL: i32 = 3;
@@ -32,6 +32,9 @@ pub(super) struct Orchestrator<A: TileTreeExportAdapter> {
     adapter: Arc<A>,
     metadata: TileTreeMetadata,
     grid: BlockGrid,
+    /// Shallowest stored zoom; DFS roots live here and the spill-to-cache step
+    /// stops here.
+    min_zoom: u8,
     dest_file: File,
     /// Next byte offset in the tile-data section. DFS appends here.
     dest_cursor: u64,
@@ -60,12 +63,37 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
         adapter: A,
         destination: impl Into<PathBuf>,
         threads: usize,
+        min_zoom: u8,
+        max_zoom: Option<u8>,
         progress: Option<Box<dyn Write + Send>>,
     ) -> Result<Self, TileTreeError> {
         let adapter = Arc::new(adapter);
-        let bounds = adapter.bounds();
+        let source_bounds = adapter.bounds();
+        // A `max_zoom` cap re-projects the source bounds to that zoom; the
+        // exporter then treats that zoom as its leaf. `level_bounds` validates
+        // `max_zoom <= source_bounds.zoom`.
+        let bounds = match max_zoom {
+            Some(z) => source_bounds.level_bounds(z)?,
+            None => source_bounds,
+        };
+        // For leaf-only sources, the gap between the source's native zoom and
+        // the exported leaf is the per-leaf-read downsample factor. Refuse
+        // upfront when the adapter advertises a smaller cap than that gap;
+        // letting the DFS start would just blow up at the first tile read
+        // half-way through, with the destination half-written.
+        if !adapter.supplies_all_zooms() {
+            let gap = source_bounds.zoom.saturating_sub(bounds.zoom);
+            let max_supported_gap = adapter.max_leaf_downsample_steps();
+            if gap > max_supported_gap {
+                return Err(TileTreeError::LeafZoomGapTooLarge {
+                    source_zoom: source_bounds.zoom,
+                    requested_zoom: bounds.zoom,
+                    max_supported_gap,
+                });
+            }
+        }
         let metadata = TileTreeMetadata::new(adapter.tile_kind(), bounds);
-        let grid = BlockGrid::new(bounds, MIN_ZOOM)?;
+        let grid = BlockGrid::new(bounds, min_zoom)?;
         let block_count = grid.total_blocks();
         let tile_data_off = HEADER_LEN
             .checked_add(
@@ -110,6 +138,7 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
             adapter,
             metadata,
             grid,
+            min_zoom,
             dest_file,
             dest_cursor: tile_data_off,
             tile_data_off,
@@ -124,7 +153,7 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
     }
 
     pub(super) fn run(mut self) -> Result<TileTreeExportReport, TileTreeError> {
-        let roots: Vec<BlockDescriptor> = self.grid.blocks_at_zoom(MIN_ZOOM)?.to_vec();
+        let roots: Vec<BlockDescriptor> = self.grid.blocks_at_zoom(self.min_zoom)?.to_vec();
         for root in &roots {
             self.process_block(root)?;
         }
@@ -137,7 +166,13 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
         self.dest_file
             .write_all_at(&MAGIC, self.tile_data_off + tile_data_len)?;
         let mut header_buf: Vec<u8> = Vec::with_capacity(HEADER_LEN as usize);
-        write_header(&mut header_buf, self.metadata, tile_data_len, payload_hash)?;
+        write_header(
+            &mut header_buf,
+            self.metadata,
+            self.min_zoom,
+            tile_data_len,
+            payload_hash,
+        )?;
         self.dest_file.write_all_at(&header_buf, 0)?;
         self.dest_file.sync_all()?;
 
@@ -170,8 +205,13 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
             self.process_block(child)?;
         }
 
+        // The exported leaf is `metadata.bounds.zoom`, which is the source's
+        // native leaf or a `max_zoom` cap below it. Either way it's the
+        // deepest zoom the orchestrator will ask the source for, so that's
+        // the right comparison for the leaf-zoom branch — even when the cap
+        // is shallower than what the source could provide.
         let source_supplies =
-            self.adapter.supplies_all_zooms() || block.zoom == self.adapter.bounds().zoom;
+            self.adapter.supplies_all_zooms() || block.zoom == self.metadata.bounds.zoom;
 
         let results = if source_supplies {
             self.run_source_path(block)?
@@ -191,7 +231,7 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
         self.blocks_done += 1;
         update_progress(&mut self.progress, self.blocks_done);
 
-        if block.zoom > MIN_ZOOM {
+        if block.zoom > self.min_zoom {
             // cache is none when supplies_all_zooms() is true
             if let Some(cache) = self.raw_cache.as_mut() {
                 // Pool was built with `keep_raws == raw_cache.is_some()`, so

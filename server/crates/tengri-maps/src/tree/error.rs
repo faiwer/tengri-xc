@@ -14,6 +14,17 @@ pub enum TileTreeError {
     TileTooLarge(u64),
     CorruptFile(&'static str),
     Unsupported(&'static str),
+    /// A leaf-only source was asked to produce its leaf at a zoom further below
+    /// its native pixel pitch than it supports. E.g. `TifDemSource` can
+    /// downsample at most one zoom level at a single leaf read; a `--max-zoom`
+    /// cap that demands more pixels per tile than the native pitch can fit
+    /// through the source's downsample path lands here. The orchestrator raises
+    /// this at startup, before the first tile read.
+    LeafZoomGapTooLarge {
+        source_zoom: u8,
+        requested_zoom: u8,
+        max_supported_gap: u8,
+    },
     WorkerPanicked,
     Io(std::io::Error),
     External(ExternalError),
@@ -65,6 +76,20 @@ impl fmt::Display for TileTreeError {
             TileTreeError::Unsupported(message) => {
                 write!(formatter, "unsupported by this build: {message}")
             }
+            TileTreeError::LeafZoomGapTooLarge {
+                source_zoom,
+                requested_zoom,
+                max_supported_gap,
+            } => {
+                let gap = source_zoom.saturating_sub(*requested_zoom);
+                write!(
+                    formatter,
+                    "requested leaf zoom {requested_zoom} is {gap} levels below the source's native zoom {source_zoom}; \
+                    this source supports at most {max_supported_gap} downsample step(s) at the leaf — \
+                    pick --max-zoom {} or higher",
+                    source_zoom.saturating_sub(*max_supported_gap)
+                )
+            }
             TileTreeError::WorkerPanicked => write!(formatter, "tile tree worker panicked"),
             TileTreeError::Io(error) => write!(formatter, "{error}"),
             TileTreeError::External(error) => write!(formatter, "{error}"),
@@ -87,6 +112,7 @@ impl std::error::Error for TileTreeError {
             | TileTreeError::TileTooLarge(_)
             | TileTreeError::CorruptFile(_)
             | TileTreeError::Unsupported(_)
+            | TileTreeError::LeafZoomGapTooLarge { .. }
             | TileTreeError::WorkerPanicked => None,
         }
     }

@@ -95,6 +95,67 @@ impl FakeAdapter {
     }
 }
 
+/// Stand-in for a leaf-only source (TIF-shaped) that refuses to downsample
+/// past `max_leaf_downsample_steps` at the leaf. Read paths are unreachable
+/// — the orchestrator's upfront check should fail before any tile work.
+struct LeafCappedAdapter {
+    bounds: XYZBounds,
+    max_leaf_downsample_steps: u8,
+}
+
+impl TileTreeExportAdapter for LeafCappedAdapter {
+    type SourceTile = u16;
+    type Reader = ();
+
+    fn tile_kind(&self) -> TileKind {
+        TileKind::Dem
+    }
+
+    fn bounds(&self) -> XYZBounds {
+        self.bounds
+    }
+
+    fn max_leaf_downsample_steps(&self) -> u8 {
+        self.max_leaf_downsample_steps
+    }
+
+    fn open_reader(&self) -> Result<Self::Reader, TileTreeError> {
+        unreachable!("export should fail before any reader is opened")
+    }
+
+    fn read_source_tile(
+        &self,
+        _reader: &mut Self::Reader,
+        _tile: XyzTile,
+    ) -> Result<Self::SourceTile, TileTreeError> {
+        unreachable!("export should fail before any tile is read")
+    }
+
+    fn encode_payload(&self, _tile: &Self::SourceTile) -> Result<Vec<u8>, TileTreeError> {
+        unreachable!()
+    }
+
+    fn write_raw_cache(
+        &self,
+        _writer: &mut dyn Write,
+        _tile: &Self::SourceTile,
+    ) -> Result<(), TileTreeError> {
+        unreachable!()
+    }
+
+    fn read_raw_cache(&self, _reader: &mut dyn Read) -> Result<Self::SourceTile, TileTreeError> {
+        unreachable!()
+    }
+
+    fn reduce_children_to_tile(
+        &self,
+        _tile: XyzTile,
+        _children: &[CachedChild<Self::SourceTile>],
+    ) -> Result<Self::SourceTile, TileTreeError> {
+        unreachable!()
+    }
+}
+
 #[test]
 fn exporter_writes_leaves_and_parents() {
     let path = test_path("generic-export");
@@ -327,6 +388,106 @@ fn pack_extras_fires_for_a_small_multi_block_archive() {
     );
 
     let _ = fs::remove_file(&path);
+}
+
+#[test]
+fn exporter_honours_min_zoom_floor() {
+    use crate::tree::blocks::BlockGrid;
+    use crate::tree::format::read_header;
+
+    let path = test_path("min-zoom-floor");
+    let _ = fs::remove_file(&path);
+
+    // 4×4 leaves at z=3, archive built with min_zoom=2. The reduce path
+    // builds z=2 from the four leaves; z=0 and z=1 must not be present at
+    // all (no envelopes, no readable tiles).
+    let bounds = XYZBounds::new(3, 0, 0, 3, 3).unwrap();
+    let state = fake_state((0..=3).flat_map(|y| {
+        (0..=3).map(move |x| (XyzTile { z: 3, x, y }, 1u16))
+    }));
+
+    TileTreeExporter::new(
+        FakeAdapter {
+            bounds,
+            state: Arc::clone(&state),
+        },
+        &path,
+    )
+    .threads(1)
+    .min_zoom(2)
+    .build()
+    .unwrap();
+
+    // Header carries the runtime min_zoom and the grid only spans z=2..=3.
+    let mut file = fs::File::open(&path).unwrap();
+    let header = read_header(&mut file).unwrap();
+    assert_eq!(header.min_zoom, 2);
+    assert_eq!(header.bounds.zoom, 3);
+    let total_blocks = BlockGrid::new(header.bounds, header.min_zoom)
+        .unwrap()
+        .total_blocks();
+    // 4×4 leaves fit one 64×64 block; their 2×2 reduce fits another.
+    assert_eq!(total_blocks, 2);
+    drop(file);
+
+    // FakeAdapter sums children, so each z=2 tile is 4 (four leaves of 1).
+    let mut reader = TileTreeReader::open(&path).unwrap();
+    assert_eq!(u16_payload(&mut reader, 3, 0, 0), 1);
+    assert_eq!(u16_payload(&mut reader, 2, 0, 0), 4);
+
+    // Tiles below the floor have no envelope; the grid returns
+    // `TileOutOfBounds` for them.
+    for z in 0..=1u8 {
+        let err = reader.read(z, 0, 0).unwrap_err();
+        assert!(
+            matches!(err, TileTreeError::TileOutOfBounds { .. }),
+            "z={z}: expected TileOutOfBounds, got {err:?}"
+        );
+    }
+
+    let _ = fs::remove_file(&path);
+}
+
+#[test]
+fn exporter_rejects_max_zoom_below_leaf_downsample_cap() {
+    // Leaf-only adapter at native z=11 with a 1-level downsample cap
+    // (mirrors `TifDemSource`). Asking for `max_zoom=7` would force a
+    // single leaf read to materialise a 16× larger native region, which
+    // the source's reader can't service. The orchestrator must catch
+    // this upfront — before opening the destination file.
+    let path = test_path("leaf-zoom-gap");
+    let _ = fs::remove_file(&path);
+
+    let bounds = XYZBounds::new(11, 0, 0, 0, 0).unwrap();
+    let err = TileTreeExporter::new(
+        LeafCappedAdapter {
+            bounds,
+            max_leaf_downsample_steps: 1,
+        },
+        &path,
+    )
+    .threads(1)
+    .max_zoom(7)
+    .build()
+    .unwrap_err();
+
+    match err {
+        TileTreeError::LeafZoomGapTooLarge {
+            source_zoom,
+            requested_zoom,
+            max_supported_gap,
+        } => {
+            assert_eq!(source_zoom, 11);
+            assert_eq!(requested_zoom, 7);
+            assert_eq!(max_supported_gap, 1);
+        }
+        other => panic!("expected LeafZoomGapTooLarge, got {other:?}"),
+    }
+
+    assert!(
+        !path.exists(),
+        "destination must not be created when the export is rejected upfront"
+    );
 }
 
 #[test]
