@@ -94,6 +94,14 @@ impl BlockGrid {
         &self.blocks
     }
 
+    /// All blocks at zoom `z` as a contiguous slice.
+    pub fn blocks_at_zoom(&self, z: u8) -> Result<&[BlockDescriptor], TileTreeError> {
+        let zoom = self.zoom(z)?;
+        let start = zoom.block_id_offset as usize;
+        let count = (zoom.blocks_per_row as usize) * (zoom.blocks_per_col as usize);
+        Ok(&self.blocks[start..start + count])
+    }
+
     pub fn zoom(&self, z: u8) -> Result<&ZoomBlocks, TileTreeError> {
         self.zooms
             .get(z as usize)
@@ -142,6 +150,54 @@ impl BlockGrid {
             slot_in_block,
         })
     }
+
+    /// Up to four child blocks at `parent.zoom + 1` whose tiles include the
+    /// children of `parent`'s tiles. Returns an empty vec when `parent` is at
+    /// `bounds.zoom` (no deeper level) or when the next zoom's level rect clips
+    /// every child away.
+    pub fn children_of(&self, parent: &BlockDescriptor) -> Vec<&BlockDescriptor> {
+        let child_zoom = parent.zoom.saturating_add(1);
+        let Ok(child_grid) = self.zoom(child_zoom) else {
+            return Vec::new();
+        };
+
+        let first_child_x = u32::from(parent.origin_x) * 2;
+        let first_child_y = u32::from(parent.origin_y) * 2;
+        let last_child_x = first_child_x + 2 * u32::from(parent.dims.block_w) - 1;
+        let last_child_y = first_child_y + 2 * u32::from(parent.dims.block_h) - 1;
+
+        let level_min_x = u32::from(child_grid.level_min_x);
+        let level_min_y = u32::from(child_grid.level_min_y);
+        let level_max_x = u32::from(child_grid.level_max_x);
+        let level_max_y = u32::from(child_grid.level_max_y);
+
+        let min_child_x = first_child_x.max(level_min_x);
+        let min_child_y = first_child_y.max(level_min_y);
+        let max_child_x = last_child_x.min(level_max_x);
+        let max_child_y = last_child_y.min(level_max_y);
+        if min_child_x > max_child_x || min_child_y > max_child_y {
+            return Vec::new();
+        }
+
+        let block_w = u32::from(BLOCK_W);
+        let block_h = u32::from(BLOCK_H);
+        let block_min_x = (min_child_x - level_min_x) / block_w;
+        let block_max_x = (max_child_x - level_min_x) / block_w;
+        let block_min_y = (min_child_y - level_min_y) / block_h;
+        let block_max_y = (max_child_y - level_min_y) / block_h;
+
+        let mut result: Vec<&BlockDescriptor> = Vec::with_capacity(4);
+        for block_y in block_min_y..=block_max_y {
+            for block_x in block_min_x..=block_max_x {
+                if let Some(block_id) = self.block_id_at(child_zoom, block_x, block_y) {
+                    result.push(&self.blocks[block_id as usize]);
+                }
+            }
+        }
+        result
+    }
+}
+
 /// Build a single zoom's `ZoomBlocks` descriptor and append its block
 /// descriptors (deepest-zoom-first, then row-major within the zoom) to
 /// `blocks`. Bumps `next_block_id` past the last block written.

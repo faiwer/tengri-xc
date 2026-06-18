@@ -43,13 +43,17 @@ impl TileTreeExportAdapter for FakeAdapter {
         Ok(())
     }
 
-    fn try_read_source_tile(
+    fn read_source_tile(
         &self,
         _reader: &mut Self::Reader,
         tile: XyzTile,
-    ) -> Result<Option<Self::SourceTile>, TileTreeError> {
+    ) -> Result<Self::SourceTile, TileTreeError> {
         self.state.read_tiles.lock().unwrap().push(tile);
-        Ok(self.source_value(tile))
+        self.source_value(tile).ok_or(TileTreeError::MissingTile {
+            z: tile.z,
+            x: tile.x as u16,
+            y: tile.y as u16,
+        })
     }
 
     fn encode_payload(&self, tile: &Self::SourceTile) -> Result<Vec<u8>, TileTreeError> {
@@ -119,41 +123,6 @@ fn exporter_writes_leaves_and_parents() {
     let mut reader = TileTreeReader::open(&path).unwrap();
     assert_eq!(u16_payload(&mut reader, 1, 1, 1), 4);
     assert_eq!(u16_payload(&mut reader, 0, 0, 0), 10);
-
-    let _ = fs::remove_file(&path);
-}
-
-#[test]
-fn source_intermediate_tile_writes_descendants_without_reducing_that_tile() {
-    let path = test_path("source-intermediate");
-    let _ = fs::remove_file(&path);
-    let bounds = XYZBounds::new(2, 0, 0, 1, 1).unwrap();
-    let state = fake_state([(XyzTile { z: 1, x: 0, y: 0 }, 99)].into_iter().chain(
-        (0..=1).flat_map(|y| {
-            (0..=1).map(move |x| {
-                let tile = XyzTile { z: 2, x, y };
-                (tile, (x + y * 2 + 1) as u16)
-            })
-        }),
-    ));
-
-    TileTreeExporter::new(
-        FakeAdapter {
-            bounds,
-            state: Arc::clone(&state),
-        },
-        &path,
-    )
-    .threads(1)
-    .build()
-    .unwrap();
-
-    let mut reader = TileTreeReader::open(&path).unwrap();
-    assert_eq!(u16_payload(&mut reader, 1, 0, 0), 99);
-    assert_eq!(u16_payload(&mut reader, 2, 1, 1), 4);
-    assert_eq!(u16_payload(&mut reader, 0, 0, 0), 99);
-    let reduced = state.reduced_tiles.lock().unwrap();
-    assert!(!reduced.contains(&XyzTile { z: 1, x: 0, y: 0 }));
 
     let _ = fs::remove_file(&path);
 }
@@ -377,17 +346,17 @@ fn progress_eta_uses_recent_window() {
     // still shows up.
     assert_eq!(
         progress.progress_details(start + Duration::from_secs(10), 100),
-        " 10 blocks/s eta 1m30s"
+        " 10.00 blocks/s eta 1m30s"
     );
     assert_eq!(
         progress.progress_details(start + Duration::from_secs(30), 700),
-        " 30 blocks/s eta 10s"
+        " 30.00 blocks/s eta 10s"
     );
     // Window pops the 10s-mark sample (>60s old), keeping the 30s
     // and 90s samples → 300 blocks over 60s → 5 b/s.
     assert_eq!(
         progress.progress_details(start + Duration::from_secs(90), 1_000),
-        " 5 blocks/s eta 0s"
+        " 5.00 blocks/s eta 0s"
     );
 }
 
