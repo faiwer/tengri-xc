@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use ::pmtiles::{AsyncPmTilesReader, HashMapCache, MmapBackend, TileCoord, TileType};
-use image_webp::WebPDecoder;
-use std::io::{BufReader, Cursor};
 use tokio::runtime::{Builder, Runtime};
 
 use crate::dem::constants::MAX_DEM_TILE_SIDE;
@@ -12,6 +10,7 @@ use crate::tree::{
     MAX_WEB_MERCATOR_TREE_ZOOM, PassthroughCodec, TileSource, TileSourceReader, TileTreeError,
     XYZBounds,
 };
+use crate::webp::decode::decode_webp_bytes;
 
 /// PMTiles WebP imagery source. The primary [`read`](TileSourceReader::read)
 /// path always returns a decoded [`Raster`] (resampled to the archive's
@@ -87,7 +86,7 @@ impl TileSourceReader for PmtilesImageryReader {
 
     fn read(&mut self, tile: XyzTile) -> Result<Raster, TileTreeError> {
         let bytes = self.fetch_bytes(tile)?;
-        let raster = decode_full(&bytes)?;
+        let raster = decode_webp_bytes(&bytes)?;
         Ok(area_resample_to_tile(&raster))
     }
 
@@ -112,23 +111,6 @@ impl PmtilesImageryReader {
             .to_vec();
         Ok(bytes)
     }
-}
-
-fn decode_full(bytes: &[u8]) -> Result<Raster, TileTreeError> {
-    let mut decoder = WebPDecoder::new(BufReader::new(Cursor::new(bytes)))?;
-    let (width, height) = decoder.dimensions();
-    let buffer_size = decoder
-        .output_buffer_size()
-        .ok_or(TileTreeError::CorruptFile("WebP output buffer too large"))?;
-    let channels: u8 = if decoder.has_alpha() { 4 } else { 3 };
-    let mut pixels = vec![0u8; buffer_size];
-    decoder.read_image(&mut pixels)?;
-    Ok(Raster {
-        width: width as u16,
-        height: height as u16,
-        channels,
-        pixels,
-    })
 }
 
 /// Area-resample an RGB(A) raster down to one archive tile-side per side.

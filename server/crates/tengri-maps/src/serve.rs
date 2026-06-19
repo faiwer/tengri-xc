@@ -24,6 +24,7 @@ pub trait TileServeFormat: Send + Sync {
 pub fn tile_serve_format(tile_kind: TileKind) -> Box<dyn TileServeFormat> {
     match tile_kind {
         TileKind::Dem => Box::new(crate::dem::serve::DemTerrariumServeFormat),
+        TileKind::Webp => Box::new(crate::webp::serve::WebpServeFormat),
     }
 }
 

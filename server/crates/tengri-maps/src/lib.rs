@@ -6,3 +6,4 @@ pub mod matrix;
 pub mod pmtiles;
 pub mod tif;
 pub mod tree;
+pub mod webp;
