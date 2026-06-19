@@ -4,20 +4,20 @@ use super::DemChunk;
 use super::compress::compress_tile;
 use super::pyramid::build_parent_chunk;
 use super::resolution::cap_dem_matrix;
-use super::source::{DemSource, DemSourceReader};
 use super::tile_file::write_tile;
 use crate::geo::XyzTile;
 use crate::tree::{
-    CachedChild, TileKind, TileTreeError, TileTreeExportAdapter, XYZBounds,
+    CachedChild, TileKind, TileSource, TileSourceReader, TileTreeError, TileTreeExportAdapter,
+    XYZBounds,
 };
 
 pub(super) struct DemExportAdapter<S> {
     pub(super) source: S,
 }
 
-impl<S: DemSource + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
+impl<S: TileSource<Tile = DemChunk> + 'static> TileTreeExportAdapter for DemExportAdapter<S> {
     type SourceTile = DemChunk;
-    type Reader = Box<dyn DemSourceReader>;
+    type Reader = Box<dyn TileSourceReader<Tile = DemChunk>>;
 
     fn tile_kind(&self) -> TileKind {
         TileKind::Dem

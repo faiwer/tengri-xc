@@ -4,6 +4,8 @@
 //! geography — they operate on row-major pixel buffers with explicit
 //! `width`/`height`. Callers layer their own clamps and rounding on top.
 
+mod raster;
 mod resample;
 
+pub use raster::Raster;
 pub use resample::area_resample;

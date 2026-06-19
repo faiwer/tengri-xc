@@ -7,7 +7,7 @@
 //! → read tile bytes`.
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::fs::FileExt;
 use std::path::Path;
 
@@ -19,8 +19,7 @@ use super::format::{
     read_header,
 };
 use super::metadata::TileTreeMetadata;
-use super::size_stream::{SizeStreamWalker, walk_size_stream};
-use super::slot_index::SlotIndex;
+use super::size_stream::walk_size_stream;
 
 pub struct TileTreeReader {
     file: File,
@@ -28,6 +27,7 @@ pub struct TileTreeReader {
     grid: BlockGrid,
     tile_data_off: u64,
     tile_data_len: u64,
+    kind_config: u8,
 }
 
 impl TileTreeReader {
@@ -52,6 +52,7 @@ impl TileTreeReader {
             grid,
             tile_data_off,
             tile_data_len,
+            kind_config: header.kind_config,
         })
     }
 
@@ -61,6 +62,13 @@ impl TileTreeReader {
 
     pub fn bounds(&self) -> XYZBounds {
         self.metadata.bounds
+    }
+
+    /// Tile-kind-specific config byte recorded in the archive header.
+    /// Layout depends on [`TileTreeMetadata::tile_kind`]; see
+    /// [`crate::tree::format::CompactHeader::kind_config`].
+    pub fn header_kind_config(&self) -> u8 {
+        self.kind_config
     }
 
     pub fn read(&mut self, z: u8, x: u16, y: u16) -> Result<Vec<u8>, TileTreeError> {
@@ -83,6 +91,7 @@ impl TileTreeReader {
         self.file.read_exact_at(&mut bytes, target.offset)?;
         Ok(bytes)
     }
+
     fn fetch_envelope(&self, block_id: u64) -> Result<[u8; BLOCK_SIZE as usize], TileTreeError> {
         let mut envelope = [0u8; BLOCK_SIZE as usize];
         let offset = HEADER_LEN + block_id * BLOCK_SIZE;

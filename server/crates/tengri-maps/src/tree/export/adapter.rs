@@ -49,6 +49,14 @@ pub trait TileTreeExportAdapter: Send + Sync + 'static {
     fn max_leaf_downsample_steps(&self) -> u8 {
         u8::MAX
     }
+    /// Tile-kind-specific config byte written into the archive header.
+    /// Default zero ("nothing to record"); kinds that want to surface
+    /// build-time intent (e.g. WebP's passthrough flag + quality) override.
+    /// See [`crate::tree::format::CompactHeader::kind_config`] for the
+    /// per-kind byte layout.
+    fn kind_config(&self) -> u8 {
+        0
+    }
     /// Reads the raw tile from the source. The orchestrator only calls this
     /// when [`supplies_all_zooms`] or `tile.z == bounds().zoom` already
     /// guarantees the tile is present, so a miss here is a contract bug

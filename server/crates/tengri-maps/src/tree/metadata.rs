@@ -4,12 +4,14 @@ use super::format::VERSION;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TileKind {
     Dem,
+    Webp,
 }
 
 impl TileKind {
     pub(crate) fn from_u8(value: u8) -> Option<Self> {
         match value {
             1 => Some(Self::Dem),
+            2 => Some(Self::Webp),
             _ => None,
         }
     }
@@ -17,6 +19,7 @@ impl TileKind {
     pub(crate) fn to_u8(self) -> u8 {
         match self {
             Self::Dem => 1,
+            Self::Webp => 2,
         }
     }
 }

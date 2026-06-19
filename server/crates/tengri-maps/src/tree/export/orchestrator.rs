@@ -172,6 +172,7 @@ impl<A: TileTreeExportAdapter> Orchestrator<A> {
             self.min_zoom,
             tile_data_len,
             payload_hash,
+            self.adapter.kind_config(),
         )?;
         self.dest_file.write_all_at(&header_buf, 0)?;
         self.dest_file.sync_all()?;

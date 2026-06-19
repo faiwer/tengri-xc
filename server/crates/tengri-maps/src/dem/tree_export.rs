@@ -1,9 +1,9 @@
 use std::io::Write;
 use std::path::PathBuf;
 
+use super::DemChunk;
 use super::dem_export_adapter::DemExportAdapter;
-use super::source::DemSource;
-use crate::tree::{TileTreeError, TileTreeExportReport, TileTreeExporter};
+use crate::tree::{TileSource, TileTreeError, TileTreeExportReport, TileTreeExporter};
 
 pub struct DemTree;
 
@@ -19,12 +19,12 @@ pub struct DemTreeBuilder<S> {
 pub type DemTreeExportReport = TileTreeExportReport;
 
 impl DemTree {
-    pub fn builder<S: DemSource + 'static>(source: S) -> DemTreeBuilder<S> {
+    pub fn builder<S: TileSource<Tile = DemChunk> + 'static>(source: S) -> DemTreeBuilder<S> {
         DemTreeBuilder::new(source)
     }
 }
 
-impl<S: DemSource + 'static> DemTreeBuilder<S> {
+impl<S: TileSource<Tile = DemChunk> + 'static> DemTreeBuilder<S> {
     pub fn new(source: S) -> Self {
         Self {
             source,
@@ -98,10 +98,9 @@ mod tests {
     use super::*;
     use crate::dem::DemChunk;
     use crate::dem::decompress::decompress_tile;
-    use crate::dem::source::DemSourceReader;
     use crate::dem::tile_file::read_tile;
     use crate::geo::XyzTile;
-    use crate::tree::{TileTreeReader, XYZBounds};
+    use crate::tree::{TileSource, TileSourceReader, TileTreeReader, XYZBounds};
 
     struct FakeSource {
         bounds: XYZBounds,
@@ -109,17 +108,23 @@ mod tests {
 
     struct FakeReader;
 
-    impl DemSource for FakeSource {
+    impl TileSource for FakeSource {
+        type Tile = DemChunk;
+
         fn tile_bounds(&self) -> XYZBounds {
             self.bounds
         }
 
-        fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
+        fn open_reader(
+            &self,
+        ) -> Result<Box<dyn TileSourceReader<Tile = DemChunk>>, TileTreeError> {
             Ok(Box::new(FakeReader))
         }
     }
 
-    impl DemSourceReader for FakeReader {
+    impl TileSourceReader for FakeReader {
+        type Tile = DemChunk;
+
         fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
             let elevation = (tile.x + tile.y * 2 + 1) as i16 * 8;
             Ok(DemChunk::from_i16(1, 1, vec![elevation]))

@@ -9,6 +9,7 @@ mod metadata;
 mod reader;
 mod size_stream;
 mod slot_index;
+mod source;
 
 pub use bounds::{MAX_WEB_MERCATOR_TREE_ZOOM, XYZBounds};
 pub use error::TileTreeError;
@@ -16,3 +17,4 @@ pub use export::{CachedChild, TileTreeExportAdapter, TileTreeExportReport, TileT
 pub use metadata::TileKind;
 pub use reader::TileTreeReader;
 pub use slot_index::SlotIndex;
+pub use source::{PassthroughCodec, TilePayload, TileSource, TileSourceReader};

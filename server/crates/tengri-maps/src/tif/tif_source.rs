@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
+use crate::dem::DemChunk;
 use crate::dem::constants::MAX_DEM_TILE_SIDE;
-use crate::dem::{DemSource, DemSourceReader};
 use crate::geo::{Bounds, WEB_MERCATOR_HALF_EQUATOR_M, xyz_tiles_for_bounds};
 use crate::tif::TiledTifReader;
 use crate::tif::tif_dem_source_reader::TifDemSourceReader;
-use crate::tree::{TileTreeError, XYZBounds};
+use crate::tree::{TileSource, TileSourceReader, TileTreeError, XYZBounds};
 
 use super::tiled::TifProjection;
 
@@ -32,12 +32,14 @@ impl TifDemSource {
     }
 }
 
-impl DemSource for TifDemSource {
+impl TileSource for TifDemSource {
+    type Tile = DemChunk;
+
     fn tile_bounds(&self) -> XYZBounds {
         self.tile_bounds
     }
 
-    fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
+    fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = DemChunk>>, TileTreeError> {
         Ok(Box::new(TifDemSourceReader {
             reader: TiledTifReader::open(&self.path)?,
             read_bounds: self.read_bounds,

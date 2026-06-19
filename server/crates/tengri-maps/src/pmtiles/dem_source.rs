@@ -4,9 +4,9 @@ use ::pmtiles::{AsyncPmTilesReader, HashMapCache, MmapBackend, TileType};
 use tokio::runtime::{Builder, Runtime};
 use super::dem_source_reader::PmtilesDemSourceReader;
 
-use crate::dem::{DemSource, DemSourceReader};
+use crate::dem::DemChunk;
 use crate::geo::{Bounds, xyz_tiles_for_bounds};
-use crate::tree::{MAX_WEB_MERCATOR_TREE_ZOOM, TileTreeError, XYZBounds};
+use crate::tree::{MAX_WEB_MERCATOR_TREE_ZOOM, TileSource, TileSourceReader, TileTreeError, XYZBounds};
 
 pub struct PmtilesDemSource {
     path: PathBuf,
@@ -40,12 +40,14 @@ impl PmtilesDemSource {
     }
 }
 
-impl DemSource for PmtilesDemSource {
+impl TileSource for PmtilesDemSource {
+    type Tile = DemChunk;
+
     fn tile_bounds(&self) -> XYZBounds {
         self.tile_bounds
     }
 
-    fn open_reader(&self) -> Result<Box<dyn DemSourceReader>, TileTreeError> {
+    fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = DemChunk>>, TileTreeError> {
         let runtime = runtime()?;
         let reader = open_reader(&runtime, &self.path)?;
         Ok(Box::new(PmtilesDemSourceReader { reader, runtime }))

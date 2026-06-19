@@ -1,14 +1,16 @@
-use crate::dem::{DemChunk, DemSourceReader};
+use crate::dem::DemChunk;
 use crate::geo::{Bounds, XyzTile, xyz_tile_bounds};
 use crate::tif::TiledTifReader;
-use crate::tree::TileTreeError;
+use crate::tree::{TileSourceReader, TileTreeError};
 
 pub(super) struct TifDemSourceReader {
     pub(super) reader: TiledTifReader,
     pub(super) read_bounds: Bounds,
 }
 
-impl DemSourceReader for TifDemSourceReader {
+impl TileSourceReader for TifDemSourceReader {
+    type Tile = DemChunk;
+
     fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
         let bounds = xyz_tile_bounds(tile.z, tile.x, tile.y)?;
         let bounds = intersect_bounds(bounds, self.read_bounds).ok_or(

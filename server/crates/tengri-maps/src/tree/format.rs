@@ -55,6 +55,12 @@ pub struct CompactHeader {
     pub block_h: u8,
     pub tile_data_len: u64,
     pub payload_hash: [u8; 32],
+    /// Tile-kind-specific config byte. Meaning depends on `tile_kind`:
+    /// - `Dem`: zero / unused.
+    /// - `Webp`: `q | (0x80 if --passthrough else 0)` — high bit signals
+    ///   passthrough mode was requested at build time, low 7 bits hold the
+    ///   encoder's configured quality (0..=100).
+    pub kind_config: u8,
 }
 
 impl CompactHeader {
@@ -69,6 +75,7 @@ pub fn write_header(
     min_zoom: u8,
     tile_data_len: u64,
     payload_hash: [u8; 32],
+    kind_config: u8,
 ) -> Result<(), TileTreeError> {
     let bounds = metadata.bounds;
     if min_zoom > bounds.zoom {
@@ -87,8 +94,9 @@ pub fn write_header(
     writer.write_all(&[BLOCK_H])?;
     writer.write_all(&tile_data_len.to_le_bytes())?;
     writer.write_all(&payload_hash)?;
+    writer.write_all(&[kind_config])?;
     // Reserved for future use.
-    writer.write_all(&[0u8; 8])?;
+    writer.write_all(&[0u8; 7])?;
     Ok(())
 }
 
@@ -126,7 +134,8 @@ pub fn read_header(reader: &mut impl Read) -> Result<CompactHeader, TileTreeErro
     let tile_data_len = read_u64(reader)?;
     let mut payload_hash = [0u8; 32];
     reader.read_exact(&mut payload_hash)?;
-    let mut reserved = [0u8; 8];
+    let kind_config = read_u8(reader)?;
+    let mut reserved = [0u8; 7];
     reader.read_exact(&mut reserved)?;
 
     Ok(CompactHeader {
@@ -137,6 +146,7 @@ pub fn read_header(reader: &mut impl Read) -> Result<CompactHeader, TileTreeErro
         block_h,
         tile_data_len,
         payload_hash,
+        kind_config,
     })
 }
 
@@ -249,7 +259,7 @@ mod tests {
         let metadata = TileTreeMetadata::new(TileKind::Dem, bounds);
         let mut buf = Vec::new();
         let hash = [7u8; 32];
-        write_header(&mut buf, metadata, 4, 12_345_678, hash).unwrap();
+        write_header(&mut buf, metadata, 4, 12_345_678, hash, 0).unwrap();
         assert_eq!(buf.len() as u64, HEADER_LEN);
 
         let mut slice = buf.as_slice();
@@ -261,6 +271,25 @@ mod tests {
         assert_eq!(header.block_h, BLOCK_H);
         assert_eq!(header.tile_data_len, 12_345_678);
         assert_eq!(header.payload_hash, hash);
+        assert_eq!(header.kind_config, 0);
+    }
+
+    #[test]
+    fn header_kind_config_roundtrip() {
+        // Webp + passthrough at q=75 → 0x80 | 75 = 0xCB. The byte must
+        // round-trip verbatim, both the high (passthrough) bit and the
+        // low (quality) bits.
+        let bounds = XYZBounds::new(6, 0, 0, 63, 63).unwrap();
+        let metadata = TileTreeMetadata::new(TileKind::Webp, bounds);
+        let mut buf = Vec::new();
+        write_header(&mut buf, metadata, 0, 0, [0u8; 32], 0xCB).unwrap();
+
+        let mut slice = buf.as_slice();
+        let header = read_header(&mut slice).unwrap();
+        assert_eq!(header.tile_kind, TileKind::Webp);
+        assert_eq!(header.kind_config, 0xCB);
+        assert_eq!(header.kind_config & 0x80, 0x80, "passthrough flag");
+        assert_eq!(header.kind_config & 0x7F, 75, "quality");
     }
 
     #[test]
@@ -268,7 +297,7 @@ mod tests {
         let bounds = XYZBounds::new(4, 0, 0, 0, 0).unwrap();
         let metadata = TileTreeMetadata::new(TileKind::Dem, bounds);
         let mut buf = Vec::new();
-        let err = write_header(&mut buf, metadata, 5, 0, [0u8; 32]).unwrap_err();
+        let err = write_header(&mut buf, metadata, 5, 0, [0u8; 32], 0).unwrap_err();
         assert!(matches!(err, TileTreeError::InvalidBounds(_)));
     }
 }

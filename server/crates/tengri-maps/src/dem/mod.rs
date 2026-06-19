@@ -9,7 +9,6 @@ mod error;
 mod pyramid;
 mod resolution;
 pub(crate) mod serve;
-mod source;
 mod tile_file;
 mod tree_export;
 mod types;
@@ -19,6 +18,5 @@ mod tests;
 
 pub use constants::DEM_QUANTIZATION_METERS;
 pub use error::DemError;
-pub use source::{DemSource, DemSourceReader};
 pub use tree_export::{DemTree, DemTreeBuilder, DemTreeExportReport};
 pub use types::DemChunk;

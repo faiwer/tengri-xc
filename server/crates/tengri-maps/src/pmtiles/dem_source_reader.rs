@@ -1,7 +1,7 @@
 use crate::{
-    dem::{DemChunk, DemSourceReader},
+    dem::DemChunk,
     geo::XyzTile,
-    tree::TileTreeError,
+    tree::{TileSourceReader, TileTreeError},
 };
 
 use super::terrarium::decode_terrarium_webp;
@@ -13,7 +13,9 @@ pub struct PmtilesDemSourceReader {
     pub runtime: Runtime,
 }
 
-impl DemSourceReader for PmtilesDemSourceReader {
+impl TileSourceReader for PmtilesDemSourceReader {
+    type Tile = DemChunk;
+
     fn read(&mut self, tile: XyzTile) -> Result<DemChunk, TileTreeError> {
         let coord = TileCoord::new(tile.z, tile.x, tile.y)?;
         let bytes = self
