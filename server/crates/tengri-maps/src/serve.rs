@@ -9,13 +9,13 @@ pub struct ServedTile {
 }
 
 pub trait TileServeFormat: Send + Sync {
-    /// E.g. `/terrain/` from '/terrain/8/123/45.png'.
+    /// E.g. `/dem/` from '/dem/8/123/45.png'.
     fn route_prefix(&self) -> &'static str;
     /// E.g. `.png`.
     fn file_extension(&self) -> &'static str;
     /// Render the tile from the payload. Served to the client.
     fn render(&self, payload: &[u8]) -> Result<ServedTile, TileServeError>;
-    /// E.g. `/terrain/8/123/45.png` -> `XyzTile { z: 8, x: 123, y: 45 }`.
+    /// E.g. `/dem/8/123/45.png` -> `XyzTile { z: 8, x: 123, y: 45 }`.
     fn parse_path(&self, path: &str) -> Option<XyzTile> {
         parse_tile_path(path, self.route_prefix(), self.file_extension())
     }
@@ -50,7 +50,7 @@ mod tests {
 
     impl TileServeFormat for PngTiles {
         fn route_prefix(&self) -> &'static str {
-            "/terrain/"
+            "/dem/"
         }
 
         fn file_extension(&self) -> &'static str {
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn parses_format_tile_path() {
         assert_eq!(
-            PngTiles.parse_path("/terrain/8/123/45.png"),
+            PngTiles.parse_path("/dem/8/123/45.png"),
             Some(XyzTile {
                 z: 8,
                 x: 123,
@@ -80,6 +80,6 @@ mod tests {
     #[test]
     fn rejects_wrong_prefix_or_extension() {
         assert_eq!(PngTiles.parse_path("/tiles/8/123/45.png"), None);
-        assert_eq!(PngTiles.parse_path("/terrain/8/123/45.webp"), None);
+        assert_eq!(PngTiles.parse_path("/dem/8/123/45.webp"), None);
     }
 }
