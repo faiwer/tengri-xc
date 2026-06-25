@@ -144,7 +144,7 @@ fn tree_error_is_not_found(error: &TileTreeError) -> bool {
     )
 }
 
-/// E.g. `GET /terrain/8/123/45.png HTTP/1.1` -> `/terrain/8/123/45.png`.
+/// E.g. `GET /dem/8/123/45.png HTTP/1.1` -> `/dem/8/123/45.png`.
 fn request_path(request_line: &str) -> Option<&str> {
     let mut parts = request_line.split_whitespace();
     let method = parts.next()?;
@@ -182,10 +182,10 @@ mod tests {
     use tengri_maps::tree::TileKind;
 
     #[test]
-    fn parses_terrain_png_path() {
+    fn parses_dem_png_path() {
         let serve_format = tile_serve_format(TileKind::Dem);
         assert_eq!(
-            serve_format.parse_path("/terrain/8/123/45.png"),
+            serve_format.parse_path("/dem/8/123/45.png"),
             Some(XyzTile {
                 z: 8,
                 x: 123,
