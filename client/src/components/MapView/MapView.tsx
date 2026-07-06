@@ -1,49 +1,53 @@
-import { APIProvider, Map } from '@vis.gl/react-google-maps';
-import { type ReactNode, useError } from 'react';
+import { type Map as MapLibre } from '@vis.gl/react-maplibre';
+import { type ReactNode, useMemo } from 'react';
+
 import { MapCenterReporter } from './MapCenterReporter';
-import PALE_THEME from './paleTheme.json' with { type: 'json' };
-import { MapWhitener } from './MapWhitener';
 import styles from './MapView.module.scss';
-import { useMapHoverHandlers } from './useMapHoverHandlers';
-import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
-import { MAP_TYPE_SCHEMA, type MapType } from './types';
 import { MapTypeSwitcher } from './MapTypeSwitcher';
-import { ErrorPane } from '../ErrorPane';
-import { useState } from 'react';
+import { type MapType, MAP_TYPE_SCHEMA } from './types';
+import { useMapHoverHandlers } from './useMapHoverHandlers';
+import type { LatLng, LatLngBounds } from '../../utils/geo/coordinates';
+import { useLocalStorageValue } from '../../utils/useLocalStorageValue';
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  PADDING_PX,
+  PREFETCH_BUFFER_PX,
+} from './constants';
+import { STYLE_BY_TYPE } from './sources';
 
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-// Greifenburg, Carinthia (Drautal). Zoom 10 fits the surrounding region.
-const DEFAULT_CENTER = { lat: 46.751, lng: 13.1786 };
-const DEFAULT_ZOOM = 10;
-const PADDING = 32;
-
-interface MapViewProps {
+export interface MapViewProps {
   /** Overlays rendered inside <Map>; they may use `useMap()` to attach. */
   children?: ReactNode;
-  initialBounds?: google.maps.LatLngBoundsLiteral | null;
+  initialBounds?: LatLngBounds | null;
   initialPadding?: number;
-  onCenterLatLng?: (point: google.maps.LatLngLiteral) => void;
-  onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void;
+  onCenterLatLng?: (point: LatLng) => void;
+  onHoverLatLng?: (point: LatLng | null) => void;
   initialMapType?: MapType;
   hideControls?: boolean;
+  lib: { Map: typeof MapLibre };
 }
 
-function MapViewInternal({
+export function MapViewInternal({
   children,
   initialBounds,
-  initialPadding = PADDING,
+  initialPadding = PADDING_PX,
   onCenterLatLng,
   onHoverLatLng,
   initialMapType: mapTypeInitial = 'terrain',
   hideControls = false,
+  lib: { Map },
 }: MapViewProps) {
-  const { onMousemove } = useMapHoverHandlers(onHoverLatLng);
+  const { onMouseMove } = useMapHoverHandlers(onHoverLatLng);
   const [mapType, setMapType] = useLocalStorageValue('map-type', {
     schema: MAP_TYPE_SCHEMA,
     defaultValue: mapTypeInitial,
     strategy: 'initOnly',
   });
+  const initialViewState = useInitialViewState(
+    initialBounds ?? null,
+    initialPadding,
+  );
 
   return (
     <div
@@ -54,39 +58,61 @@ function MapViewInternal({
       {!hideControls && (
         <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
       )}
-      <APIProvider apiKey={API_KEY}>
+      {/* Wrap <Map/> with a div to render the map bigger than its container
+      with negative offsets to load offscreen tiles. It has no option for this. */}
+      <div className={styles.mapBuffer}>
         <Map
-          mapTypeId={mapType}
-          className={styles.map}
-          defaultCenter={DEFAULT_CENTER}
-          defaultZoom={DEFAULT_ZOOM}
-          defaultBounds={
-            initialBounds
-              ? { ...initialBounds, padding: initialPadding }
-              : undefined
-          }
-          gestureHandling="greedy"
-          disableDefaultUI
-          fullscreenControl={!hideControls}
-          styles={mapType === 'terrain' ? PALE_THEME : undefined}
-          onMousemove={onMousemove}
+          mapStyle={STYLE_BY_TYPE[mapType]}
+          initialViewState={initialViewState}
+          style={{ width: '100%', height: '100%' }}
+          dragRotate={false}
+          touchPitch={false}
+          onMouseMove={onMouseMove}
+          // Retain ~16× the viewport tile count in cache (default 5×) so
+          // pans back over recently-seen tiles paint from cache instead of
+          // re-requesting them.
+          maxTileCacheZoomLevels={16}
+          // Keep partially-loaded tiles around during a zoom transition;
+          // less abrupt detail pop-in, at the cost of a few extra requests.
+          cancelPendingTileRequestsWhileZooming={false}
         >
-          {(mapType === 'terrain' || mapType === 'roadmap') && (
-            <MapWhitener opacity={mapType === 'terrain' ? 0.7 : 0.3} />
-          )}
           {onCenterLatLng && (
             <MapCenterReporter onCenterLatLng={onCenterLatLng} />
           )}
           {children}
         </Map>
-      </APIProvider>
+      </div>
     </div>
   );
 }
 
-export function MapView(props: MapViewProps) {
-  const [error, setError] = useState<unknown>(null);
-  useError(setError);
-
-  return error ? <ErrorPane error={error} /> : <MapViewInternal {...props} />;
+/**
+ * Bounds drive the initial fit only; `<FitBounds>` handles re-fits after mount.
+ */
+function useInitialViewState(
+  initialBounds: LatLngBounds | null,
+  initialPadding: number,
+): InitViewState {
+  return useMemo(
+    (): InitViewState =>
+      initialBounds
+        ? {
+            bounds: [
+              [initialBounds.west, initialBounds.south],
+              [initialBounds.east, initialBounds.north],
+            ],
+            // Canvas is oversized by `PREFETCH_BUFFER_PX` on every side to
+            // preload offscreen tiles.
+            fitBoundsOptions: { padding: initialPadding + PREFETCH_BUFFER_PX },
+          }
+        : {
+            longitude: DEFAULT_CENTER.lng,
+            latitude: DEFAULT_CENTER.lat,
+            zoom: DEFAULT_ZOOM,
+          },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial values.
+    [],
+  );
 }
+
+type InitViewState = React.ComponentProps<typeof MapLibre>['initialViewState'];

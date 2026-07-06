@@ -1,25 +1,29 @@
-import { useMap } from '@vis.gl/react-google-maps';
 import { useEffect } from 'react';
-import { useEventHandler } from '../../core/hooks';
-import { nullthrows } from '../../utils/nullthrows';
+import { decimalDegree, type LatLng } from '../../utils/geo/coordinates';
+import { useMap } from './hooks/useMap';
 
 interface MapCenterReporterProps {
-  onCenterLatLng: (point: google.maps.LatLngLiteral) => void;
+  onCenterLatLng: (point: LatLng) => void;
 }
 
 export function MapCenterReporter({ onCenterLatLng }: MapCenterReporterProps) {
-  const map = nullthrows(useMap());
-  const emitCenter = useEventHandler(() => {
-    onCenterLatLng(nullthrows(map.getCenter()).toJSON());
-  });
+  const map = useMap();
 
   useEffect(() => {
-    emitCenter();
-    const listener = map.addListener('idle', emitCenter);
-    return () => {
-      listener.remove();
+    const emitCenter = () => {
+      const center = map.getCenter();
+      onCenterLatLng({
+        lat: decimalDegree(center.lat),
+        lng: decimalDegree(center.lng),
+      });
     };
-  }, [map, emitCenter]);
+
+    emitCenter();
+    map.on('moveend', emitCenter);
+    return () => {
+      map.off('moveend', emitCenter);
+    };
+  }, [map, onCenterLatLng]);
 
   return null;
 }

@@ -1,5 +1,11 @@
 import type { Track } from '../track';
 import type { TrackWindow } from '../track/toPaths';
+import {
+  decimalDegree,
+  E5_PER_DEGREE,
+  type LatLng,
+  type LatLngBounds,
+} from '../utils/geo/coordinates';
 
 export interface SpatialIndex {
   cellSize: number;
@@ -18,7 +24,7 @@ const GRID_CELLS_PER_LONG_AXIS = 200;
 export const buildSpatialIndex = (
   track: Track,
   window: TrackWindow,
-  bounds: google.maps.LatLngBoundsLiteral,
+  bounds: LatLngBounds,
 ): SpatialIndex => {
   const fromIdx = window.takeoffIdx;
   const toIdx = window.landingIdx + 1;
@@ -33,7 +39,10 @@ export const buildSpatialIndex = (
 
   for (let idx = fromIdx; idx < toIdx; idx++) {
     const cell = cellForPoint(
-      { lat: track.lat[idx]! / 1e5, lng: track.lng[idx]! / 1e5 },
+      {
+        lat: decimalDegree(track.lat[idx]! / E5_PER_DEGREE),
+        lng: decimalDegree(track.lng[idx]! / E5_PER_DEGREE),
+      },
       { cellSize, minLat, minLng, maxCellX, maxCellY },
     );
     const key = cellKey(cell.x, cell.y);
@@ -62,7 +71,7 @@ export const buildSpatialIndex = (
 export const nearestTrackIndex = (
   track: Track,
   index: SpatialIndex,
-  point: google.maps.LatLngLiteral,
+  point: LatLng,
 ): number | null => {
   const cell = cellForPoint(point, index);
   let bestIdx: number | null = null;
@@ -99,8 +108,8 @@ export const nearestTrackIndex = (
 
         for (const idx of bucket) {
           const distance = squaredDistance(point, {
-            lat: track.lat[idx]! / 1e5,
-            lng: track.lng[idx]! / 1e5,
+            lat: decimalDegree(track.lat[idx]! / E5_PER_DEGREE),
+            lng: decimalDegree(track.lng[idx]! / E5_PER_DEGREE),
           });
           if (distance < bestDistance) {
             bestDistance = distance;
@@ -115,7 +124,7 @@ export const nearestTrackIndex = (
 };
 
 const cellForPoint = (
-  point: google.maps.LatLngLiteral,
+  point: LatLng,
   index: Pick<
     SpatialIndex,
     'cellSize' | 'maxCellX' | 'maxCellY' | 'minLat' | 'minLng'
@@ -135,10 +144,7 @@ const cellForPoint = (
 
 const cellKey = (x: number, y: number): string => `${x}:${y}`;
 
-const squaredDistance = (
-  a: google.maps.LatLngLiteral,
-  b: google.maps.LatLngLiteral,
-): number => {
+const squaredDistance = (a: LatLng, b: LatLng): number => {
   const dx = a.lng - b.lng;
   const dy = a.lat - b.lat;
   return dx * dx + dy * dy;

@@ -1,9 +1,11 @@
 import { useRef } from 'react';
-import { useMap } from '@vis.gl/react-google-maps';
+import { useMap } from 'react-map-gl/maplibre';
 import { useAsyncEffect } from '../../core/hooks';
+import type { LatLngBounds } from '../../utils/geo/coordinates';
+import { PREFETCH_BUFFER_PX } from './constants';
 
 interface FitBoundsProps {
-  bounds: google.maps.LatLngBoundsLiteral | null;
+  bounds: LatLngBounds | null;
   skipInitialFit?: boolean;
   /** Pixels of inner padding inside the viewport when fitting. Default 32. */
   padding?: number;
@@ -18,7 +20,7 @@ export function FitBounds({
   skipInitialFit = false,
   padding = 32,
 }: FitBoundsProps) {
-  const map = useMap();
+  const map = useMap().current?.getMap();
   const shouldSkipInitialFit = useRef(skipInitialFit);
   const hasSeenBounds = useRef(false);
 
@@ -34,7 +36,15 @@ export function FitBounds({
 
     hasSeenBounds.current = true;
 
-    map.fitBounds(bounds, padding);
+    map.fitBounds(
+      [
+        [bounds.west, bounds.south],
+        [bounds.east, bounds.north],
+      ],
+      // Canvas overhangs the visible container by `PREFETCH_BUFFER_PX`; add
+      // it back so the requested inset is measured from the *visible* edge.
+      { padding: padding + PREFETCH_BUFFER_PX },
+    );
   }, [map, bounds?.east, bounds?.north, bounds?.south, bounds?.west, padding]);
 
   return null;

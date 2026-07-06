@@ -1,4 +1,9 @@
 import type { TrackMetadata } from '../api/tracks.io';
+import {
+  decimalDegree,
+  E5_PER_DEGREE,
+  type LatLngBounds,
+} from '../utils/geo/coordinates';
 import { altitudeRange, type AltitudeRange } from './altitudeRange';
 import { findIndexAt } from './findIndexAt';
 import { computeGroundSpeed } from './groundSpeed';
@@ -34,7 +39,7 @@ export interface FlightAnalysis {
   /** Map polylines for pre-flight, flight, and post-flight runs. */
   paths: TrackPath[];
   /** Bounding box of the flight window, used for map fit and hover indexing. */
-  bounds: google.maps.LatLngBoundsLiteral | null;
+  bounds: LatLngBounds | null;
 }
 
 export interface FlightMetrics {
@@ -138,7 +143,7 @@ const trackHasAltitudeData = (track: Track, window: TrackWindow): boolean => {
 const trackBounds = (
   track: Track,
   window: TrackWindow,
-): google.maps.LatLngBoundsLiteral | null => {
+): LatLngBounds | null => {
   const fromIdx = window.takeoffIdx;
   const toIdx = window.landingIdx + 1;
   if (toIdx <= fromIdx) {
@@ -151,13 +156,18 @@ const trackBounds = (
   let east = -Infinity;
 
   for (let idx = fromIdx; idx < toIdx; ++idx) {
-    const lat = track.lat[idx]! / 1e5;
-    const lng = track.lng[idx]! / 1e5;
+    const lat = track.lat[idx]! / E5_PER_DEGREE;
+    const lng = track.lng[idx]! / E5_PER_DEGREE;
     south = Math.min(south, lat);
     north = Math.max(north, lat);
     west = Math.min(west, lng);
     east = Math.max(east, lng);
   }
 
-  return { south, west, north, east };
+  return {
+    south: decimalDegree(south),
+    west: decimalDegree(west),
+    north: decimalDegree(north),
+    east: decimalDegree(east),
+  };
 };

@@ -1,3 +1,9 @@
+import {
+  decimalDegree,
+  E5_PER_DEGREE,
+  type LatLng,
+  type LatLngBounds,
+} from '../utils/geo/coordinates';
 import type { Track } from './types';
 import type { VarioSegment } from './varioSegments/segments';
 
@@ -6,7 +12,7 @@ export interface TrackPath {
   color?: string;
   /** Original track index for `points[0]`. */
   startIdx: number;
-  points: google.maps.LatLngLiteral[];
+  points: LatLng[];
 }
 
 /**
@@ -130,9 +136,7 @@ const colorForBucket = (bucket: number): string => {
  * Bounding box for a list of paths. Used to fit the camera to the data.
  * Returns `null` when there are no points.
  */
-export function pathsBounds(
-  paths: readonly TrackPath[],
-): google.maps.LatLngBoundsLiteral | null {
+export function pathsBounds(paths: readonly TrackPath[]): LatLngBounds | null {
   let minLat = Infinity;
   let maxLat = -Infinity;
   let minLng = Infinity;
@@ -150,7 +154,12 @@ export function pathsBounds(
   }
 
   if (!any) return null;
-  return { south: minLat, west: minLng, north: maxLat, east: maxLng };
+  return {
+    south: decimalDegree(minLat),
+    west: decimalDegree(minLng),
+    north: decimalDegree(maxLat),
+    east: decimalDegree(maxLng),
+  };
 }
 
 const projectPath = (
@@ -160,10 +169,13 @@ const projectPath = (
   color?: string,
 ): TrackPath => {
   const len = to - from;
-  const points: google.maps.LatLngLiteral[] = new Array(len);
+  const points: LatLng[] = new Array(len);
   for (let i = 0; i < len; i++) {
     const j = from + i;
-    points[i] = { lat: track.lat[j]! / 1e5, lng: track.lng[j]! / 1e5 };
+    points[i] = {
+      lat: decimalDegree(track.lat[j]! / E5_PER_DEGREE),
+      lng: decimalDegree(track.lng[j]! / E5_PER_DEGREE),
+    };
   }
   return { color, startIdx: from, points };
 };

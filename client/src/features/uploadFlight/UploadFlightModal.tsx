@@ -91,9 +91,17 @@ function UploadPreviewPanel({ preview }: { preview: UploadPreview }) {
   return (
     <div>
       <div className={styles.mapSlot}>
-        <MapView initialBounds={bounds} hideControls>
+        <MapView
+          initialBounds={bounds}
+          initialPadding={MAP_PADDING_PX}
+          hideControls
+        >
           <TrackPolyline paths={paths} />
-          <FitBounds bounds={bounds} skipInitialFit={!!bounds} />
+          <FitBounds
+            bounds={bounds}
+            skipInitialFit={!!bounds}
+            padding={MAP_PADDING_PX}
+          />
         </MapView>
       </div>
       <div className={styles.actions}>
@@ -104,3 +112,5 @@ function UploadPreviewPanel({ preview }: { preview: UploadPreview }) {
     </div>
   );
 }
+
+const MAP_PADDING_PX = 30;

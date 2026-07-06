@@ -1,0 +1,12 @@
+.marker {
+  border-radius: 50%;
+  background: #ffffff;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.waypoint {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #65c832;
+}

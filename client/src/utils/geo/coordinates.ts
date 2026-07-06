@@ -18,6 +18,13 @@ export interface LatLng {
   lng: DecimalDegree;
 }
 
+export interface LatLngBounds {
+  north: DecimalDegree;
+  south: DecimalDegree;
+  east: DecimalDegree;
+  west: DecimalDegree;
+}
+
 export const E5_PER_DEGREE = 100_000;
 
 export const e5Coordinate = (value: number): E5Coordinate =>

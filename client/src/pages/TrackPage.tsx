@@ -5,8 +5,9 @@ import {
   MapView,
   TrackHoverMarker,
   TrackPolyline,
-  TrackRoute,
 } from '../components/MapView';
+import { TrackRoute } from '../components/TrackRoute';
+import type { LatLng } from '../utils/geo/coordinates';
 import { FlightChart, useChartKind } from '../components/FlightChart';
 import { PageLayout } from '../components/PageLayout';
 import { TrackMetaPanel } from '../components/TrackMetaPanel';
@@ -22,9 +23,7 @@ import { ErrorPane } from '../components/ErrorPane/ErrorPane';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
-  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(
-    null,
-  );
+  const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
   const [activeChartKind, setActiveChartKind] = useChartKind();
   const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
   const { state, trackState, track } = useTrackPageData(id);

@@ -5,6 +5,7 @@ import type { ChartKind } from '../../components/FlightChart';
 import { usePreferences } from '../../core/preferences';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { formatCoordinates } from '../../utils/formatGeo';
+import type { LatLng } from '../../utils/geo/coordinates';
 import styles from '../TrackPage.module.scss';
 import { buildFields } from './buildFields';
 import { field } from './fields';
@@ -13,7 +14,7 @@ import { buildCursorReadout, buildCursorReadoutWidths } from './readout';
 interface CursorReadoutProps {
   activeChartKind: ChartKind;
   analysis: FlightAnalysis | null;
-  mapCenter: google.maps.LatLngLiteral | null;
+  mapCenter: LatLng | null;
   trackIndex: number | null;
 }
 

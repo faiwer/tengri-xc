@@ -1,7 +1,9 @@
-import { useMap } from '@vis.gl/react-google-maps';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import { PathLayer } from '@deck.gl/layers';
 import { useEffect } from 'react';
+import { useMap } from 'react-map-gl/maplibre';
 import type { TrackPath } from '../../track/toPaths';
-import { MAP_Z_INDEX } from './zIndex';
+import { hexToRgba } from '../../utils/colors';
 
 const DEFAULT_COLOR = '#dc2626';
 const STROKE_WEIGHT = 3;
@@ -12,40 +14,46 @@ interface TrackPolylineProps {
 }
 
 /**
- * Render one `google.maps.Polyline` per run. We pay one polyline object per
- * colour-bucket run, not per segment, so a typical paragliding track ends up
- * with at most a few hundred polylines even at high vario resolution.
- *
- * `@vis.gl/react-google-maps` doesn't ship a `<Polyline>` component, so we
- * attach imperatively via `useMap()` and tear down on unmount / paths change.
+ * Render the track as a single deck.gl `PathLayer`. One feature per
+ * colour-bucket run keeps the layer small (a few hundred polylines at most for
+ * a typical hg track) while the GPU draws the segments.
  */
 export function TrackPolyline({ paths }: TrackPolylineProps) {
-  const map = useMap();
+  const map = useMap().current?.getMap();
 
   useEffect(() => {
     if (!map) {
       return;
     }
 
-    const polylines = paths.map(
-      (path) =>
-        new google.maps.Polyline({
-          path: path.points,
-          map,
-          strokeColor: path.color ?? DEFAULT_COLOR,
-          strokeOpacity: STROKE_OPACITY,
-          strokeWeight: STROKE_WEIGHT,
-          clickable: false,
-          zIndex: MAP_Z_INDEX.track,
-        }),
-    );
+    const data: DeckTrackPath[] = paths.map((trackPath) => ({
+      path: trackPath.points.map((point) => [point.lng, point.lat]),
+      color: hexToRgba(trackPath.color ?? DEFAULT_COLOR, STROKE_OPACITY),
+    }));
+
+    const layer = new PathLayer<DeckTrackPath>({
+      id: 'track',
+      data,
+      getPath: (d) => d.path,
+      getColor: (d) => d.color,
+      getWidth: STROKE_WEIGHT,
+      widthUnits: 'pixels',
+    });
+    const overlay = new MapboxOverlay({
+      interleaved: true, // Render in the MapLibre canvas.
+      layers: [layer],
+    });
+    map.addControl(overlay);
 
     return () => {
-      for (const pl of polylines) {
-        pl.setMap(null);
-      }
+      map.removeControl(overlay);
     };
   }, [map, paths]);
 
   return null;
 }
+
+type DeckTrackPath = {
+  path: [number, number][];
+  color: [number, number, number, number];
+};

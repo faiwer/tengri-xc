@@ -1,16 +1,12 @@
-import { type MapMouseEvent } from '@vis.gl/react-google-maps';
+import type { MapLayerMouseEvent } from 'react-map-gl/maplibre';
 import { useEffect, useRef } from 'react';
 import { useEventHandler } from '../../core/hooks';
+import { decimalDegree, type LatLng } from '../../utils/geo/coordinates';
 
 export function useMapHoverHandlers(
-  onHoverLatLng?: (point: google.maps.LatLngLiteral | null) => void,
+  onHoverLatLng?: (point: LatLng | null) => void,
 ) {
   const frameRef = useRef<number | null>(null);
-  const emitHover = useEventHandler(
-    (point: google.maps.LatLngLiteral | null) => {
-      onHoverLatLng?.(point);
-    },
-  );
 
   // Mousemove is RAF-throttled; cancel a queued hover emit if the map unmounts.
   useEffect(
@@ -22,7 +18,7 @@ export function useMapHoverHandlers(
     [],
   );
 
-  const onMousemove = useEventHandler((event: MapMouseEvent) => {
+  const onMouseMove = useEventHandler((event: MapLayerMouseEvent) => {
     if (!onHoverLatLng) {
       return;
     }
@@ -31,12 +27,12 @@ export function useMapHoverHandlers(
       cancelAnimationFrame(frameRef.current);
     }
 
-    const point = event.detail.latLng ?? null;
+    const { lng, lat } = event.lngLat;
     frameRef.current = requestAnimationFrame(() => {
       frameRef.current = null;
-      emitHover(point);
+      onHoverLatLng({ lat: decimalDegree(lat), lng: decimalDegree(lng) });
     });
   });
 
-  return { onMousemove };
+  return { onMouseMove };
 }

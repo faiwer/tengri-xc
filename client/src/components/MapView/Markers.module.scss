@@ -1,0 +1,17 @@
+// Circle-marker glyphs. Rendered as DOM children of react-map-gl `<Marker>`, so
+// their z-order sits above every canvas layer (basemap, deck.gl track, MapLibre
+// line layers) without any beforeId gymnastics.
+
+.marker {
+  border-radius: 50%;
+  background: #ffffff;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.hover {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #2958a1;
+  opacity: 0.9;
+}

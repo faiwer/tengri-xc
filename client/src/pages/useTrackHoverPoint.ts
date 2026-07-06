@@ -2,10 +2,16 @@ import { useMemo, useState } from 'react';
 import { useEventHandler } from '../core/hooks';
 import type { Track } from '../track';
 import type { TrackWindow } from '../track/toPaths';
+import {
+  decimalDegree,
+  E5_PER_DEGREE,
+  type LatLng,
+  type LatLngBounds,
+} from '../utils/geo/coordinates';
 import { buildSpatialIndex, nearestTrackIndex } from './trackHoverSpatialIndex';
 
 interface HoverPointState {
-  point: google.maps.LatLngLiteral | null;
+  point: LatLng | null;
   trackIndex: number | null;
   /**
    * External chart cursor control: number = map drives the chart cursor,
@@ -14,13 +20,13 @@ interface HoverPointState {
   chartHoverFraction: number | null | undefined;
   clearHover: () => void;
   setHoverFraction: (fraction: number | null) => void;
-  setHoverLatLng: (point: google.maps.LatLngLiteral | null) => void;
+  setHoverLatLng: (point: LatLng | null) => void;
 }
 
 type HoverSource =
   | { kind: 'none' }
   | { kind: 'chart'; fraction: number }
-  | { kind: 'map'; point: google.maps.LatLngLiteral };
+  | { kind: 'map'; point: LatLng };
 
 /**
  * Convert chart and map hover state into one marker point. Chart data may be
@@ -30,7 +36,7 @@ type HoverSource =
 export function useTrackHoverPoint(
   track: Track | null,
   window?: TrackWindow,
-  bounds?: google.maps.LatLngBoundsLiteral | null,
+  bounds?: LatLngBounds | null,
 ): HoverPointState {
   const [hoverSource, setHoverSource] = useState<HoverSource>({ kind: 'none' });
   const hoverLatLng = hoverSource.kind === 'map' ? hoverSource.point : null;
@@ -53,7 +59,7 @@ export function useTrackHoverPoint(
     return nearestTrackIndex(track, spatialIndex, hoverLatLng);
   }, [track, spatialIndex, hoverLatLng]);
 
-  const point = useMemo<google.maps.LatLngLiteral | null>(() => {
+  const point = useMemo<LatLng | null>(() => {
     if (!track) {
       return null;
     }
@@ -65,8 +71,8 @@ export function useTrackHoverPoint(
     }
 
     return {
-      lat: track.lat[idx]! / 1e5,
-      lng: track.lng[idx]! / 1e5,
+      lat: decimalDegree(track.lat[idx]! / E5_PER_DEGREE),
+      lng: decimalDegree(track.lng[idx]! / E5_PER_DEGREE),
     };
   }, [track, window, hoverFraction, hoverTrackIndex]);
 
@@ -101,13 +107,11 @@ export function useTrackHoverPoint(
       setHoverSource({ kind: 'chart', fraction });
     }
   });
-  const setHoverLatLng = useEventHandler(
-    (latLng: google.maps.LatLngLiteral | null) => {
-      if (latLng !== null) {
-        setHoverSource({ kind: 'map', point: latLng });
-      }
-    },
-  );
+  const setHoverLatLng = useEventHandler((latLng: LatLng | null) => {
+    if (latLng !== null) {
+      setHoverSource({ kind: 'map', point: latLng });
+    }
+  });
 
   return {
     point,
