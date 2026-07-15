@@ -12,7 +12,13 @@ export interface UploadPreview {
   track: Track;
 }
 
-export function UploadPreviewPanel({ preview }: { preview: UploadPreview }) {
+export function UploadPreviewPanel({
+  preview,
+  onContinue,
+}: {
+  preview: UploadPreview;
+  onContinue: () => void;
+}) {
   const paths = useMemo(() => trackToPaths(preview.track), [preview.track]);
   const bounds = useMemo(() => pathsBounds(paths), [paths]);
 
@@ -34,7 +40,7 @@ export function UploadPreviewPanel({ preview }: { preview: UploadPreview }) {
       </div>
       <div className={styles.actions}>
         <RoutesSummary metadata={preview.metadata} />
-        <Button type="primary" onClick={() => {}}>
+        <Button type="primary" onClick={onContinue}>
           Continue
         </Button>
       </div>
