@@ -1,0 +1,13 @@
+.mapSlot {
+  height: 420px;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
