@@ -9,6 +9,7 @@ import { LoadingIcon } from '../../components/icons/LoadingIcon';
 import { useAsync, useErrorToast } from '../../core/hooks';
 import type { Track } from '../../track';
 import { pathsBounds, trackToPaths } from '../../track/toPaths';
+import { RoutesSummary } from './RoutesSummary';
 import styles from './UploadFlightModal.module.scss';
 
 interface UploadFlightModalProps {
@@ -105,6 +106,7 @@ function UploadPreviewPanel({ preview }: { preview: UploadPreview }) {
         </MapView>
       </div>
       <div className={styles.actions}>
+        <RoutesSummary metadata={preview.metadata} />
         <Button type="primary" onClick={() => {}}>
           Continue
         </Button>
