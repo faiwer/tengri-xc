@@ -1,11 +1,10 @@
-//! `GET /admin/gliders?kind=hg|pg|sp` — full glider catalog (brands +
-//! models) for one kind, for the admin UI. The dataset per kind is small
-//! (~hundreds of models) and rarely changes, so we ship the whole catalog in
-//! one response and let the client build / filter the tree client-side.
-//! Switching kinds in the UI triggers a fresh request — each kind is treated as
-//! an independent source.
+//! `GET /me/gliders/catalog?kind=hg|pg|sp` — brand + model catalog for one
+//! kind, scoped to what the signed-in pilot may pick from: canonical rows
+//! (`user_id IS NULL`) plus their own private customs (`user_id = caller`).
 //!
-//! Requires the `MANAGE_GLIDERS` bit.
+//! Session-only sibling of the admin `GET /admin/gliders` (which is
+//! `MANAGE_GLIDERS`-gated and canonical-only). Feeds the upload flow's glider
+//! pickers, so a normal pilot needs it without the admin bit.
 
 use axum::{
     Json, Router,
@@ -14,15 +13,10 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AppError, AppState,
-    auth::{Identity, require_permission},
-    glider::CATALOG_KINDS,
-    user::Permissions,
-};
+use crate::{AppError, AppState, auth::Identity, glider::CATALOG_KINDS};
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/admin/gliders", get(catalog))
+    Router::new().route("/me/gliders/catalog", get(catalog))
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,9 +35,6 @@ pub struct Model {
     pub brand_id: String,
     pub id: String,
     pub name: String,
-    /// `glider_class` enum as text. Values are kind-compatible by the DB CHECK
-    /// constraint, so the client can map directly off this without re-checking
-    /// against `kind`.
     pub class: String,
     pub is_tandem: bool,
 }
@@ -57,35 +48,33 @@ pub struct GliderCatalog {
 async fn catalog(
     State(state): State<AppState>,
     identity: Identity,
-    Query(q): Query<CatalogQuery>,
+    Query(query): Query<CatalogQuery>,
 ) -> Result<Json<GliderCatalog>, AppError> {
-    require_permission(&identity, Permissions::MANAGE_GLIDERS)?;
-
     let kind = CATALOG_KINDS
         .iter()
         .copied()
-        .find(|k| *k == q.kind.as_str())
+        .find(|k| *k == query.kind.as_str())
         .ok_or_else(|| {
             AppError::BadRequest(format!("kind must be one of: {}", CATALOG_KINDS.join(", ")))
         })?;
 
     let pool = state.pool();
 
-    // Canonical-only on both sides — the admin catalog editor shows curated
-    // rows, not pilot-private customs.
+    // Canonical (`user_id IS NULL`) plus the caller's own customs on both sides.
     let brands: Vec<Brand> = sqlx::query_as::<_, Brand>(
         "SELECT b.id, b.name \
          FROM brands b \
-         WHERE b.user_id IS NULL \
+         WHERE (b.user_id IS NULL OR b.user_id = $2) \
            AND EXISTS ( \
                SELECT 1 FROM models m \
                 WHERE m.brand_id = b.id \
                   AND m.kind = $1::glider_kind \
-                  AND m.user_id IS NULL \
+                  AND (m.user_id IS NULL OR m.user_id = $2) \
            ) \
          ORDER BY b.name",
     )
     .bind(kind)
+    .bind(identity.user_id)
     .fetch_all(pool)
     .await
     .map_err(into_internal)?;
@@ -93,10 +82,11 @@ async fn catalog(
     let models: Vec<Model> = sqlx::query_as::<_, Model>(
         "SELECT brand_id, id, name, class::text AS class, is_tandem \
          FROM models \
-         WHERE kind = $1::glider_kind AND user_id IS NULL \
+         WHERE kind = $1::glider_kind AND (user_id IS NULL OR user_id = $2) \
          ORDER BY brand_id, name",
     )
     .bind(kind)
+    .bind(identity.user_id)
     .fetch_all(pool)
     .await
     .map_err(into_internal)?;
