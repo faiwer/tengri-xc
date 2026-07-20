@@ -31,18 +31,20 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
   );
   useErrorToast(uploadError, { title: "Couldn't preview flight" });
 
+  const close = () => {
+    setStep('source');
+    setPreview(null);
+    setGlider(null);
+    onClose();
+  };
+
   return (
     <Modal
       title={STEP_TITLES[step] ?? 'Upload flight'}
       open={open}
       footer={null}
       width={760}
-      onCancel={() => {
-        setStep('source');
-        setPreview(null);
-        setGlider(null);
-        onClose();
-      }}
+      onCancel={close}
     >
       {step === 'source' ? (
         isUploading ? (
@@ -65,7 +67,12 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
           }}
         />
       ) : (
-        <FlightDetailsStep preview={nullthrows(preview)} glider={glider} />
+        <FlightDetailsStep
+          preview={nullthrows(preview)}
+          glider={glider}
+          onCancel={close}
+          onSubmit={close}
+        />
       )}
     </Modal>
   );

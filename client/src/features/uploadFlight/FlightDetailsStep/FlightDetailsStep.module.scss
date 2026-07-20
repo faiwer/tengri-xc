@@ -1,0 +1,42 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.8rem;
+  color: #8c8c8c;
+}
+
+.gliderRow {
+  display: flex;
+  gap: 12px;
+}
+
+.select {
+  flex: 1;
+  width: 100%;
+}
+
+.kindSwitch {
+  align-self: start;
+}
+
+.kindOption {
+  align-items: center;
+  font-size: 20px;
+}
+
+.actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
