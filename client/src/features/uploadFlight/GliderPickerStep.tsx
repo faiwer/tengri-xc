@@ -46,26 +46,23 @@ export function GliderPickerStep({
   }
 
   return (
-    <div className={styles.step}>
-      <h3 className={styles.header}>Copy data from previous flights?</h3>
-      <ul className={styles.list}>
-        {gliders.map((glider) => (
-          <li key={`${glider.kind}-${glider.brandId}-${glider.modelId}`}>
-            <button
-              type="button"
-              className={styles.item}
-              onClick={() => onSelect(glider)}
-            >
-              <GliderKindIcon kind={glider.kind} className={styles.icon} />
-              <span className={styles.date}>
-                {formatShortDate(glider.takeoffAt, prefs)}
-              </span>
-              <span className={styles.brand}>{glider.brandName}</span>
-              <span className={styles.model}>{glider.modelName}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className={styles.list}>
+      {gliders.map((glider) => (
+        <li key={`${glider.kind}-${glider.brandId}-${glider.modelId}`}>
+          <button
+            type="button"
+            className={styles.item}
+            onClick={() => onSelect(glider)}
+          >
+            <GliderKindIcon kind={glider.kind} className={styles.icon} />
+            <span className={styles.date}>
+              {formatShortDate(glider.takeoffAt, prefs)}
+            </span>
+            <span className={styles.brand}>{glider.brandName}</span>
+            <span className={styles.model}>{glider.modelName}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

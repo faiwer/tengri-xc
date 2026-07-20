@@ -33,7 +33,7 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
 
   return (
     <Modal
-      title="Upload flight"
+      title={STEP_TITLES[step] ?? 'Upload flight'}
       open={open}
       footer={null}
       width={760}
@@ -70,3 +70,7 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
     </Modal>
   );
 }
+
+const STEP_TITLES: Partial<Record<Step, string>> = {
+  glider: 'Copy data from previous flights?',
+};
