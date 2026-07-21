@@ -5,14 +5,17 @@ import styles from './FlightDetailsStep.module.scss';
 export function PropulsionSelect({
   value,
   onChange,
+  disabled,
 }: {
   value: Propulsion | null;
   onChange: (propulsion: Propulsion) => void;
+  disabled?: boolean;
 }) {
   return (
     <Select<Propulsion>
       className={styles.select}
       placeholder="Propulsion"
+      disabled={disabled}
       value={value ?? undefined}
       options={PROPULSION_OPTIONS}
       onChange={onChange}

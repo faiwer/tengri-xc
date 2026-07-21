@@ -36,8 +36,8 @@ export function App() {
   return (
     <ConfigProvider theme={theme}>
       <AntdApp className={styles.container}>
-        <Providers>
-          <BrowserRouter>
+        <BrowserRouter>
+          <Providers>
             <Routes>
               <Route path="/" element={<TracksPage />} />
               <Route path="/flights" element={<TracksPage />} />
@@ -61,8 +61,8 @@ export function App() {
                 <Route path="gliders" element={<GlidersSettings />} />
               </Route>
             </Routes>
-          </BrowserRouter>
-        </Providers>
+          </Providers>
+        </BrowserRouter>
       </AntdApp>
     </ConfigProvider>
   );

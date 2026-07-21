@@ -10,6 +10,7 @@ interface GliderSelectProps {
   modelId: string | null;
   onBrandChange: (brandId: string) => void;
   onModelChange: (modelId: string) => void;
+  disabled?: boolean;
 }
 
 export function GliderSelect({
@@ -19,6 +20,7 @@ export function GliderSelect({
   modelId,
   onBrandChange,
   onModelChange,
+  disabled,
 }: GliderSelectProps) {
   const brandOptions = useMemo(
     () =>
@@ -47,7 +49,7 @@ export function GliderSelect({
         className={styles.select}
         showSearch={{ optionFilterProp: 'label' }}
         placeholder="Brand"
-        disabled={!ready}
+        disabled={!ready || disabled}
         loading={isLoading}
         value={brandId ?? undefined}
         options={brandOptions}
@@ -57,7 +59,7 @@ export function GliderSelect({
         className={styles.select}
         showSearch={{ optionFilterProp: 'label' }}
         placeholder="Model"
-        disabled={!ready || brandId == null}
+        disabled={!ready || brandId == null || disabled}
         value={modelId ?? undefined}
         options={modelOptions}
         onChange={onModelChange}

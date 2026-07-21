@@ -7,15 +7,18 @@ import styles from './FlightDetailsStep.module.scss';
 export function KindSwitch({
   value,
   onChange,
+  disabled,
 }: {
   value: Sport;
   onChange: (kind: Sport) => void;
+  disabled?: boolean;
 }) {
   return (
     <Segmented<Sport>
       className={styles.kindSwitch}
       value={value}
       onChange={onChange}
+      disabled={disabled}
       options={CATALOG_SPORTS.map((kind) => ({
         value: kind,
         label: (

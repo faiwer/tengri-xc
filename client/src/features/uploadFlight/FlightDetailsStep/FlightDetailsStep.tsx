@@ -18,12 +18,15 @@ interface FlightDetailsStepProps {
   preview: UploadPreview;
   /** Glider picked in the previous step, or `null` when skipped. */
   glider: RecentGlider | null;
+  /** `true` while the upload request is in flight — locks the form. */
+  isSubmitting: boolean;
   onSubmit: (value: FlightDetails) => void;
   onCancel: () => void;
 }
 
 export function FlightDetailsStep({
   glider,
+  isSubmitting,
   onSubmit,
   onCancel,
 }: FlightDetailsStepProps) {
@@ -61,7 +64,11 @@ export function FlightDetailsStep({
   return (
     <div className={styles.form}>
       <Field label="Discipline">
-        <KindSwitch value={form.kind} onChange={onKindChange} />
+        <KindSwitch
+          value={form.kind}
+          onChange={onKindChange}
+          disabled={isSubmitting}
+        />
       </Field>
       <Field label="Glider">
         <GliderSelect
@@ -71,23 +78,33 @@ export function FlightDetailsStep({
           modelId={form.modelId}
           onBrandChange={onBrandChange}
           onModelChange={onModelChange}
+          disabled={isSubmitting}
         />
       </Field>
       <Field label="Launch">
         <LaunchMethodSelect
           value={form.launchMethod}
           onChange={onLaunchChange}
+          disabled={isSubmitting}
         />
       </Field>
       <Field label="Propulsion">
         <PropulsionSelect
           value={form.propulsion}
           onChange={onPropulsionChange}
+          disabled={isSubmitting}
         />
       </Field>
       <div className={styles.actions}>
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button type="primary" disabled={!isComplete} onClick={onSubmitClick}>
+        <Button onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button
+          type="primary"
+          disabled={!isComplete}
+          loading={isSubmitting}
+          onClick={onSubmitClick}
+        >
           Submit
         </Button>
       </div>

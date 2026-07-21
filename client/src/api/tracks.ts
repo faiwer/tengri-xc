@@ -58,7 +58,7 @@ export async function peekTrack(
   options: ApiRequestOptions = {},
 ): Promise<PeekTrackResult> {
   const form = new FormData();
-  form.append('flight', await getPreviewFileGZipBlob(file), file.name);
+  form.append('flight', await gzipFlightFile(file), file.name);
   const response = await apiPostRaw(
     '/tracks/peek',
     form,
@@ -110,7 +110,12 @@ export async function getTrack(
   return decodeTrackBlob(blob, decode);
 }
 
-async function getPreviewFileGZipBlob(file: File): Promise<Blob | File> {
+/**
+ * GZip a flight file for upload, matching what the server's ingest expects.
+ * KMZ is passed through untouched — it's already a ZIP wrapper. Shared by
+ * `peekTrack` and `createFlight`.
+ */
+export async function gzipFlightFile(file: File): Promise<Blob | File> {
   if (extractFileExtension(file) === 'kmz') {
     return file; // It's already a ZIP-wrapper over KML.
   }
