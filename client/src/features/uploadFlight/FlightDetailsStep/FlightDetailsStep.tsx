@@ -1,7 +1,7 @@
 import { Button } from 'antd';
 import { type ReactNode, useState } from 'react';
 import type { Sport } from '../../../api/admin/gliders.io';
-import type { LaunchMethod } from '../../../api/flights.io';
+import type { LaunchMethod, Propulsion } from '../../../api/flights.io';
 import { isCatalogSport } from '../../../core/sport';
 import type { RecentGlider } from '../../../api/me/recentGliders.io';
 import { nullthrows } from '../../../utils/nullthrows';
@@ -9,6 +9,7 @@ import type { UploadPreview } from '../UploadPreviewPanel';
 import { GliderSelect } from './GliderSelect';
 import { KindSwitch } from './KindSwitch';
 import { LaunchMethodSelect } from './LaunchMethodSelect';
+import { PropulsionSelect } from './PropulsionSelect';
 import { useGliderCatalog } from './useGliderCatalog';
 import type { FlightDetails, FlightDetailsForm } from './types';
 import styles from './FlightDetailsStep.module.scss';
@@ -39,9 +40,14 @@ export function FlightDetailsStep({
     setForm((prev) => ({ ...prev, modelId }));
   const onLaunchChange = (launchMethod: LaunchMethod) =>
     setForm((prev) => ({ ...prev, launchMethod }));
+  const onPropulsionChange = (propulsion: Propulsion) =>
+    setForm((prev) => ({ ...prev, propulsion }));
 
   const isComplete =
-    form.brandId != null && form.modelId != null && form.launchMethod != null;
+    form.brandId != null &&
+    form.modelId != null &&
+    form.launchMethod != null &&
+    form.propulsion != null;
 
   const onSubmitClick = () =>
     onSubmit({
@@ -49,6 +55,7 @@ export function FlightDetailsStep({
       brandId: nullthrows(form.brandId),
       modelId: nullthrows(form.modelId),
       launchMethod: nullthrows(form.launchMethod),
+      propulsion: nullthrows(form.propulsion),
     });
 
   return (
@@ -72,6 +79,12 @@ export function FlightDetailsStep({
           onChange={onLaunchChange}
         />
       </Field>
+      <Field label="Propulsion">
+        <PropulsionSelect
+          value={form.propulsion}
+          onChange={onPropulsionChange}
+        />
+      </Field>
       <div className={styles.actions}>
         <Button onClick={onCancel}>Cancel</Button>
         <Button type="primary" disabled={!isComplete} onClick={onSubmitClick}>
@@ -93,7 +106,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function initialForm(glider: RecentGlider | null): FlightDetailsForm {
   if (!glider) {
-    return { kind: 'hg', brandId: null, modelId: null, launchMethod: null };
+    return {
+      kind: 'hg',
+      brandId: null,
+      modelId: null,
+      launchMethod: null,
+      propulsion: 'free',
+    };
   }
 
   const kind = isCatalogSport(glider.kind) ? glider.kind : 'hg';
@@ -105,5 +124,6 @@ function initialForm(glider: RecentGlider | null): FlightDetailsForm {
     brandId: sameKind ? glider.brandId : null,
     modelId: sameKind ? glider.modelId : null,
     launchMethod: glider.launchMethod,
+    propulsion: 'free',
   };
 }
