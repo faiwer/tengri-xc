@@ -18,7 +18,7 @@ use sqlx::PgPool;
 use tengri_formats::tengri::VERSION;
 use tengri_server::flight::{
     ingest::prepare_path_for_storage,
-    store::{FlightRow, insert_flight, insert_source, insert_track},
+    store::{FlightRow, insert_flight, insert_source, insert_track, model_exists},
 };
 
 use super::shared::{connect_pool, ensure_user_exists, nanoid_8};
@@ -104,22 +104,10 @@ async fn require_model_exists(
     kind: &str,
     model: &str,
 ) -> anyhow::Result<()> {
-    let exists: Option<bool> = sqlx::query_scalar(
-        "SELECT TRUE FROM models \
-         WHERE brand_id = $1 \
-           AND kind     = $2::glider_kind \
-           AND id       = $3 \
-           AND (user_id IS NULL OR user_id = $4) \
-         LIMIT 1",
-    )
-    .bind(brand)
-    .bind(kind)
-    .bind(model)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .with_context(|| format!("looking up model {brand}/{kind}/{model}"))?;
-    if exists.is_none() {
+    let exists = model_exists(pool, user_id, brand, kind, model)
+        .await
+        .with_context(|| format!("looking up model {brand}/{kind}/{model}"))?;
+    if !exists {
         return Err(anyhow!(
             "no model row for ({brand}, {kind}, {model}) visible to user {user_id} \
              — load it with `tengri import-gliders` (canonical) or create it in the UI \

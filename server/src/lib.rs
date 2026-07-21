@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod flight;
 pub mod glider;
+pub mod ids;
 pub mod migrate;
 pub mod routes;
 pub mod site;

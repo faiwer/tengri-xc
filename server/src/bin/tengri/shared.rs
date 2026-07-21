@@ -4,21 +4,10 @@
 //! can reuse them.
 
 use anyhow::{Context, anyhow};
-use rand::Rng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
 pub use tengri_formats::parse_input;
-
-/// 8-char NanoID with the `[A-Za-z0-9_-]` alphabet declared in the schema
-/// comment. 64 symbols × 8 chars = 48 bits of entropy, ample for the
-/// expected row count and matching the spec exactly.
-pub fn nanoid_8() -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
-    let mut rng = rand::rng();
-    (0..8)
-        .map(|_| ALPHABET[rng.random_range(0..ALPHABET.len())] as char)
-        .collect()
-}
+pub use tengri_server::ids::nanoid_8;
 
 /// Load `server/.env` and read `DATABASE_URL`. Used by every subcommand
 /// that talks to Postgres directly *or* shells out to a tool that needs

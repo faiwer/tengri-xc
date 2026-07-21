@@ -14,6 +14,13 @@ use tengri_formats::{
 
 use crate::flight::{etag_for, timezone};
 
+/// Even huge KML flights are < 1 MiB gzipped, so cap the request body here.
+pub const MAX_UPLOAD_BYTES: usize = 2 * 1024 * 1024;
+/// GunZip-bomb guard on the decompressed payload.
+pub const MAX_DECOMPRESSED_FLIGHT_BYTES: usize = 32 * 1024 * 1024;
+/// Upper bound on parsed track size — too-curious clients probing our limits.
+pub const MAX_TRACK_POINTS: usize = 300_000;
+
 pub fn gzip_bytes(raw: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut gz = GzEncoder::new(Vec::new(), Compression::default());
     gz.write_all(raw)?;
@@ -24,6 +31,24 @@ pub fn gunzip_bytes(gz: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut out = Vec::new();
     GzDecoder::new(gz).read_to_end(&mut out)?;
     Ok(out)
+}
+
+/// GunZip `gz`, refusing to allocate past `limit` bytes — a gzip-bomb guard for
+/// untrusted uploads. Reads `limit + 1` and errors if the payload overflows.
+pub fn gunzip_bounded(gz: &[u8], limit: usize) -> anyhow::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    GzDecoder::new(gz)
+        .take((limit + 1) as u64)
+        .read_to_end(&mut out)?;
+    if out.len() > limit {
+        anyhow::bail!("decompressed upload exceeds the {limit} byte limit");
+    }
+    Ok(out)
+}
+
+/// The gzip magic bytes (`1f 8b`). Uploads may arrive gzipped or raw.
+pub fn has_gzip_magic(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0x1f, 0x8b])
 }
 
 /// Everything an ingest path needs to write the three-row flight

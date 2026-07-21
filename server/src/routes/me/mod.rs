@@ -9,12 +9,14 @@ use axum::Router;
 
 use crate::AppState;
 
+pub mod flights;
 pub mod glider_catalog;
 pub mod gliders;
 pub mod recent_gliders;
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .merge(flights::router())
         .merge(gliders::router())
         .merge(glider_catalog::router())
         .merge(recent_gliders::router())

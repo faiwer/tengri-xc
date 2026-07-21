@@ -153,6 +153,35 @@ pub async fn insert_flight_idempotent(
     Ok(inserted.is_some())
 }
 
+/// Does a `models` row `(brand_id, kind, model_id)` visible to `user_id` exist?
+/// "Visible" = canonical (`user_id IS NULL`) or owned by the caller. Ingest
+/// paths (interactive upload, `tengri add`) check this before inserting a
+/// flight so they can report *which* part of the wing triple was wrong instead
+/// of a raw FK violation.
+pub async fn model_exists(
+    pool: &PgPool,
+    user_id: i32,
+    brand_id: &str,
+    kind: &str,
+    model_id: &str,
+) -> Result<bool, sqlx::Error> {
+    let exists: Option<bool> = sqlx::query_scalar(
+        "SELECT TRUE FROM models \
+         WHERE brand_id = $1 \
+           AND kind     = $2::glider_kind \
+           AND id       = $3 \
+           AND (user_id IS NULL OR user_id = $4) \
+         LIMIT 1",
+    )
+    .bind(brand_id)
+    .bind(kind)
+    .bind(model_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(exists.is_some())
+}
+
 pub async fn insert_source(
     tx: &mut Transaction<'_, Postgres>,
     flight_id: &str,

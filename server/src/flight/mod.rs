@@ -1,11 +1,14 @@
+pub mod assess;
 pub mod backfill;
 pub mod etag;
 pub mod ingest;
+pub mod queue;
 pub mod scoring;
 pub mod store;
 pub mod timezone;
 
 pub use etag::etag_for;
+pub use queue::ScoringQueue;
 pub(crate) use scoring::RouteSubType;
 pub use scoring::{
     FAI_CLOSURE_PREFILTER, FaiTriangleLazyAudit, FaiTriangleLazySkipReason, OlcTriangleClass,

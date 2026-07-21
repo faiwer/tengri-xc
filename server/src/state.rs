@@ -3,6 +3,8 @@ use std::sync::Arc;
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use sqlx::PgPool;
 
+use crate::flight::{ScoringQueue, queue::default_worker_count};
+
 /// Shared app state. Cheap to clone — everything's behind `Arc`.
 #[derive(Clone)]
 pub struct AppState {
@@ -19,6 +21,8 @@ struct AppStateInner {
     client_origins: Vec<String>,
     /// Keep to be able to clear the cookie.
     leonardo_cookie_domain: Option<String>,
+    /// Global route-scoring queue; drains its worker pool in the background.
+    scoring_queue: ScoringQueue,
 }
 
 impl AppState {
@@ -33,6 +37,7 @@ impl AppState {
         client_origins: Vec<String>,
         leonardo_cookie_domain: Option<String>,
     ) -> Self {
+        let scoring_queue = ScoringQueue::spawn(pool.clone(), default_worker_count());
         Self {
             inner: Arc::new(AppStateInner {
                 pool,
@@ -41,12 +46,17 @@ impl AppState {
                 https,
                 client_origins,
                 leonardo_cookie_domain,
+                scoring_queue,
             }),
         }
     }
 
     pub fn pool(&self) -> &PgPool {
         &self.inner.pool
+    }
+
+    pub fn scoring_queue(&self) -> &ScoringQueue {
+        &self.inner.scoring_queue
     }
 
     pub fn jwt_encoding_key(&self) -> &EncodingKey {

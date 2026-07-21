@@ -23,16 +23,14 @@ use tokio::task;
 use crate::{
     AppError, AppState,
     auth::{Identity, require_permission},
-    flight::{Route, ScoringOutcome, evaluate_routes, timezone},
+    flight::{
+        Route, ScoringOutcome, evaluate_routes,
+        ingest::{MAX_DECOMPRESSED_FLIGHT_BYTES, MAX_TRACK_POINTS, MAX_UPLOAD_BYTES},
+        timezone,
+    },
     user::Permissions,
 };
 
-/// Even huge KML flights are < 1 MIB in GZip.
-const MAX_UPLOAD_BYTES: usize = 2 * 1024 * 1024;
-/// GunZip bomb protection.
-const MAX_DECOMPRESSED_FLIGHT_BYTES: usize = 32 * 1024 * 1024;
-/// Too curious script kiddies might want to check our limits.
-const MAX_TRACK_POINTS: usize = 300_000;
 const SCORING_RDP_TOLERANCE_M: f64 = 500.0;
 const SCORING_RDP_CHORD_CAP_M: f64 = 500.0;
 /// No need to show the whole track in the preview.
