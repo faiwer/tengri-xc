@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn spill_then_load_yields_byte_equal_tiles() {
-        let dest = std::env::temp_dir().join("tengri-raw-cache-test.tengri-dem");
+        let dest = std::env::temp_dir().join("tengri-raw-cache-test.tengri-map");
         let mut cache = RawCache::new(&dest).unwrap();
         let adapter = FakeAdapter;
         let tiles: Vec<Vec<u8>> = (0..8u8)

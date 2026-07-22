@@ -11,7 +11,7 @@ pub struct DemChunk {
 }
 
 impl DemChunk {
-    /// Decodes a stored `.tengri-dem` tile payload back into a chunk.
+    /// Decodes a stored `.tengri-map` tile payload back into a chunk.
     /// Elevations come back quantized to `DEM_QUANTIZATION_METERS`, clamped
     /// to `[0, i16::MAX]`.
     pub fn from_payload(payload: &[u8]) -> Result<Self, DemError> {

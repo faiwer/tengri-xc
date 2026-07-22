@@ -21,9 +21,7 @@ pub trait TileSource: Send + Sync {
     /// exporter writes leaves at this zoom and reduces upward.
     fn tile_bounds(&self) -> XYZBounds;
 
-    fn open_reader(
-        &self,
-    ) -> Result<Box<dyn TileSourceReader<Tile = Self::Tile>>, TileTreeError>;
+    fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = Self::Tile>>, TileTreeError>;
 
     /// `true` when the source ships a dense pyramid — every tile at every
     /// zoom inside `tile_bounds()` is present and the source will serve
@@ -93,7 +91,7 @@ pub enum PassthroughCodec {
 /// the encoder will compress for the archive) or pre-baked target-codec bytes
 /// that bypass the encoder.
 ///
-/// Targets that *can't* passthrough (e.g. `.tengri-dem`) bind directly on the
+/// Targets that *can't* passthrough (e.g. `.tengri-map`) bind directly on the
 /// matrix shape (`SourceTile = DemChunk`) and never wrap.
 #[derive(Debug, Clone)]
 pub enum TilePayload<M> {
@@ -108,9 +106,7 @@ impl<T: TileSource + ?Sized> TileSource for Box<T> {
         (**self).tile_bounds()
     }
 
-    fn open_reader(
-        &self,
-    ) -> Result<Box<dyn TileSourceReader<Tile = Self::Tile>>, TileTreeError> {
+    fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = Self::Tile>>, TileTreeError> {
         (**self).open_reader()
     }
 

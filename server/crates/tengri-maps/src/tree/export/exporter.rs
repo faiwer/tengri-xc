@@ -7,7 +7,7 @@ use crate::tree::TileTreeError;
 use super::adapter::{TileTreeExportAdapter, TileTreeExportReport};
 use super::orchestrator::Orchestrator;
 
-/// High-level entry point for producing a `.tengri-dem` archive from a
+/// High-level entry point for producing a `.tengri-map` archive from a
 /// [`TileTreeExportAdapter`]. Wraps [`Orchestrator`] in a builder shape so the
 /// existing call sites (`DemTree::builder`, the CLI) don't need to know about
 /// the orchestrator.

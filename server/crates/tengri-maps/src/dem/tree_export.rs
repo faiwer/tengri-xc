@@ -115,9 +115,7 @@ mod tests {
             self.bounds
         }
 
-        fn open_reader(
-            &self,
-        ) -> Result<Box<dyn TileSourceReader<Tile = DemChunk>>, TileTreeError> {
+        fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = DemChunk>>, TileTreeError> {
             Ok(Box::new(FakeReader))
         }
     }
@@ -161,7 +159,7 @@ mod tests {
     fn test_path(name: &str) -> PathBuf {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/output/tree-tests");
         fs::create_dir_all(&dir).unwrap();
-        dir.join(format!("{name}-{}.tengri-dem", std::process::id()))
+        dir.join(format!("{name}-{}.tengri-map", std::process::id()))
     }
 
     fn temp_path_for(path: &Path) -> PathBuf {

@@ -1,4 +1,4 @@
-//! Exporter from a [`TileTreeExportAdapter`] source to a `.tengri-dem` archive.
+//! Exporter from a [`TileTreeExportAdapter`] source to a `.tengri-map` archive.
 //!
 //! - [`adapter`] — the [`TileTreeExportAdapter`] trait callers implement to
 //!   plug a source format into the exporter.

@@ -1,4 +1,4 @@
-//! Reader for the compact `.tengri-dem` format.
+//! Reader for the compact `.tengri-map` format.
 //!
 //! The header at offset 0 carries the bounds and the tile-data section length;
 //! everything else is computable from those two facts. Every tile lookup is

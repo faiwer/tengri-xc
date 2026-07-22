@@ -402,9 +402,8 @@ fn exporter_honours_min_zoom_floor() {
     // builds z=2 from the four leaves; z=0 and z=1 must not be present at
     // all (no envelopes, no readable tiles).
     let bounds = XYZBounds::new(3, 0, 0, 3, 3).unwrap();
-    let state = fake_state((0..=3).flat_map(|y| {
-        (0..=3).map(move |x| (XyzTile { z: 3, x, y }, 1u16))
-    }));
+    let state =
+        fake_state((0..=3).flat_map(|y| (0..=3).map(move |x| (XyzTile { z: 3, x, y }, 1u16))));
 
     TileTreeExporter::new(
         FakeAdapter {
@@ -521,7 +520,6 @@ fn progress_eta_uses_recent_window() {
     );
 }
 
-
 fn fake_state(tiles: impl IntoIterator<Item = (XyzTile, u16)>) -> Arc<FakeState> {
     Arc::new(FakeState {
         source_tiles: tiles
@@ -540,5 +538,5 @@ fn u16_payload(reader: &mut TileTreeReader, z: u8, x: u16, y: u16) -> u16 {
 fn test_path(name: &str) -> PathBuf {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/output/tree-tests");
     fs::create_dir_all(&dir).unwrap();
-    dir.join(format!("{name}-{}.tengri-dem", std::process::id()))
+    dir.join(format!("{name}-{}.tengri-map", std::process::id()))
 }

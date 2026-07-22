@@ -1,6 +1,6 @@
 # `tree` — single-file tile tree container
 
-A `.tengri-dem` (or future `.tengri-*`) archive is one file: a fixed header,
+A `.tengri-map` (or future `.tengri-*`) archive is one file: a fixed header,
 then a row of fixed-size **block envelopes**, then a packed tile-data section,
 then a footer magic. The viewer fetches one envelope to learn where every tile
 in that block lives, optionally gets a few neighbour blocks for free, and then
@@ -90,4 +90,4 @@ blocks):
 Bottom line: 16 KiB is the right ceiling for the self payload (generous
 headroom), and the extras packer is working the rest of the budget hard. Re-run
 the profile any time with `server/leo/_tmp/analyze_archive.py
-<archive.tengri-dem>`.
+<archive.tengri-map>`.

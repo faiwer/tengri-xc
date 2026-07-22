@@ -11,7 +11,7 @@ pub(super) struct SizeAnswer {
 }
 
 /// Walks the size stream and returns the offset and length of the requested
-/// slot (tile payload in a .tengri-dem filmap
+/// slot (tile payload in a .tengri-map filmap
 pub(super) fn walk_size_stream(
     payload: &[u8],
     slot_in_block: u32,
@@ -30,7 +30,7 @@ pub(super) fn walk_size_stream(
 pub(super) struct SizeStreamWalker {
     /// Cursor into the payload section of the envelope.
     cursor_into_payload: usize,
-    /// Cursor into the destination tile-data section in a .tengri-dem fimap
+    /// Cursor into the destination tile-data section in a .tengri-map fimap
     file_cursor: u64,
     /// On-disk start offset of the last tile we yielded. Re-emitted as-is on a
     /// `code == 0` repeat slot.

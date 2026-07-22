@@ -1,4 +1,4 @@
-//! Wire format for the compact `.tengri-dem` archive.
+//! Wire format for the compact `.tengri-map` archive.
 //!
 //! Single fixed-size header at offset 0, then `block_count` envelopes of
 //! exactly `BLOCK_SIZE` bytes each, then a packed tile-data section, then a
