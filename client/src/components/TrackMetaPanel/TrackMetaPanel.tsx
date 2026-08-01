@@ -89,23 +89,18 @@ export function TrackMetaPanel({
       </Cell>
       {showAltitudeFields && (
         <>
-          <Cell label="Best climb">
-            {peaks ? formatVario(peaks.peakClimb, prefs) : '—'}
+          <Cell label="Best sink & climb">
+            {peaks
+              ? `${formatVario(peaks.peakSink, prefs)} ↔ ${formatVario(peaks.peakClimb, prefs)}`
+              : '—'}
           </Cell>
-          <Cell label="Best sink">
-            {peaks ? formatVario(peaks.peakSink, prefs) : '—'}
-          </Cell>
-          <Cell label="Max alt">
-            {altitudes ? formatAltitude(altitudes.maxAlt, prefs) : '—'}
-          </Cell>
-          <Cell label="Min alt">
-            {altitudes ? formatAltitude(altitudes.minAlt, prefs) : '—'}
+          <Cell label="Min & max alt">
+            {altitudes
+              ? `${formatAltitude(altitudes.minAlt, prefs)} ↔ ${formatAltitude(altitudes.maxAlt, prefs)}`
+              : '—'}
           </Cell>
         </>
       )}
-      <Cell label="Flight" title={data.id} mono>
-        {data.id}
-      </Cell>
     </section>
   );
 }
