@@ -1,6 +1,5 @@
 import { Dropdown, Button } from 'antd';
 import type { MenuProps } from 'antd';
-import styles from './MapView.module.scss';
 import { type MapType } from './types';
 
 interface MapTypeSwitcherProps {
@@ -17,7 +16,7 @@ export function MapTypeSwitcher({ mapType, setMapType }: MapTypeSwitcherProps) {
       }}
       trigger={['click']}
     >
-      <Button className={styles.mapTypeSwitcher}>{mapType}</Button>
+      <Button>{mapType} ▼</Button>
     </Dropdown>
   );
 }

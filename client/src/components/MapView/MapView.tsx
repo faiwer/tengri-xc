@@ -1,9 +1,10 @@
 import { type Map as MapLibre } from '@vis.gl/react-maplibre';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, type RefObject, useMemo } from 'react';
 import type { StyleSpecification } from 'maplibre-gl';
 
 import { MapCenterReporter } from './MapCenterReporter';
 import styles from './MapView.module.scss';
+import { MapFullscreenButton } from './MapFullscreenButton';
 import { MapTypeSwitcher } from './MapTypeSwitcher';
 import { type MapType, MAP_TYPE_SCHEMA } from './types';
 import { useMapHoverHandlers } from './useMapHoverHandlers';
@@ -26,6 +27,9 @@ export interface MapViewProps {
   onHoverLatLng?: (point: LatLng | null) => void;
   initialMapType?: MapType;
   hideControls?: boolean;
+  /** Element to fullscreen (an ancestor). When set, shows a fullscreen toggle
+   * next to the map-type switcher. */
+  fullscreenContainerRef?: RefObject<HTMLElement | null>;
   lib: { Map: typeof MapLibre; terrainStyle: StyleSpecification };
 }
 
@@ -37,6 +41,7 @@ export function MapViewInternal({
   onHoverLatLng,
   initialMapType: mapTypeInitial = 'terrain',
   hideControls = false,
+  fullscreenContainerRef,
   lib: { Map, terrainStyle },
 }: MapViewProps) {
   const { onMouseMove } = useMapHoverHandlers(onHoverLatLng);
@@ -57,7 +62,12 @@ export function MapViewInternal({
       data-testid="flight-map"
     >
       {!hideControls && (
-        <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
+        <div className={styles.mapControls}>
+          <MapTypeSwitcher mapType={mapType} setMapType={setMapType} />
+          {fullscreenContainerRef && (
+            <MapFullscreenButton containerRef={fullscreenContainerRef} />
+          )}
+        </div>
       )}
       {/* Wrap <Map/> with a div to render the map bigger than its container
       with negative offsets to load offscreen tiles. It has no option for this. */}

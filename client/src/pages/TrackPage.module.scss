@@ -56,6 +56,10 @@
   }
 }
 
+.right:fullscreen .chartArea {
+  display: none;
+}
+
 .chartLoadingSlot {
   height: var(--chart-height);
   display: grid;

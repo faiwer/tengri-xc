@@ -21,11 +21,13 @@
   height: 100%;
 }
 
-.mapTypeSwitcher {
+.mapControls {
   position: absolute;
   top: 1rem;
-  right: 4rem;
+  right: 1rem;
   z-index: 1000;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .loading {

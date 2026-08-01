@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import {
   FitBounds,
@@ -24,6 +24,7 @@ import { ErrorPane } from '../components/ErrorPane/ErrorPane';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
+  const rightRef = useRef<HTMLDivElement>(null);
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
   const [activeChartKind, setActiveChartKind] = useChartKind();
   const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
@@ -71,7 +72,11 @@ export function TrackPage() {
             />
           )}
         </aside>
-        <div className={styles.right} onPointerLeave={clearHover}>
+        <div
+          ref={rightRef}
+          className={styles.right}
+          onPointerLeave={clearHover}
+        >
           <div className={styles.mapSlot}>
             {trackState.status === 'error' ? (
               <ErrorPane
@@ -85,6 +90,7 @@ export function TrackPage() {
                 initialBounds={analysis?.bounds ?? null}
                 onCenterLatLng={setMapCenterDebounced}
                 onHoverLatLng={setHoverLatLng}
+                fullscreenContainerRef={rightRef}
               >
                 {analysis && <TrackPolyline paths={analysis.paths} />}
                 {selectedRoute && <TrackRoute route={selectedRoute} />}
@@ -103,21 +109,23 @@ export function TrackPage() {
             mapCenter={mapCenter}
             trackIndex={hoverTrackIndex}
           />
-          {track && analysis ? (
-            <FlightChart
-              activeKind={activeChartKind}
-              track={track}
-              analysis={analysis}
-              ground={ground}
-              onActiveKindChange={setActiveChartKind}
-              onHoverFractionChange={setHoverFraction}
-              hoverFraction={chartHoverFraction}
-            />
-          ) : chartLoading ? (
-            <div className={styles.chartLoadingSlot}>
-              <Loading />
-            </div>
-          ) : null}
+          <div className={styles.chartArea}>
+            {track && analysis ? (
+              <FlightChart
+                activeKind={activeChartKind}
+                track={track}
+                analysis={analysis}
+                ground={ground}
+                onActiveKindChange={setActiveChartKind}
+                onHoverFractionChange={setHoverFraction}
+                hoverFraction={chartHoverFraction}
+              />
+            ) : chartLoading ? (
+              <div className={styles.chartLoadingSlot}>
+                <Loading />
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </PageLayout>
