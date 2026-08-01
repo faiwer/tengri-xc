@@ -76,16 +76,15 @@ export function TrackMetaPanel({
       </Cell>
       <Cell label="Route">
         <span className={styles.routeValue}>
-          {selectedRoute ? formatDistance(selectedRoute.distance, prefs) : '—'}
+          {selectedRoute
+            ? `${formatDistance(selectedRoute.distance, prefs)}, score: ${selectedRoute.score.toFixed(2)}`
+            : '—'}
           <RouteSwitcher
             routes={data.routes}
             selectedRoute={selectedRoute}
             onSelect={onRouteSelect}
           />
         </span>
-      </Cell>
-      <Cell label="Score">
-        {selectedRoute ? selectedRoute.score.toFixed(2) : '—'}
       </Cell>
       {showAltitudeFields && (
         <>
