@@ -53,7 +53,11 @@ impl<S: TileSource<Tile = Raster> + 'static> TileTreeExportAdapter for WebpExpor
         // builder). High bit: passthrough flag. Records the operator's intent
         // regardless of whether passthrough actually fired tile-for-tile.
         let q = self.quality.min(100);
-        if self.passthrough { q | PASSTHROUGH_FLAG } else { q }
+        if self.passthrough {
+            q | PASSTHROUGH_FLAG
+        } else {
+            q
+        }
     }
 
     fn read_source_tile(
@@ -177,9 +181,7 @@ mod tests {
         fn tile_bounds(&self) -> XYZBounds {
             XYZBounds::new(0, 0, 0, 0, 0).unwrap()
         }
-        fn open_reader(
-            &self,
-        ) -> Result<Box<dyn TileSourceReader<Tile = Raster>>, TileTreeError> {
+        fn open_reader(&self) -> Result<Box<dyn TileSourceReader<Tile = Raster>>, TileTreeError> {
             unreachable!("encode-side tests never open a reader")
         }
         fn raw_codec(&self) -> Option<PassthroughCodec> {
@@ -189,7 +191,9 @@ mod tests {
 
     fn adapter(quality: u8, passthrough: bool) -> WebpExportAdapter<StubSource> {
         WebpExportAdapter {
-            source: StubSource { codec: Some(PassthroughCodec::Webp) },
+            source: StubSource {
+                codec: Some(PassthroughCodec::Webp),
+            },
             quality,
             passthrough,
             source_passthrough_codec: Some(PassthroughCodec::Webp),

@@ -1,10 +1,10 @@
 use std::error::Error;
 
+use super::DemChunk;
 use super::compress::compress_tile;
 use super::constants::DEM_QUANTIZATION_METERS;
 use super::decompress::decompress_tile;
 use super::tile_file::{read_tile, write_tile};
-use super::DemChunk;
 
 #[test]
 fn compress_decompress_preserves_quantized_elevations() -> Result<(), Box<dyn Error>> {
@@ -39,8 +39,7 @@ fn tile_file_roundtrip_preserves_quantized_elevations() -> Result<(), Box<dyn Er
 
 #[test]
 fn rectangular_compress_decompress_preserves_quantized_elevations() -> Result<(), Box<dyn Error>> {
-    let source =
-        DemChunk::from_i32(3, 2, &[-5, 0, 7, 12, i32::from(i16::MAX) + 1, 4]);
+    let source = DemChunk::from_i32(3, 2, &[-5, 0, 7, 12, i32::from(i16::MAX) + 1, 4]);
 
     let compressed = compress_tile(source)?;
     let decompressed = decompress_tile(&compressed)?;
@@ -71,8 +70,7 @@ fn rectangular_tile_file_roundtrip_preserves_dimensions() -> Result<(), Box<dyn 
 
 #[test]
 fn float32_compress_decompress_normalizes_elevations() -> Result<(), Box<dyn Error>> {
-    let source =
-        DemChunk::from_f32(4, 1, &[f32::NAN, -3.2, 12.6, f32::from(i16::MAX) + 10.0]);
+    let source = DemChunk::from_f32(4, 1, &[f32::NAN, -3.2, 12.6, f32::from(i16::MAX) + 10.0]);
 
     let compressed = compress_tile(source)?;
     let decompressed = decompress_tile(&compressed)?;

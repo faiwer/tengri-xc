@@ -1,8 +1,8 @@
 # DEM Tile Notes
 
-This crate builds and serves DEM terrain tiles from tiled GeoTIFF and PMTiles
-sources. The runtime artifact is a single indexed tile-tree container whose
-DEM payloads are rendered as Terrarium PNGs at serve time.
+This crate builds DEM terrain tiles from tiled GeoTIFF and PMTiles sources. The
+runtime artifact is a single indexed tile-tree container carrying compressed DEM
+payloads.
 
 ## Source GeoTIFFs
 
@@ -110,17 +110,6 @@ Rust are never written as pointers; `tile_file.rs` writes only stable contents.
 
 Per-tile zstd is part of this payload. If container-level compression is added
 later, change the payload reader and writer together.
-
-## Serving
-
-`serve_tiles.rs` reads payloads from the tile tree and dispatches by `TileKind`.
-DEM tiles are decompressed, rendered as fixed `256x256` PNGs, and encoded with
-Terrarium RGB. The stored tile may be rectangular or smaller than `256x256`;
-PNG rendering resamples it to square at serve time.
-
-The Terrarium encoding must keep fractional elevation when rendering. Earlier
-grayscale/integer output looked wrong in MapLibre and caused contour/terrain
-mismatches.
 
 ## Tile Index
 
