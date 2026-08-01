@@ -1,17 +1,23 @@
 import { useRef } from 'react';
-import { useAsyncEffect, useEventHandler } from '../../core/hooks';
+import { useEventHandler } from '../../core/hooks';
 
 /**
- * Wires an IntersectionObserver to whichever element the returned
- * callback is attached to. Fires `onReached` a viewport ahead of the
- * sentinel hitting the bottom of the scrollport.
+ * Wires an IntersectionObserver to whichever element the returned callback ref
+ * is attached to. Fires `onReached` a viewport ahead of the sentinel hitting
+ * the bottom of the scrollport.
  */
 export function useScrollSentinel(onReached: () => void) {
   const handleReached = useEventHandler(onReached);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  useAsyncEffect(() => {
-    observerRef.current = new IntersectionObserver(
+  return useEventHandler((node: HTMLElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
@@ -21,19 +27,8 @@ export function useScrollSentinel(onReached: () => void) {
       },
       { rootMargin: ROOT_MARGIN },
     );
-    return () => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
-    };
-  }, []);
-
-  return useEventHandler(function onRef(node: HTMLElement | null) {
-    const observer = observerRef.current;
-    if (node) {
-      observer?.observe(node);
-    } else {
-      observer?.disconnect();
-    }
+    observer.observe(node);
+    observerRef.current = observer;
   });
 }
 
