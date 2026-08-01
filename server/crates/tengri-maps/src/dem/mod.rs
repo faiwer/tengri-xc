@@ -8,7 +8,6 @@ mod dem_export_adapter;
 mod error;
 mod pyramid;
 mod resolution;
-pub(crate) mod serve;
 mod tile_file;
 mod tree_export;
 mod types;

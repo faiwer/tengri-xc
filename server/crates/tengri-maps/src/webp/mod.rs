@@ -7,7 +7,6 @@ pub(crate) mod decode;
 mod encode;
 pub(crate) mod peek;
 mod pyramid;
-pub(crate) mod serve;
 mod tree_export;
 mod webp_export_adapter;
 
