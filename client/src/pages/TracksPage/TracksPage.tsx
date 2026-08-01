@@ -1,5 +1,5 @@
 import { Skeleton } from 'antd';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import type { RouteType, TrackListItem } from '../../api/tracks.io';
 import { Flag } from '../../components/Flag';
 import { LoadError } from '../../components/LoadError';
@@ -31,6 +31,11 @@ export function TracksPage() {
       (feed.items ?? []).map((item, index) => ({
         item,
         cells: buildHomeRowCells(item, index + 1, prefs),
+        date: formatShortDate(
+          item.track.takeoffAt,
+          prefs,
+          item.track.takeoffOffset,
+        ),
       })),
     [feed.items, prefs],
   );
@@ -45,7 +50,6 @@ export function TracksPage() {
         <thead>
           <tr>
             <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
-            <th className={styles.colDate}>Date</th>
             <th>Pilot</th>
             <th className={`${styles.colDuration} ${styles.alignRight}`}>
               Duration
@@ -55,10 +59,20 @@ export function TracksPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ item, cells }) => (
-            <TrackRow key={item.track.id} item={item} cells={cells} />
-          ))}
-          {feed.isLoading && <SkeletonRows colSpan={6} />}
+          {rows.map(({ item, cells, date }, index) => {
+            const showDate = index === 0 || rows[index - 1].date !== date;
+            return (
+              <Fragment key={item.track.id}>
+                {showDate && (
+                  <tr className={styles.dateRow}>
+                    <td colSpan={COLUMN_COUNT}>{date}</td>
+                  </tr>
+                )}
+                <TrackRow item={item} cells={cells} />
+              </Fragment>
+            );
+          })}
+          {feed.isLoading && <SkeletonRows colSpan={COLUMN_COUNT} />}
         </tbody>
       </table>
 
@@ -90,16 +104,6 @@ function buildHomeRowCells(
       content: rowNumber,
       align: 'right',
       className: styles.colIdx,
-    },
-    {
-      key: 'date',
-      content: formatShortDate(
-        item.track.takeoffAt,
-        prefs,
-        item.track.takeoffOffset,
-      ),
-      muted: true,
-      className: styles.colDate,
     },
     {
       key: 'pilot',
@@ -171,3 +175,4 @@ function SkeletonRows({ colSpan }: { colSpan: number }) {
 }
 
 const LOADING_SKELETON_COUNT = 8;
+const COLUMN_COUNT = 5;

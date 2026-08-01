@@ -34,10 +34,6 @@
   width: 56px;
 }
 
-.colDate {
-  width: 110px;
-}
-
 .colDuration {
   width: 100px;
 }
@@ -54,6 +50,16 @@
 
 .alignRight {
   text-align: right !important;
+}
+
+.dateRow td {
+  padding: 0.2rem 0.85rem;
+  background: #f7f7f8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b6b73;
 }
 
 .skeletonRow td {
