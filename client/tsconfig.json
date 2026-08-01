@@ -13,6 +13,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "paths": {
+      "tengri-maplibre": ["./packages/tengri-maplibre/src/index.ts"]
+    },
 
     /* Linting */
     "strict": true,

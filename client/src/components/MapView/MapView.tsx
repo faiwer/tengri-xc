@@ -1,5 +1,6 @@
 import { type Map as MapLibre } from '@vis.gl/react-maplibre';
 import { type ReactNode, useMemo } from 'react';
+import type { StyleSpecification } from 'maplibre-gl';
 
 import { MapCenterReporter } from './MapCenterReporter';
 import styles from './MapView.module.scss';
@@ -14,7 +15,7 @@ import {
   PADDING_PX,
   PREFETCH_BUFFER_PX,
 } from './constants';
-import { STYLE_BY_TYPE } from './sources';
+import { styleFor } from './sources';
 
 export interface MapViewProps {
   /** Overlays rendered inside <Map>; they may use `useMap()` to attach. */
@@ -25,7 +26,7 @@ export interface MapViewProps {
   onHoverLatLng?: (point: LatLng | null) => void;
   initialMapType?: MapType;
   hideControls?: boolean;
-  lib: { Map: typeof MapLibre };
+  lib: { Map: typeof MapLibre; terrainStyle: StyleSpecification };
 }
 
 export function MapViewInternal({
@@ -36,7 +37,7 @@ export function MapViewInternal({
   onHoverLatLng,
   initialMapType: mapTypeInitial = 'terrain',
   hideControls = false,
-  lib: { Map },
+  lib: { Map, terrainStyle },
 }: MapViewProps) {
   const { onMouseMove } = useMapHoverHandlers(onHoverLatLng);
   const [mapType, setMapType] = useLocalStorageValue('map-type', {
@@ -62,7 +63,7 @@ export function MapViewInternal({
       with negative offsets to load offscreen tiles. It has no option for this. */}
       <div className={styles.mapBuffer}>
         <Map
-          mapStyle={STYLE_BY_TYPE[mapType]}
+          mapStyle={styleFor(mapType, terrainStyle)}
           initialViewState={initialViewState}
           style={{ width: '100%', height: '100%' }}
           dragRotate={false}
