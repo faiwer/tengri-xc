@@ -9,3 +9,5 @@ docs/
 # experiments with igc-xc-score
 scripts/
 .scratch/
+# For custom rust builds via docker
+.docker-cargo-home/
