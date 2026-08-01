@@ -32,14 +32,9 @@ export const buildFields = (
   switch (activeChartKind) {
     case 'altitude':
       if (readout.gps) {
+        const primary = help[readout.baroAlt ? 'gps' : 'altitude'];
         fields.altitude = [
-          field(
-            'gps',
-            help[readout.baroAlt ? 'gps' : 'altitude'],
-            readout.gps,
-            widths.gps,
-            help[readout.baroAlt ? 'gps' : 'altitude'].color,
-          ),
+          field('gps', primary, readout.gps, widths.gps, iconColorOf(primary)),
         ];
 
         if (readout.baroAlt) {
@@ -49,22 +44,40 @@ export const buildFields = (
               help.baro,
               readout.baroAlt,
               widths.baroAlt,
-              help.baro.color,
+              iconColorOf(help.baro),
             ),
           );
         }
+      }
+
+      if (readout.ground) {
+        fields.altitude.push(
+          field(
+            'ground',
+            help.ground,
+            readout.ground,
+            widths.ground,
+            iconColorOf(help.ground),
+          ),
+        );
       }
       break;
 
     case 'speed':
       fields.speed = [
-        field('speed', help.gps, readout.speed, widths.speed, help.gps.color),
+        field(
+          'speed',
+          help.gps,
+          readout.speed,
+          widths.speed,
+          iconColorOf(help.gps),
+        ),
         field(
           'pathSpeed',
           help.path,
           readout.pathSpeed,
           widths.pathSpeed,
-          help.path.color,
+          iconColorOf(help.path),
         ),
       ];
       break;
@@ -77,3 +90,7 @@ export const buildFields = (
     ...(Array.isArray(fields.speed) ? fields.speed : [fields.speed]),
   ];
 };
+
+/** Readout icon colour: {@link ChartHelpItem.iconColor} when set, else `color`. */
+const iconColorOf = (item: ChartHelpItem): string =>
+  item.iconColor ?? item.color;

@@ -11,6 +11,7 @@ const FIELD_ICONS: Record<CursorReadoutKey, ReactNode> = {
   time: <ClockCircleOutlined />,
   gps: <AltitudeIcon />,
   baroAlt: <BaroAltitudeIcon />,
+  ground: <AltitudeIcon />,
   pathSpeed: <SpeedIcon />,
   tas: <SpeedIcon />,
   vario: <VarioIcon />,

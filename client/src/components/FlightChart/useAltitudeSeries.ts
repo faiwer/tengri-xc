@@ -8,12 +8,14 @@ import { M_TO_FT } from '../../utils/formatUnits';
 export interface AltitudeSeries {
   /**
    * uPlot-shaped series data: `[xs, ...yArrays]`. Slot 0 is epoch
-   * seconds. Slot 1 is the primary altitude (baro when present, GPS
-   * otherwise). Slot 2, when present, is the GPS overlay. Y values
-   * are in metres or feet depending on the supplied preferences.
+   * seconds. When ground is present it takes the first y-slot (drawn
+   * under the altitude lines); then the primary altitude (baro when
+   * present, GPS otherwise) and the GPS overlay follow. Y values are
+   * in metres or feet depending on the supplied preferences.
    */
   data: AlignedData;
   hasBaro: boolean;
+  hasGround: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export const useAltitudeSeries = (
   track: Track,
   window: TrackWindow,
   prefs: Pick<ResolvedPreferences, 'units'>,
+  ground: Float32Array | null,
 ): AltitudeSeries => {
   return useMemo(() => {
     const fromIdx = window.takeoffIdx;
@@ -56,7 +59,10 @@ export const useAltitudeSeries = (
     }
 
     if (!track.baroAlt) {
-      return { data: [xs, gpsAlt], hasBaro: false };
+      const data: AlignedData = ground
+        ? [xs, scaleGround(ground, prefs.units), gpsAlt]
+        : [xs, gpsAlt];
+      return { data, hasBaro: false, hasGround: !!ground };
     }
 
     const baroAlt = new Float32Array(length);
@@ -64,6 +70,24 @@ export const useAltitudeSeries = (
       baroAlt[i] = track.baroAlt[fromIdx + i]! * scale;
     }
 
-    return { data: [xs, baroAlt, gpsAlt], hasBaro: true };
-  }, [track, window, prefs.units]);
+    const data: AlignedData = ground
+      ? [xs, scaleGround(ground, prefs.units), baroAlt, gpsAlt]
+      : [xs, baroAlt, gpsAlt];
+    return { data, hasBaro: true, hasGround: !!ground };
+  }, [track, window, prefs.units, ground]);
+};
+
+const scaleGround = (
+  ground: Float32Array,
+  units: ResolvedPreferences['units'],
+): Float32Array => {
+  if (units !== 'imperial') {
+    return ground;
+  }
+
+  const out = new Float32Array(ground.length);
+  for (let i = 0; i < ground.length; i++) {
+    out[i] = ground[i]! * M_TO_FT;
+  }
+  return out;
 };

@@ -16,6 +16,7 @@ import { useAltitudeSeries } from './useAltitudeSeries';
 interface AltitudeChartProps {
   track: Track;
   analysis: FlightAnalysis;
+  ground: Float32Array | null;
   onHoverFractionChange?: HoverFractionHandler;
   hoverFraction?: number | null;
 }
@@ -39,20 +40,26 @@ interface AltitudeChartProps {
 export function AltitudeChart({
   track,
   analysis,
+  ground,
   onHoverFractionChange,
   hoverFraction,
 }: AltitudeChartProps) {
   const prefs = usePreferences();
-  const { data, hasBaro } = useAltitudeSeries(track, analysis.window, prefs);
+  const { data, hasBaro, hasGround } = useAltitudeSeries(
+    track,
+    analysis.window,
+    prefs,
+    ground,
+  );
   const opts = useMemo(
     () => ({
       axes: [
         buildXAxis(analysis.takeoffOffset, prefs.timeFormat),
         buildYAxis(prefs.units),
       ],
-      series: hasBaro ? SERIES_WITH_BARO : SERIES_GPS_ONLY,
+      series: seriesFor(hasBaro, hasGround),
     }),
-    [hasBaro, prefs.timeFormat, prefs.units, analysis.takeoffOffset],
+    [hasBaro, hasGround, prefs.timeFormat, prefs.units, analysis.takeoffOffset],
   );
   const ref = useUPlot(data, opts, onHoverFractionChange, hoverFraction);
 
@@ -95,40 +102,61 @@ const buildYAxis = (units: 'metric' | 'imperial'): Axis => {
   };
 };
 
-// Two preset series arrays. uPlot's series array length must match the
-// data array length, so we keep the with-baro and without-baro shapes
-// separate rather than carrying a hidden slot — the cursor walks every
-// y-array on hover, including hidden ones, and crashes on `null` data.
+// Preset series arrays. uPlot's series array length must match the data
+// array length, so we keep each shape separate rather than carrying a
+// hidden slot — the cursor walks every y-array on hover, including hidden
+// ones, and crashes on `null` data. Ground, when present, is the first
+// y-series so the terrain fill draws *under* the altitude lines.
 //
 // With baro: blue filled "Baro" + orange "GPS" overlay drawn on top so
 // the GPS line stays visible against the baro fill. Without baro: a
 // single blue filled "Altitude" series — the GPS data takes the primary
 // visual so the chart still has a hero line, with a label that drops
 // the source distinction since there is none.
-const SERIES_WITH_BARO: Series[] = [
-  {},
-  {
-    label: 'Baro',
-    stroke: CHART_COLORS.altitudePrimary,
-    width: SERIES_WIDTH,
-    fill: CHART_COLORS.altitudePrimaryFill,
-    points: { show: false },
-  },
-  {
-    label: 'GPS',
-    stroke: CHART_COLORS.altitudeOverlay,
-    width: SERIES_WIDTH,
-    points: { show: false },
-  },
-];
+const GROUND_SERIES: Series = {
+  label: 'Ground',
+  stroke: CHART_COLORS.terrain,
+  width: SERIES_WIDTH,
+  fill: CHART_COLORS.terrainFill,
+  points: { show: false },
+};
 
-const SERIES_GPS_ONLY: Series[] = [
+const BARO_SERIES: Series = {
+  label: 'Baro',
+  stroke: CHART_COLORS.altitudePrimary,
+  width: SERIES_WIDTH,
+  fill: CHART_COLORS.altitudePrimaryFill,
+  points: { show: false },
+};
+
+const GPS_OVERLAY_SERIES: Series = {
+  label: 'GPS',
+  stroke: CHART_COLORS.altitudeOverlay,
+  width: SERIES_WIDTH,
+  points: { show: false },
+};
+
+const ALTITUDE_SERIES: Series = {
+  label: 'Altitude',
+  stroke: CHART_COLORS.altitudePrimary,
+  width: SERIES_WIDTH,
+  fill: CHART_COLORS.altitudePrimaryFill,
+  points: { show: false },
+};
+
+const SERIES_WITH_BARO: Series[] = [{}, BARO_SERIES, GPS_OVERLAY_SERIES];
+const SERIES_GPS_ONLY: Series[] = [{}, ALTITUDE_SERIES];
+const SERIES_GROUND_WITH_BARO: Series[] = [
   {},
-  {
-    label: 'Altitude',
-    stroke: CHART_COLORS.altitudePrimary,
-    width: SERIES_WIDTH,
-    fill: CHART_COLORS.altitudePrimaryFill,
-    points: { show: false },
-  },
+  GROUND_SERIES,
+  BARO_SERIES,
+  GPS_OVERLAY_SERIES,
 ];
+const SERIES_GROUND_GPS_ONLY: Series[] = [{}, GROUND_SERIES, ALTITUDE_SERIES];
+
+const seriesFor = (hasBaro: boolean, hasGround: boolean): Series[] => {
+  if (hasGround) {
+    return hasBaro ? SERIES_GROUND_WITH_BARO : SERIES_GROUND_GPS_ONLY;
+  }
+  return hasBaro ? SERIES_WITH_BARO : SERIES_GPS_ONLY;
+};

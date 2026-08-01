@@ -1,6 +1,6 @@
 import type { AddProtocolAction, StyleSpecification } from 'maplibre-gl';
-import { createTengriDemLoader } from 'tengri-maplibre';
 
+import { createDemLoader } from '../demSource';
 import { buildTerrainStyle } from './terrain';
 
 /**
@@ -15,7 +15,7 @@ export function createTerrainStyle(
   maplibre: { addProtocol(id: string, action: AddProtocolAction): void },
   mlcontour: Mlcontour,
 ): StyleSpecification {
-  const loader = createTengriDemLoader(DEM_SOURCE_URL);
+  const loader = createDemLoader();
 
   const demSource = new mlcontour.DemSource({
     // A pseudo URL to fulfill the protocol handler.
@@ -65,11 +65,6 @@ export function createTerrainStyle(
 
 type Mlcontour = typeof import('maplibre-contour').default;
 type LocalDemManager = InstanceType<Mlcontour['LocalDemManager']>;
-
-/** JAXA whole-world DEM archive; `maxZ`/`t` are mandatory (header isn't read). */
-// TODO: Don't hardcode. Take it from the instance config.
-const DEM_SOURCE_URL =
-  'tengri://https://maps.faiwer.dev/jaxa_world.tengri-map?maxZ=11&t=dem';
 
 /** Zoom → `[minor, major]` contour interval in metres. */
 const CONTOUR_THRESHOLDS = {

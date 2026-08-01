@@ -15,6 +15,7 @@ import { debounce } from '../utils/debounce';
 import { CursorReadout } from './CursorReadout/index';
 import styles from './TrackPage.module.scss';
 import { useFlightAnalysis } from './useFlightAnalysis';
+import { useGroundElevations } from './useGroundElevations';
 import { useRoute } from './useRoute';
 import { useTrackHoverPoint } from './useTrackHoverPoint';
 import { useTrackPageData } from './useTrackPageData';
@@ -33,6 +34,7 @@ export function TrackPage() {
     track,
     state.status === 'ok' ? state.data : undefined,
   );
+  const { ground } = useGroundElevations(track, analysis?.window);
   const chartLoading =
     (state.status === 'loading' || trackState.status === 'loading') &&
     state.status !== 'error' &&
@@ -97,6 +99,7 @@ export function TrackPage() {
           <CursorReadout
             activeChartKind={activeChartKind}
             analysis={analysis}
+            ground={ground}
             mapCenter={mapCenter}
             trackIndex={hoverTrackIndex}
           />
@@ -105,6 +108,7 @@ export function TrackPage() {
               activeKind={activeChartKind}
               track={track}
               analysis={analysis}
+              ground={ground}
               onActiveKindChange={setActiveChartKind}
               onHoverFractionChange={setHoverFraction}
               hoverFraction={chartHoverFraction}

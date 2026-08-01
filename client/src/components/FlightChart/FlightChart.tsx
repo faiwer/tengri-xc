@@ -16,6 +16,8 @@ import type { HoverFractionHandler } from './useUPlot';
 interface FlightChartProps {
   track: Track;
   analysis: FlightAnalysis;
+  /** Ground elevation in metres. Empty until the DEM tiles resolve. */
+  ground: Float32Array | null;
   activeKind: ChartKind;
   onActiveKindChange: (kind: ChartKind) => void;
   onHoverFractionChange?: HoverFractionHandler;
@@ -37,6 +39,7 @@ interface FlightChartProps {
 export function FlightChart({
   track,
   analysis,
+  ground,
   activeKind,
   onActiveKindChange,
   onHoverFractionChange,
@@ -62,6 +65,7 @@ export function FlightChart({
           <AltitudeChart
             track={track}
             analysis={analysis}
+            ground={ground}
             onHoverFractionChange={onHoverFractionChange}
             hoverFraction={hoverFraction}
           />

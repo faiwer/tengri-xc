@@ -13,6 +13,7 @@ export type CursorReadoutKey =
   | 'time'
   | 'gps'
   | 'baroAlt'
+  | 'ground'
   | 'pathSpeed'
   | 'tas'
   | 'vario'
@@ -23,6 +24,7 @@ export interface CursorReadoutValue {
   time: string;
   gps: string | null;
   baroAlt: string | null;
+  ground: string | null;
   pathSpeed: string;
   tas: string | null;
   vario: string | null;
@@ -33,6 +35,7 @@ export interface CursorReadoutWidths {
   time: number;
   gps: number | undefined;
   baroAlt: number | undefined;
+  ground: number | undefined;
   pathSpeed: number;
   tas: number | undefined;
   vario: number | undefined;

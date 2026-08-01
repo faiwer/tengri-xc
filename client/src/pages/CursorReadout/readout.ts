@@ -12,10 +12,12 @@ import type { CursorReadoutValue, CursorReadoutWidths } from './types';
 export const buildCursorReadout = (
   analysis: FlightAnalysis,
   idx: number,
+  ground: Float32Array | null,
   prefs: ReturnType<typeof usePreferences>,
 ): CursorReadoutValue => {
   const { track, metrics } = analysis;
   const hasAltitudeData = analysis.hasAltitudeData;
+  const groundMeters = ground?.[idx - analysis.window.takeoffIdx];
 
   return {
     time: formatShortTimeWithSeconds(
@@ -28,6 +30,7 @@ export const buildCursorReadout = (
       hasAltitudeData && track.baroAlt
         ? formatAltitude(track.baroAlt[idx] / 10, prefs)
         : null,
+    ground: groundMeters != null ? formatAltitude(groundMeters, prefs) : null,
     pathSpeed: formatSpeed(metrics.pathSpeed[idx] / MPS_TO_KMH, prefs),
     tas: metrics.tas ? formatSpeed(metrics.tas[idx] / MPS_TO_KMH, prefs) : null,
     vario: hasAltitudeData ? formatVario(metrics.vario[idx], prefs) : null,
@@ -37,6 +40,7 @@ export const buildCursorReadout = (
 
 export const buildCursorReadoutWidths = (
   analysis: FlightAnalysis,
+  ground: Float32Array | null,
   prefs: ReturnType<typeof usePreferences>,
 ): CursorReadoutWidths => {
   const { track, metrics, window, altitudes, vario } = analysis;
@@ -46,6 +50,7 @@ export const buildCursorReadoutWidths = (
     analysis.hasAltitudeData && track.baroAlt
       ? range(track.baroAlt, fromIdx, toIdx, (dm) => dm / 10)
       : null;
+  const groundRange = ground ? range(ground, 0, ground.length, (v) => v) : null;
   const maxSpeed = max(metrics.speed, fromIdx, toIdx);
   const maxPathSpeed = max(metrics.pathSpeed, fromIdx, toIdx);
   const maxTas = metrics.tas ? max(metrics.tas, fromIdx, toIdx) : null;
@@ -73,6 +78,12 @@ export const buildCursorReadoutWidths = (
       ? Math.max(
           formatAltitude(baroAltRange.min, prefs).length,
           formatAltitude(baroAltRange.max, prefs).length,
+        )
+      : undefined,
+    ground: groundRange
+      ? Math.max(
+          formatAltitude(groundRange.min, prefs).length,
+          formatAltitude(groundRange.max, prefs).length,
         )
       : undefined,
     vario: analysis.hasAltitudeData
@@ -106,6 +117,7 @@ const max = (
   return result;
 };
 
+/** Min/max over the converted entries of `values` in `[fromIdx, toIdx)`. */
 const range = (
   values: ArrayLike<number>,
   fromIdx: number,

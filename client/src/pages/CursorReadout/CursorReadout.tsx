@@ -14,6 +14,8 @@ import { buildCursorReadout, buildCursorReadoutWidths } from './readout';
 interface CursorReadoutProps {
   activeChartKind: ChartKind;
   analysis: FlightAnalysis | null;
+  /** Ground elevation in metres, aligned to the flight-window slice. */
+  ground: Float32Array | null;
   mapCenter: LatLng | null;
   trackIndex: number | null;
 }
@@ -21,6 +23,7 @@ interface CursorReadoutProps {
 export function CursorReadout({
   activeChartKind,
   analysis,
+  ground,
   mapCenter,
   trackIndex,
 }: CursorReadoutProps) {
@@ -28,13 +31,13 @@ export function CursorReadout({
   const readout = useMemo(
     () =>
       analysis && trackIndex !== null
-        ? buildCursorReadout(analysis, trackIndex, prefs)
+        ? buildCursorReadout(analysis, trackIndex, ground, prefs)
         : null,
-    [analysis, trackIndex, prefs],
+    [analysis, trackIndex, prefs, ground],
   );
   const fieldWidths = useMemo(
-    () => (analysis ? buildCursorReadoutWidths(analysis, prefs) : null),
-    [analysis, prefs],
+    () => (analysis ? buildCursorReadoutWidths(analysis, ground, prefs) : null),
+    [analysis, prefs, ground],
   );
   const helpItems = analysis
     ? chartHelpItems(

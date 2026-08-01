@@ -28,6 +28,7 @@ describe('buildFields', () => {
         time: '2:10:00',
         gps: null,
         baroAlt: null,
+        ground: null,
         pathSpeed: '12 km/h',
         tas: null,
         vario: null,
@@ -37,6 +38,7 @@ describe('buildFields', () => {
         time: 7,
         gps: undefined,
         baroAlt: undefined,
+        ground: undefined,
         pathSpeed: 7,
         tas: undefined,
         vario: undefined,
@@ -48,11 +50,12 @@ describe('buildFields', () => {
     expect(fields.map((field) => field.key)).toEqual(['time', 'speed']);
   });
 
-  it('keeps altitude and vario fields when altitude data is present', () => {
+  it('adds a ground field on the altitude tab when ground is present', () => {
     const readout: CursorReadoutValue = {
       time: '2:10:00',
       gps: '1,200 m',
       baroAlt: null,
+      ground: '850 m',
       pathSpeed: '12 km/h',
       tas: null,
       vario: '1.2 m/s',
@@ -62,6 +65,40 @@ describe('buildFields', () => {
       time: 7,
       gps: 7,
       baroAlt: undefined,
+      ground: 6,
+      pathSpeed: 7,
+      tas: undefined,
+      vario: 7,
+      speed: 7,
+    };
+
+    const fields = buildFields('altitude', readout, widths, HELP_ALTITUDE);
+
+    expect(fields.map((field) => field.key)).toEqual([
+      'time',
+      'gps',
+      'ground',
+      'vario',
+      'speed',
+    ]);
+  });
+
+  it('keeps altitude and vario fields when altitude data is present', () => {
+    const readout: CursorReadoutValue = {
+      time: '2:10:00',
+      gps: '1,200 m',
+      baroAlt: null,
+      ground: null,
+      pathSpeed: '12 km/h',
+      tas: null,
+      vario: '1.2 m/s',
+      speed: '10 km/h',
+    };
+    const widths: CursorReadoutWidths = {
+      time: 7,
+      gps: 7,
+      baroAlt: undefined,
+      ground: undefined,
       pathSpeed: 7,
       tas: undefined,
       vario: 7,
@@ -86,6 +123,12 @@ const HELP_ALTITUDE: ChartHelpItem[] = [
     color: 'blue',
     label: 'Altitude',
     text: 'GPS altitude',
+  },
+  {
+    kind: 'ground',
+    color: 'brown',
+    label: 'Ground',
+    text: 'terrain elevation',
   },
 ];
 

@@ -43,9 +43,12 @@ function ChartHelp({ kind, hasBaro, hasTas }: ChartHelpButtonProps) {
         {chartHelpDescription(kind, hasBaro)}
       </p>
       <ul className={styles.list}>
-        {items.map(({ color, label, text }) => (
+        {items.map(({ color, iconColor, label, text }) => (
           <li key={label} className={styles.item}>
-            <span className={styles.bullet} style={{ color }} />
+            <span
+              className={styles.bullet}
+              style={{ color: iconColor ?? color }}
+            />
             <span>
               <strong>{label}</strong>: {text}
             </span>
@@ -58,6 +61,12 @@ function ChartHelp({ kind, hasBaro, hasTas }: ChartHelpButtonProps) {
 
 export interface ChartHelpItem {
   color: string;
+  /**
+   * Overrides {@link color} for the small UI marks — the cursor-readout icon
+   * and the help-tooltip bullet — where a faint chart line/fill colour is hard
+   * to read. Falls back to {@link color} when unset.
+   */
+  iconColor?: string;
   kind: ChartHelpItemKind;
   label: string;
   text: string;
@@ -67,6 +76,7 @@ export type ChartHelpItemKind =
   | 'altitude'
   | 'baro'
   | 'gps'
+  | 'ground'
   | 'path'
   | 'tas'
   | 'climb'
@@ -78,7 +88,14 @@ export const chartHelpItems = (
   hasTas: boolean,
 ): ChartHelpItem[] => {
   switch (kind) {
-    case 'altitude':
+    case 'altitude': {
+      const ground: ChartHelpItem = {
+        kind: 'ground',
+        color: CHART_COLORS.terrain,
+        iconColor: CHART_COLORS.terrainIcon,
+        label: 'Ground',
+        text: 'Approximate terrain elevation',
+      };
       return hasBaro
         ? [
             {
@@ -93,6 +110,7 @@ export const chartHelpItems = (
               label: 'GPS',
               text: 'better for absolute height, noisier for altitude differences',
             },
+            ground,
           ]
         : [
             {
@@ -101,7 +119,9 @@ export const chartHelpItems = (
               label: 'Altitude',
               text: 'GPS altitude over the flight window',
             },
+            ground,
           ];
+    }
 
     case 'speed':
       const items: ChartHelpItem[] = [
