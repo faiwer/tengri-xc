@@ -5,7 +5,7 @@ import { Flag } from '../../components/Flag';
 import { LoadError } from '../../components/LoadError';
 import { PageLayout } from '../../components/PageLayout';
 import { TrackRow, type TrackRowCell } from '../../components/TrackRow';
-import { useErrorToast } from '../../core/hooks';
+import { useAsyncEffect, useErrorToast } from '../../core/hooks';
 import {
   usePreferences,
   type ResolvedPreferences,
@@ -25,6 +25,15 @@ export function TracksPage() {
   const feed = useTracksFeed();
   const onSentinelRef = useScrollSentinel(feed.loadMore);
   const prefs = usePreferences();
+
+  // Restore the scroll position captured when we last left for a flight page.
+  // Runs once on mount; a hydrated feed renders its rows synchronously, so the
+  // table is already tall enough to scroll to `initialScrollTop`.
+  useAsyncEffect(() => {
+    if (feed.initialScrollTop > 0) {
+      window.scrollTo(0, feed.initialScrollTop);
+    }
+  }, []);
 
   const rows = useMemo(
     () =>
@@ -46,7 +55,12 @@ export function TracksPage() {
 
   return (
     <PageLayout>
-      <table className={styles.table}>
+      <table
+        className={styles.table}
+        // Capture the feed into the history entry on the way out: pointerdown
+        // fires while still on `/tracks`, before the row `<Link>` navigates.
+        onPointerDown={feed.persist}
+      >
         <thead>
           <tr>
             <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
