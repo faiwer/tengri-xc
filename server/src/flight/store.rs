@@ -81,13 +81,92 @@ pub enum InsertFlightError {
 const INSERT_FLIGHT_SQL: &str = "INSERT INTO flights \
     (id, user_id, takeoff_at, landing_at, takeoff_timezone, landing_timezone, \
      takeoff_point, landing_point, brand_id, kind, model_id, \
-     propulsion, launch_method) \
+     propulsion, launch_method, \
+     takeoff_country, closest_takeoff_id, closest_takeoff_distance) \
     VALUES \
     ($1, $2, to_timestamp($3), to_timestamp($4), $5, $6, \
      ST_SetSRID(ST_MakePoint($7, $8), 4326)::geography, \
      ST_SetSRID(ST_MakePoint($9, $10), 4326)::geography, \
      $11, $12::glider_kind, $13, \
-     $14::propulsion, $15::launch_method)";
+     $14::propulsion, $15::launch_method, \
+     $16, $17, $18)";
+
+/// A flight's takeoff must be within this many metres of a site to be linked to
+/// it. Applied at ingest ([`find_nearest_site`]) and by the admin reindex
+/// endpoint ([`reindex_takeoff_sites`]).
+pub const TAKEOFF_SITE_RADIUS_M: f64 = 15_000.0;
+
+/// The `sites` row nearest a takeoff, as resolved by [`find_nearest_site`].
+struct NearestSite {
+    id: i32,
+    distance_m: i32,
+    country: Option<String>,
+}
+
+/// Nearest `sites` row to a takeoff point within [`TAKEOFF_SITE_RADIUS_M`], or
+/// `None` when nothing is in range. Coordinates are E5 micro-degrees, converted
+/// to degrees at the bind site exactly like [`INSERT_FLIGHT_SQL`].
+async fn find_nearest_site(
+    tx: &mut Transaction<'_, Postgres>,
+    takeoff_lat: i32,
+    takeoff_lon: i32,
+) -> Result<Option<NearestSite>, sqlx::Error> {
+    let row: Option<(i32, i32, Option<String>)> = sqlx::query_as(
+        "SELECT s.id, \
+                ROUND(ST_Distance(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, s.point))::int, \
+                s.country \
+         FROM sites s \
+         WHERE ST_DWithin(ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, s.point, $3) \
+         ORDER BY ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography <-> s.point \
+         LIMIT 1",
+    )
+    .bind(takeoff_lon as f64 / 1e5)
+    .bind(takeoff_lat as f64 / 1e5)
+    .bind(TAKEOFF_SITE_RADIUS_M)
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row.map(|(id, distance_m, country)| NearestSite {
+        id,
+        distance_m,
+        country,
+    }))
+}
+
+/// Recompute every flight's nearest site (country, id, distance) within
+/// [`TAKEOFF_SITE_RADIUS_M`], clearing the columns for flights with no site in
+/// range. Returns the number of rows updated.
+///
+/// This stays set-based (no Rust-side point): the nearest-site `LEFT JOIN
+/// LATERAL` runs over a fresh `flights f2` alias, not the UPDATE target —
+/// Postgres forbids referencing the target table inside a `FROM` LATERAL
+/// subquery.
+pub async fn reindex_takeoff_sites(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        "UPDATE flights f \
+         SET closest_takeoff_id = n.site_id, \
+             closest_takeoff_distance = n.dist, \
+             takeoff_country = n.country \
+         FROM ( \
+             SELECT f2.id, near.site_id, near.dist, near.country \
+             FROM flights f2 \
+             LEFT JOIN LATERAL ( \
+                 SELECT s.id AS site_id, \
+                        ROUND(ST_Distance(f2.takeoff_point, s.point))::int AS dist, \
+                        s.country \
+                 FROM sites s \
+                 WHERE ST_DWithin(f2.takeoff_point, s.point, $1) \
+                 ORDER BY f2.takeoff_point <-> s.point \
+                 LIMIT 1 \
+             ) near ON TRUE \
+             WHERE f2.takeoff_point IS NOT NULL \
+         ) n \
+         WHERE f.id = n.id",
+    )
+    .bind(TAKEOFF_SITE_RADIUS_M)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
 
 /// Insert one `flights` row. Errors out on every conflict — use
 /// [`insert_flight_idempotent`] if the caller needs to skip rows it
@@ -96,6 +175,9 @@ pub async fn insert_flight(
     tx: &mut Transaction<'_, Postgres>,
     row: &FlightRow<'_>,
 ) -> Result<(), InsertFlightError> {
+    let near = find_nearest_site(tx, row.takeoff_lat, row.takeoff_lon)
+        .await
+        .map_err(InsertFlightError::Db)?;
     sqlx::query(INSERT_FLIGHT_SQL)
         .bind(row.flight_id)
         .bind(row.user_id)
@@ -112,6 +194,9 @@ pub async fn insert_flight(
         .bind(row.model_id)
         .bind(row.propulsion)
         .bind(row.launch_method)
+        .bind(near.as_ref().and_then(|n| n.country.clone()))
+        .bind(near.as_ref().map(|n| n.id))
+        .bind(near.as_ref().map(|n| n.distance_m))
         .execute(&mut **tx)
         .await
         .map_err(|e| map_flight_error(e, row.user_id))?;
@@ -130,6 +215,9 @@ pub async fn insert_flight_idempotent(
     tx: &mut Transaction<'_, Postgres>,
     row: &FlightRow<'_>,
 ) -> Result<bool, InsertFlightError> {
+    let near = find_nearest_site(tx, row.takeoff_lat, row.takeoff_lon)
+        .await
+        .map_err(InsertFlightError::Db)?;
     let sql = format!("{INSERT_FLIGHT_SQL} ON CONFLICT (id) DO NOTHING RETURNING id");
     let inserted: Option<String> = sqlx::query_scalar(&sql)
         .bind(row.flight_id)
@@ -147,6 +235,9 @@ pub async fn insert_flight_idempotent(
         .bind(row.model_id)
         .bind(row.propulsion)
         .bind(row.launch_method)
+        .bind(near.as_ref().and_then(|n| n.country.clone()))
+        .bind(near.as_ref().map(|n| n.id))
+        .bind(near.as_ref().map(|n| n.distance_m))
         .fetch_optional(&mut **tx)
         .await
         .map_err(|e| map_flight_error(e, row.user_id))?;
