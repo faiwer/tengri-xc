@@ -1,6 +1,6 @@
 import { Modal } from 'antd';
 
-import type { SiteListItem } from '../../../api/admin/sites.io';
+import type { SiteListItem } from '../../../../api/admin/sites.io';
 import { SiteForm } from './SiteForm';
 
 interface SiteFormModalProps {

@@ -3,12 +3,12 @@ import { App, Button, Input, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
-import { deleteSite } from '../../api/admin/sites';
-import type { SiteListItem } from '../../api/admin/sites.io';
-import { Flag } from '../../components/Flag';
-import { LoadError } from '../../components/LoadError';
-import { useErrorToast, useEventHandler } from '../../core/hooks';
-import { SettingsSection } from './SettingsSection';
+import { deleteSite } from '../../../api/admin/sites';
+import type { SiteListItem } from '../../../api/admin/sites.io';
+import { Flag } from '../../../components/Flag';
+import { LoadError } from '../../../components/LoadError';
+import { useErrorToast, useEventHandler } from '../../../core/hooks';
+import { SettingsSection } from '../SettingsSection';
 import { SiteFormModal } from './SiteFormModal';
 import { SiteRowActions } from './SiteRowActions';
 import styles from './SitesSettings.module.scss';

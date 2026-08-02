@@ -1,7 +1,7 @@
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Button, Popconfirm } from 'antd';
 
-import type { SiteListItem } from '../../api/admin/sites.io';
+import type { SiteListItem } from '../../../api/admin/sites.io';
 import styles from './SiteRowActions.module.scss';
 
 interface SiteRowActionsProps {

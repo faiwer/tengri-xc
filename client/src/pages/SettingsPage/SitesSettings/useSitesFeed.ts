@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-import { getSitesPage } from '../../api/admin/sites';
-import type { SiteListItem } from '../../api/admin/sites.io';
+import { getSitesPage } from '../../../api/admin/sites';
+import type { SiteListItem } from '../../../api/admin/sites.io';
 import {
   useAsyncEffect,
   useDebouncedValue,
   useEventHandler,
-} from '../../core/hooks';
+} from '../../../core/hooks';
 
 interface FeedState {
   items: SiteListItem[] | null;
