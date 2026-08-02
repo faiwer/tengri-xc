@@ -11,22 +11,13 @@ export interface GetUsersPageParams extends ApiRequestOptions {
 }
 
 /** `GET /admin/users` — paginated user list. Requires `MANAGE_USERS`. */
-export const getUsersPage = async (
-  params: GetUsersPageParams = {},
-): Promise<UsersPage> => {
-  const query = new URLSearchParams();
-  for (const key of ['q', 'cursor', 'limit'] as const) {
-    const value = params[key];
-    if (value) {
-      query.set(key, String(value));
-    }
-  }
-
-  const suffix = query.size > 0 ? `?${query}` : '';
-  return apiGet(`/admin/users${suffix}`, UsersPageIo, {
-    signal: params.signal,
-  });
-};
+export const getUsersPage = ({
+  q,
+  cursor,
+  limit,
+  signal,
+}: GetUsersPageParams = {}): Promise<UsersPage> =>
+  apiGet('/admin/users', UsersPageIo, { signal, query: { q, cursor, limit } });
 
 /** `GET /admin/users/:id` — full user record. Requires `MANAGE_USERS`. */
 export const getUser = (

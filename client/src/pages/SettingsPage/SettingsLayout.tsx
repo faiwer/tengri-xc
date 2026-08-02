@@ -1,6 +1,7 @@
 import {
   BarChartOutlined,
   ControlOutlined,
+  EnvironmentOutlined,
   LockOutlined,
   RiseOutlined,
   SettingOutlined,
@@ -105,6 +106,12 @@ export function SettingsLayout() {
           to: routes.settings.gliders(),
           icon: <SpIcon />,
           permission: Permissions.MANAGE_GLIDERS,
+        },
+        {
+          label: 'Sites',
+          to: routes.settings.sites(),
+          icon: <EnvironmentOutlined />,
+          permission: Permissions.MANAGE_SITES,
         },
       ],
     },

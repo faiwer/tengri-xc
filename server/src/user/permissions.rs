@@ -50,6 +50,9 @@ bitflags! {
         /// Read-only for now; gates the `/admin/gliders` endpoint and
         /// the matching settings nav item.
         const MANAGE_GLIDERS    = 1 << 4;
+        /// View / edit the takeoff-sites directory. Gates the
+        /// `/admin/sites` endpoint and the matching settings nav item.
+        const MANAGE_SITES      = 1 << 5;
     }
 }
 

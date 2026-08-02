@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AppError, AppState,
     auth::{Identity, require_permission},
-    db::{Order, Sql},
+    db::{Order, Sql, like_contains},
     user::{Permissions, UserDto, fetch_user},
 };
 
@@ -107,15 +107,7 @@ async fn list(
             "q must be at most {MAX_QUERY_LEN} characters",
         )));
     }
-    // `%` and `_` are LIKE wildcards; escape them so a query like
-    // `foo%` matches the literal `foo%` in `name`/`email`, not
-    // `foo<anything>`. `\` becomes `\\` first or it'd consume the
-    // backslash we're about to add.
-    let pattern = needle.map(|s| {
-        let mut escaped = s.replace('\\', "\\\\");
-        escaped = escaped.replace('%', "\\%").replace('_', "\\_");
-        format!("%{escaped}%")
-    });
+    let pattern = needle.map(like_contains);
 
     let cursor = q.cursor.as_deref().map(decode_cursor).transpose()?;
 

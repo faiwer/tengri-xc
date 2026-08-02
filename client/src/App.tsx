@@ -15,6 +15,7 @@ import {
   PreferencesSettings,
   ProfileSettings,
   SettingsLayout,
+  SitesSettings,
   StatsSettings,
   SystemSettings,
   UserDetailSettings,
@@ -59,6 +60,7 @@ export function App() {
                 <Route path="users" element={<UsersSettings />} />
                 <Route path="users/:id" element={<UserDetailSettings />} />
                 <Route path="gliders" element={<GlidersSettings />} />
+                <Route path="sites" element={<SitesSettings />} />
               </Route>
             </Routes>
           </Providers>

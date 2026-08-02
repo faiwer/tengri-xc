@@ -9,6 +9,7 @@ use crate::AppState;
 
 pub mod gliders;
 pub mod site;
+pub mod sites;
 pub mod users;
 
 pub fn router() -> Router<AppState> {
@@ -16,4 +17,5 @@ pub fn router() -> Router<AppState> {
         .merge(users::router())
         .merge(site::router())
         .merge(gliders::router())
+        .merge(sites::router())
 }
