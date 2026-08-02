@@ -30,7 +30,7 @@ struct TrackMd {
     /// IANA timezone names at the takeoff/landing fixes.
     takeoff_timezone: String,
     landing_timezone: String,
-    takeoff: PointDegrees,
+    takeoff: Takeoff,
     landing: PointDegrees,
     /// Wire-track size as a fraction of the gzipped source (0.0..1.0).
     compression_ratio: f32,
@@ -60,6 +60,22 @@ struct Pilot {
     country: Option<String>,
 }
 
+/// Takeoff fix, plus the nearest known site when the flight launched
+/// within range of one (see the `sites` table + `flights.closest_takeoff_*`
+/// backfill). The three site fields are `null` together for a flight with
+/// no nearby site.
+#[derive(Serialize)]
+struct Takeoff {
+    lat: f64,
+    lon: f64,
+    /// ISO 3166-1 alpha-2 of the nearest site, or `null`.
+    country: Option<String>,
+    /// Distance to that site in whole metres, or `null`.
+    distance: Option<i32>,
+    /// Name of that site, or `null`.
+    name: Option<String>,
+}
+
 #[derive(Serialize)]
 struct Glider {
     brand_id: String,
@@ -86,6 +102,7 @@ async fn get_track_md(
                 ST_X(f.takeoff_point::geometry) AS takeoff_lon, \
                 ST_Y(f.landing_point::geometry) AS landing_lat, \
                 ST_X(f.landing_point::geometry) AS landing_lon, \
+                f.takeoff_country, f.closest_takeoff_distance, si.name AS site_name, \
                 t.compression_ratio, \
                 f.main_route_id, \
                 f.main_route_type::text AS main_route_type, \
@@ -94,6 +111,7 @@ async fn get_track_md(
          FROM flights f \
          JOIN users u ON u.id = f.user_id \
          LEFT JOIN user_profiles p ON p.user_id = u.id \
+         LEFT JOIN sites si ON si.id = f.closest_takeoff_id \
          JOIN brands b ON b.id = f.brand_id \
          JOIN models m ON m.brand_id = f.brand_id \
                       AND m.kind = f.kind \
@@ -128,9 +146,12 @@ async fn get_track_md(
         landing_at: row.landing_at,
         takeoff_timezone: row.takeoff_timezone,
         landing_timezone: row.landing_timezone,
-        takeoff: PointDegrees {
+        takeoff: Takeoff {
             lat: row.takeoff_lat,
             lon: row.takeoff_lon,
+            country: row.takeoff_country,
+            distance: row.closest_takeoff_distance,
+            name: row.site_name,
         },
         landing: PointDegrees {
             lat: row.landing_lat,
@@ -172,6 +193,9 @@ struct TrackMdRow {
     takeoff_lon: f64,
     landing_lat: f64,
     landing_lon: f64,
+    takeoff_country: Option<String>,
+    closest_takeoff_distance: Option<i32>,
+    site_name: Option<String>,
     compression_ratio: f32,
     main_route_id: Option<i64>,
     main_route_type: Option<String>,

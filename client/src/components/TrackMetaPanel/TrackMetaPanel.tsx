@@ -50,7 +50,7 @@ export function TrackMetaPanel({
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
-      <Cell label="Pilot">
+      <Cell>
         {data.pilot.country && (
           <>
             <Flag code={data.pilot.country} />
@@ -59,6 +59,17 @@ export function TrackMetaPanel({
         )}
         {data.pilot.name}
       </Cell>
+      {data.takeoff.name && (
+        <Cell>
+          {data.takeoff.country && (
+            <>
+              <Flag code={data.takeoff.country} />
+              &nbsp;&nbsp;
+            </>
+          )}
+          {data.takeoff.name}
+        </Cell>
+      )}
       <Cell label="Glider">
         {data.glider.brandName} {data.glider.modelName}
       </Cell>
@@ -105,7 +116,8 @@ export function TrackMetaPanel({
 }
 
 interface CellProps {
-  label: ReactNode;
+  /** Optional row label. Omit for title-less rows (e.g. pilot, takeoff site). */
+  label?: ReactNode;
   children: ReactNode;
   /** Render the value in a monospace face (used for ids/etags). */
   mono?: boolean;
@@ -116,7 +128,7 @@ interface CellProps {
 function Cell({ label, children, mono, title }: CellProps) {
   return (
     <div className={styles.cell} title={title}>
-      <span className={styles.label}>{label}</span>
+      {!!label && <span className={styles.label}>{label}</span>}
       <span className={mono ? styles.id : styles.value}>{children}</span>
     </div>
   );

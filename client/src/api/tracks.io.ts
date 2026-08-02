@@ -26,6 +26,20 @@ const PointIo = z.object({
   lon: DecimalDegreeIo,
 });
 
+/**
+ * Takeoff point: the fix, plus the nearest known site when the flight launched
+ * within range of one. The three site fields are `null` together for a flight
+ * with no nearby site. Sent by both `/tracks` and `/tracks/{id}/md`.
+ */
+const TakeoffIo = PointIo.extend({
+  /** ISO 3166-1 alpha-2 of the nearest site, or `null`. */
+  country: z.string().nullable(),
+  /** Distance to that site in whole metres, or `null`. */
+  distance: z.number().int().nullable(),
+  /** Name of that site, or `null`. */
+  name: z.string().nullable(),
+});
+
 const RoutePointIo = z.object({
   idx: z.number().int(),
   lat: E5CoordinateIo,
@@ -120,7 +134,7 @@ export const TrackMetadataIo = z
     /** IANA timezone names at the takeoff/landing fixes. */
     takeoffTimezone: z.string(),
     landingTimezone: z.string(),
-    takeoff: PointIo,
+    takeoff: TakeoffIo,
     landing: PointIo,
     /** Wire-track size as a fraction of the gzipped source (0..1ish). */
     compressionRatio: z.number(),
@@ -176,7 +190,7 @@ export const TrackListItemIo = z.object({
       /** IANA timezone names at the takeoff/landing fixes. */
       takeoffTimezone: z.string(),
       landingTimezone: z.string(),
-      takeoff: PointIo,
+      takeoff: TakeoffIo,
       landing: PointIo,
       mainRouteType: z
         .enum(['free_distance', 'fai_triangle', 'free_triangle', 'task'])

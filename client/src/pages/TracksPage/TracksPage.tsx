@@ -64,6 +64,7 @@ export function TracksPage() {
         <thead>
           <tr>
             <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
+            <th className={styles.colTakeoff}>Takeoff</th>
             <th>Pilot</th>
             <th className={`${styles.colDuration} ${styles.alignRight}`}>
               Duration
@@ -118,6 +119,24 @@ function buildHomeRowCells(
       content: rowNumber,
       align: 'right',
       className: styles.colIdx,
+    },
+    {
+      key: 'takeoff',
+      content: item.track.takeoff.name ? (
+        <>
+          {item.track.takeoff.country && (
+            <>
+              <Flag code={item.track.takeoff.country} />
+              &nbsp;&nbsp;
+            </>
+          )}
+          {item.track.takeoff.name}
+        </>
+      ) : (
+        '—'
+      ),
+      muted: item.track.takeoff.name == null,
+      className: styles.colTakeoff,
     },
     {
       key: 'pilot',
@@ -189,4 +208,4 @@ function SkeletonRows({ colSpan }: { colSpan: number }) {
 }
 
 const LOADING_SKELETON_COUNT = 8;
-const COLUMN_COUNT = 5;
+const COLUMN_COUNT = 6;

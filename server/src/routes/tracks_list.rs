@@ -91,7 +91,7 @@ struct TrackRef {
     /// `/tracks/{id}/md`.
     takeoff_timezone: String,
     landing_timezone: String,
-    takeoff: Point,
+    takeoff: Takeoff,
     landing: Point,
     /// Route type of the best-scoring route, e.g. `"fai_triangle"`. `null` when
     /// the flight has not been scored yet.
@@ -109,6 +109,21 @@ struct TrackRef {
 struct Point {
     lat: f64,
     lon: f64,
+}
+
+/// Takeoff fix, plus the nearest known site when the flight launched within
+/// range of one (see the `sites` table + `flights.closest_takeoff_*` backfill).
+/// The three site fields are `null` together for a flight with no nearby site.
+#[derive(Serialize)]
+struct Takeoff {
+    lat: f64,
+    lon: f64,
+    /// ISO 3166-1 alpha-2 of the nearest site, or `null`.
+    country: Option<String>,
+    /// Distance to that site in whole metres, or `null`.
+    distance: Option<i32>,
+    /// Name of that site, or `null`.
+    name: Option<String>,
 }
 
 async fn list_tracks(
@@ -132,20 +147,23 @@ async fn list_tracks(
 
     let mut query = Sql::select(&[
         "f.id",
-        "EXTRACT(EPOCH FROM f.takeoff_at)::bigint",
+        "EXTRACT(EPOCH FROM f.takeoff_at)::bigint AS takeoff_at",
         "f.duration",
         "f.takeoff_timezone",
         "f.landing_timezone",
-        "ST_Y(f.takeoff_point::geometry)",
-        "ST_X(f.takeoff_point::geometry)",
-        "ST_Y(f.landing_point::geometry)",
-        "ST_X(f.landing_point::geometry)",
-        "u.id",
-        "u.name",
+        "ST_Y(f.takeoff_point::geometry) AS takeoff_lat",
+        "ST_X(f.takeoff_point::geometry) AS takeoff_lon",
+        "ST_Y(f.landing_point::geometry) AS landing_lat",
+        "ST_X(f.landing_point::geometry) AS landing_lon",
+        "u.id AS user_id",
+        "u.name AS user_name",
         "p.country",
-        "f.main_route_type::text",
-        "f.main_score::float8",
+        "f.main_route_type::text AS main_route_type",
+        "f.main_score::float8 AS main_score",
         "f.main_distance",
+        "f.takeoff_country",
+        "f.closest_takeoff_distance",
+        "si.name AS site_name",
     ])
     .from("flights f")
     .join("users u", "u.id = f.user_id")
@@ -153,6 +171,9 @@ async fn list_tracks(
     // optional; users without a profile row (or without a country)
     // still appear with `pilot.country = null`.
     .left_join("user_profiles p", "p.user_id = u.id")
+    // `LEFT JOIN sites` for the nearest-takeoff name; null for flights
+    // with no site within range (`closest_takeoff_id IS NULL`).
+    .left_join("sites si", "si.id = f.closest_takeoff_id")
     .order_by("f.takeoff_at", Order::Desc)
     .order_by("f.id", Order::Desc)
     .limit(probe);
@@ -179,83 +200,67 @@ async fn list_tracks(
     }
     let next_cursor = if has_more {
         let last = rows.last().expect("has_more implies non-empty");
-        Some(encode_cursor(last.1 as u32, &last.0))
+        Some(encode_cursor(last.takeoff_at as u32, &last.id))
     } else {
         None
     };
 
     let items = rows
         .into_iter()
-        .map(
-            |(
-                flight_id,
-                takeoff_at,
-                duration,
-                takeoff_timezone,
-                landing_timezone,
-                takeoff_lat,
-                takeoff_lon,
-                landing_lat,
-                landing_lon,
-                user_id,
-                user_name,
-                country,
-                main_route_type,
-                main_score,
-                main_distance,
-            )| Item {
-                pilot: Pilot {
-                    id: user_id,
-                    name: user_name,
-                    country,
-                },
-                track: TrackRef {
-                    id: flight_id,
-                    takeoff_at,
-                    duration,
-                    takeoff_timezone,
-                    landing_timezone,
-                    takeoff: Point {
-                        lat: takeoff_lat,
-                        lon: takeoff_lon,
-                    },
-                    landing: Point {
-                        lat: landing_lat,
-                        lon: landing_lon,
-                    },
-                    main_route_type,
-                    main_score,
-                    main_distance,
-                },
+        .map(|r| Item {
+            pilot: Pilot {
+                id: r.user_id,
+                name: r.user_name,
+                country: r.country,
             },
-        )
+            track: TrackRef {
+                id: r.id,
+                takeoff_at: r.takeoff_at,
+                duration: r.duration,
+                takeoff_timezone: r.takeoff_timezone,
+                landing_timezone: r.landing_timezone,
+                takeoff: Takeoff {
+                    lat: r.takeoff_lat,
+                    lon: r.takeoff_lon,
+                    country: r.takeoff_country,
+                    distance: r.closest_takeoff_distance,
+                    name: r.site_name,
+                },
+                landing: Point {
+                    lat: r.landing_lat,
+                    lon: r.landing_lon,
+                },
+                main_route_type: r.main_route_type,
+                main_score: r.main_score,
+                main_distance: r.main_distance,
+            },
+        })
         .collect();
 
     Ok(Json(ListResponse { items, next_cursor }))
 }
 
-/// Concrete row tuple: `(flight_id, takeoff_at, duration, takeoff_timezone,
-/// landing_timezone, takeoff_lat, takeoff_lon, landing_lat, landing_lon,
-/// user_id, user_name, country, main_route_type, main_score, main_distance)`.
-/// Aliased because the literal tuple is too long to inline at the call site
-/// without harming readability.
-type TrackListRow = (
-    String,
-    i64,
-    i32,
-    String,
-    String,
-    f64,
-    f64,
-    f64,
-    f64,
-    i32,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<f64>,
-    Option<i32>,
-);
+#[derive(sqlx::FromRow)]
+struct TrackListRow {
+    id: String,
+    takeoff_at: i64,
+    duration: i32,
+    takeoff_timezone: String,
+    landing_timezone: String,
+    takeoff_lat: f64,
+    takeoff_lon: f64,
+    landing_lat: f64,
+    landing_lon: f64,
+    user_id: i32,
+    user_name: String,
+    country: Option<String>,
+    main_route_type: Option<String>,
+    main_score: Option<f64>,
+    main_distance: Option<i32>,
+    takeoff_country: Option<String>,
+    closest_takeoff_distance: Option<i32>,
+    site_name: Option<String>,
+}
 
 /// Pack `(takeoff_at, flight_id)` and base64url-encode. The id is
 /// length-prefixed so the cursor self-describes — flight ids today
