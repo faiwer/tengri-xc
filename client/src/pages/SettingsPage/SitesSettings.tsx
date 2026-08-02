@@ -1,37 +1,61 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Input, Skeleton, Table } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { App, Button, Input, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
+import { deleteSite } from '../../api/admin/sites';
 import type { SiteListItem } from '../../api/admin/sites.io';
 import { Flag } from '../../components/Flag';
 import { LoadError } from '../../components/LoadError';
-import { useErrorToast } from '../../core/hooks';
+import { useErrorToast, useEventHandler } from '../../core/hooks';
 import { SettingsSection } from './SettingsSection';
 import { SiteFormModal } from './SiteFormModal';
+import { SiteRowActions } from './SiteRowActions';
 import styles from './SitesSettings.module.scss';
 import { useSitesFeed } from './useSitesFeed';
 
 export function SitesSettings() {
   const feed = useSitesFeed();
   useErrorToast(feed.error, { title: "Couldn't load sites" });
+  const { notification } = App.useApp();
 
   const [modalOpen, setModalOpen] = useState(false);
   // The row being edited, or `null` when the modal is opened to create.
   const [editing, setEditing] = useState<SiteListItem | null>(null);
+  // Id of the row whose deletion is in flight, for its confirm-button spinner.
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const openCreate = () => {
     setEditing(null);
     setModalOpen(true);
   };
-  const openEdit = (site: SiteListItem) => {
+
+  const openEdit = useEventHandler((site: SiteListItem) => {
     setEditing(site);
     setModalOpen(true);
-  };
+  });
+
   const onSaved = (site: SiteListItem) => {
     feed.onSaved(site);
     setModalOpen(false);
   };
+
+  const onDelete = useEventHandler(async (site: SiteListItem) => {
+    setDeletingId(site.id);
+    try {
+      await deleteSite(site.id);
+      feed.onRemoved(site.id);
+      notification.success({ title: 'Site deleted', placement: 'bottomRight' });
+    } catch (err) {
+      notification.error({
+        title: "Couldn't delete site",
+        description: err instanceof Error ? err.message : String(err),
+        placement: 'bottomRight',
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  });
 
   const columns = useMemo<ColumnsType<SiteListItem>>(
     () => [
@@ -70,21 +94,20 @@ export function SitesSettings() {
         render: (lng: number) => lng.toFixed(5),
       },
       {
-        key: 'edit',
-        width: '48px',
+        key: 'actions',
+        width: '80px',
         align: 'center',
         render: (_, record) => (
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            aria-label={`Edit "${record.name}"`}
-            onClick={() => openEdit(record)}
+          <SiteRowActions
+            site={record}
+            deleting={deletingId === record.id}
+            onEdit={openEdit}
+            onDelete={onDelete}
           />
         ),
       },
     ],
-    [],
+    [deletingId, openEdit, onDelete],
   );
 
   // Inline error only for the empty/initial state — otherwise the toast handles

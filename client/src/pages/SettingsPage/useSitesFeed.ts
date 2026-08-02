@@ -34,6 +34,8 @@ export interface SitesFeed {
    * search/reload re-sorts it.
    */
   onSaved: (site: SiteListItem) => void;
+  /** Drop a deleted site from the current list without refetching. */
+  onRemoved: (id: number) => void;
 }
 
 /** Wait this long after the last keystroke before refetching. */
@@ -77,6 +79,13 @@ export function useSitesFeed(): SitesFeed {
           : [saved, ...items],
       };
     });
+  });
+
+  const onRemoved = useEventHandler((id: number) => {
+    setState((s) => ({
+      ...s,
+      items: s.items?.filter((item) => item.id !== id) ?? null,
+    }));
   });
 
   useAsyncEffect(
@@ -124,6 +133,7 @@ export function useSitesFeed(): SitesFeed {
     loadMore,
     retry,
     onSaved,
+    onRemoved,
   };
 }
 

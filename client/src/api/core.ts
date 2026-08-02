@@ -252,6 +252,14 @@ export async function apiPostVoid(
   await fetchOk(path, { ...options, method: 'POST', body });
 }
 
+/** DELETE `path` and ignore the response body. Use for 204-style endpoints. */
+export async function apiDelete(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<void> {
+  await fetchOk(path, { ...options, method: 'DELETE' });
+}
+
 /**
  * PATCH JSON `body` to `path` and validate the response against
  * `schema`. Errors mirror `apiPost`; 422s with a `fields` body land

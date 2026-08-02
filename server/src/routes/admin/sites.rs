@@ -13,6 +13,7 @@
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
+    http::StatusCode,
     routing::{get, patch},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -29,7 +30,7 @@ use crate::{
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/admin/sites", get(list).post(create))
-        .route("/admin/sites/{id}", patch(update))
+        .route("/admin/sites/{id}", patch(update).delete(remove))
 }
 
 const DEFAULT_LIMIT: u32 = 50;
@@ -208,6 +209,28 @@ async fn update(
     }
 
     Ok(Json(site.into_list_item(id)))
+}
+
+async fn remove(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<i32>,
+) -> Result<StatusCode, AppError> {
+    require_permission(&identity, Permissions::MANAGE_SITES)?;
+
+    // `flights.closest_takeoff_id` is `ON DELETE SET NULL` (migration 0022), so
+    // deleting a referenced site just detaches those flights.
+    let result = sqlx::query("DELETE FROM sites WHERE id = $1")
+        .bind(id)
+        .execute(state.pool())
+        .await
+        .map_err(into_internal)?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 impl ValidSite {

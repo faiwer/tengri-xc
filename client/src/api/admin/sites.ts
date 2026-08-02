@@ -1,4 +1,10 @@
-import { apiGet, apiPatch, apiPost, type ApiRequestOptions } from '../core';
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  type ApiRequestOptions,
+} from '../core';
 import {
   SiteListItemIo,
   SitesPageIo,
@@ -39,3 +45,9 @@ export const updateSite = (
   options: ApiRequestOptions = {},
 ): Promise<SiteListItem> =>
   apiPatch(`/admin/sites/${id}`, input, SiteListItemIo, options);
+
+/** `DELETE /admin/sites/:id`. Requires `MANAGE_SITES`. */
+export const deleteSite = (
+  id: number,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiDelete(`/admin/sites/${id}`, options);
