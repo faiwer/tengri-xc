@@ -14,7 +14,7 @@ use axum::{
     Json, Router,
     extract::{Path, Query, State},
     http::StatusCode,
-    routing::{get, patch},
+    routing::{get, patch, post},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,7 @@ use crate::{
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/admin/sites", get(list).post(create))
+        .route("/admin/sites/reindex", post(reindex))
         .route("/admin/sites/{id}", patch(update).delete(remove))
 }
 
@@ -41,6 +42,10 @@ const MAX_QUERY_LEN: usize = 50;
 /// Hard cap on the site name we'll pack into a cursor. Site names are short;
 /// the format-level cap is the `u8` length prefix (255).
 const SITE_NAME_MAX: usize = 128;
+/// A flight's takeoff must be within this many metres of a site to be linked to
+/// it during a reindex. Beyond it, the flight's `closest_takeoff_*` clear to
+/// null.
+const REINDEX_RADIUS_M: f64 = 15_000.0;
 
 #[derive(Debug, Deserialize)]
 struct ListQuery {
@@ -231,6 +236,56 @@ async fn remove(
     }
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Serialize)]
+struct ReindexResult {
+    /// Number of flights whose closest-takeoff link was recomputed.
+    updated: i64,
+}
+
+/// Recompute every flight's nearest site (country, id, distance) within
+/// [`REINDEX_RADIUS_M`], clearing the columns for flights with no site in
+/// range.
+///
+/// The nearest-site `LEFT JOIN LATERAL` runs over a fresh `flights` alias, not
+/// the UPDATE target — Postgres forbids referencing the target table inside a
+/// `FROM` LATERAL subquery.
+async fn reindex(
+    State(state): State<AppState>,
+    identity: Identity,
+) -> Result<Json<ReindexResult>, AppError> {
+    require_permission(&identity, Permissions::MANAGE_SITES)?;
+
+    let result = sqlx::query(
+        "UPDATE flights f \
+         SET closest_takeoff_id = n.site_id, \
+             closest_takeoff_distance = n.dist, \
+             takeoff_country = n.country \
+         FROM ( \
+             SELECT f2.id, near.site_id, near.dist, near.country \
+             FROM flights f2 \
+             LEFT JOIN LATERAL ( \
+                 SELECT s.id AS site_id, \
+                        ROUND(ST_Distance(f2.takeoff_point, s.point))::int AS dist, \
+                        s.country \
+                 FROM sites s \
+                 WHERE ST_DWithin(f2.takeoff_point, s.point, $1) \
+                 ORDER BY f2.takeoff_point <-> s.point \
+                 LIMIT 1 \
+             ) near ON TRUE \
+             WHERE f2.takeoff_point IS NOT NULL \
+         ) n \
+         WHERE f.id = n.id",
+    )
+    .bind(REINDEX_RADIUS_M)
+    .execute(state.pool())
+    .await
+    .map_err(into_internal)?;
+
+    Ok(Json(ReindexResult {
+        updated: result.rows_affected() as i64,
+    }))
 }
 
 impl ValidSite {

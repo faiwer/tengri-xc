@@ -21,6 +21,14 @@ export const SitesPageIo = z.object({
 
 export type SitesPage = z.infer<typeof SitesPageIo>;
 
+/** Result of `POST /admin/sites/reindex`. */
+export const ReindexResultIo = z.object({
+  /** Number of flights whose closest-takeoff link was recomputed. */
+  updated: z.number().int(),
+});
+
+export type ReindexResult = z.infer<typeof ReindexResultIo>;
+
 /** Body for create (`POST /admin/sites`) and update (`PATCH /admin/sites/:id`). */
 export interface SiteInput {
   name: string;

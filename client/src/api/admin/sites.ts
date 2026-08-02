@@ -6,8 +6,10 @@ import {
   type ApiRequestOptions,
 } from '../core';
 import {
+  ReindexResultIo,
   SiteListItemIo,
   SitesPageIo,
+  type ReindexResult,
   type SiteInput,
   type SiteListItem,
   type SitesPage,
@@ -51,3 +53,12 @@ export const deleteSite = (
   id: number,
   options: ApiRequestOptions = {},
 ): Promise<void> => apiDelete(`/admin/sites/${id}`, options);
+
+/**
+ * `POST /admin/sites/reindex` — recompute every flight's closest takeoff site.
+ * Requires `MANAGE_SITES`.
+ */
+export const reindexSites = (
+  options: ApiRequestOptions = {},
+): Promise<ReindexResult> =>
+  apiPost('/admin/sites/reindex', null, ReindexResultIo, options);

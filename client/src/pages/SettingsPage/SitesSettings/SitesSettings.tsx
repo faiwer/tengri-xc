@@ -1,9 +1,9 @@
-import { PlusOutlined } from '@ant-design/icons';
-import { App, Button, Input, Skeleton, Table } from 'antd';
+import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { App, Button, Input, Skeleton, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
-import { deleteSite } from '../../../api/admin/sites';
+import { deleteSite, reindexSites } from '../../../api/admin/sites';
 import type { SiteListItem } from '../../../api/admin/sites.io';
 import { Flag } from '../../../components/Flag';
 import { LoadError } from '../../../components/LoadError';
@@ -24,6 +24,7 @@ export function SitesSettings() {
   const [editing, setEditing] = useState<SiteListItem | null>(null);
   // Id of the row whose deletion is in flight, for its confirm-button spinner.
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [reindexing, setReindexing] = useState(false);
 
   const openCreate = () => {
     setEditing(null);
@@ -56,6 +57,25 @@ export function SitesSettings() {
       setDeletingId(null);
     }
   });
+
+  const onReindex = async () => {
+    setReindexing(true);
+    try {
+      const { updated } = await reindexSites();
+      notification.success({
+        title: `Reindexed ${updated} flights`,
+        placement: 'bottomRight',
+      });
+    } catch (err) {
+      notification.error({
+        title: "Couldn't reindex flights",
+        description: err instanceof Error ? err.message : String(err),
+        placement: 'bottomRight',
+      });
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   const columns = useMemo<ColumnsType<SiteListItem>>(
     () => [
@@ -132,7 +152,17 @@ export function SitesSettings() {
             icon={<PlusOutlined />}
             onClick={openCreate}
             aria-label="Add site"
+            className={styles.actionBtn}
           />
+          <Tooltip title="Reindex existing flights">
+            <Button
+              icon={<ThunderboltOutlined />}
+              loading={reindexing}
+              onClick={onReindex}
+              aria-label="Reindex existing flights"
+              className={styles.actionBtn}
+            />
+          </Tooltip>
         </div>
       }
     >
