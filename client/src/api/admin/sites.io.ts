@@ -20,3 +20,13 @@ export const SitesPageIo = z.object({
 });
 
 export type SitesPage = z.infer<typeof SitesPageIo>;
+
+/** Body for create (`POST /admin/sites`) and update (`PATCH /admin/sites/:id`). */
+export interface SiteInput {
+  name: string;
+  /** Decimal degrees on WGS-84. */
+  lat: number;
+  lng: number;
+  /** ISO 3166-1 alpha-2, or `null` when unset. */
+  country: string | null;
+}

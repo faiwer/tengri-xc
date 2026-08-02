@@ -12,8 +12,8 @@
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
-    routing::get,
+    extract::{Path, Query, State},
+    routing::{get, patch},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -23,10 +23,13 @@ use crate::{
     auth::{Identity, require_permission},
     db::{Order, Sql, like_contains},
     user::Permissions,
+    validation::FieldErrors,
 };
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/admin/sites", get(list))
+    Router::new()
+        .route("/admin/sites", get(list).post(create))
+        .route("/admin/sites/{id}", patch(update))
 }
 
 const DEFAULT_LIMIT: u32 = 50;
@@ -129,6 +132,145 @@ async fn list(
     };
 
     Ok(Json(ListResponse { items, next_cursor }))
+}
+
+/// Create + update share this body. The form always submits every field, so an
+/// update is a full replace rather than a partial patch.
+#[derive(Debug, Deserialize)]
+struct SiteInput {
+    name: String,
+    /// Decimal degrees on WGS-84.
+    lat: f64,
+    lng: f64,
+    #[serde(default)]
+    country: Option<String>,
+}
+
+/// Validated + normalised [`SiteInput`]: `name` trimmed, `country` upper-cased
+/// with empties collapsed to `None`.
+struct ValidSite {
+    name: String,
+    lat: f64,
+    lng: f64,
+    country: Option<String>,
+}
+
+async fn create(
+    State(state): State<AppState>,
+    identity: Identity,
+    Json(input): Json<SiteInput>,
+) -> Result<Json<ListItem>, AppError> {
+    require_permission(&identity, Permissions::MANAGE_SITES)?;
+    let site = validate_site_input(input).map_err(AppError::Validation)?;
+
+    let id: i32 = sqlx::query_scalar(
+        "INSERT INTO sites (name, country, point) \
+         VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography) \
+         RETURNING id",
+    )
+    .bind(&site.name)
+    .bind(&site.country)
+    .bind(site.lng)
+    .bind(site.lat)
+    .fetch_one(state.pool())
+    .await
+    .map_err(into_internal)?;
+
+    Ok(Json(site.into_list_item(id)))
+}
+
+async fn update(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<i32>,
+    Json(input): Json<SiteInput>,
+) -> Result<Json<ListItem>, AppError> {
+    require_permission(&identity, Permissions::MANAGE_SITES)?;
+    let site = validate_site_input(input).map_err(AppError::Validation)?;
+
+    let result = sqlx::query(
+        "UPDATE sites \
+         SET name = $1, country = $2, \
+             point = ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography \
+         WHERE id = $5",
+    )
+    .bind(&site.name)
+    .bind(&site.country)
+    .bind(site.lng)
+    .bind(site.lat)
+    .bind(id)
+    .execute(state.pool())
+    .await
+    .map_err(into_internal)?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    Ok(Json(site.into_list_item(id)))
+}
+
+impl ValidSite {
+    fn into_list_item(self, id: i32) -> ListItem {
+        ListItem {
+            id,
+            name: self.name,
+            country: self.country,
+            lat: self.lat,
+            lng: self.lng,
+        }
+    }
+}
+
+/// Field keys (`name`/`lat`/`lng`/`country`) match the client form field names
+/// 1:1 so a 422 lands on the right input via AntD `Form.setFields`.
+fn validate_site_input(input: SiteInput) -> Result<ValidSite, FieldErrors> {
+    let mut errors = FieldErrors::new();
+
+    let name = {
+        let trimmed = input.name.trim();
+        if trimmed.is_empty() {
+            errors.add("name", "Cannot be empty");
+            String::new()
+        } else if trimmed.chars().count() > SITE_NAME_MAX {
+            errors.add(
+                "name",
+                format!("Must be at most {SITE_NAME_MAX} characters"),
+            );
+            String::new()
+        } else {
+            trimmed.to_owned()
+        }
+    };
+
+    if !(-90.0..=90.0).contains(&input.lat) {
+        errors.add("lat", "Must be between -90 and 90");
+    }
+    if !(-180.0..=180.0).contains(&input.lng) {
+        errors.add("lng", "Must be between -180 and 180");
+    }
+
+    let country = match input.country.as_deref().map(str::trim) {
+        None | Some("") => None,
+        Some(c) if c.len() == 2 && c.chars().all(|ch| ch.is_ascii_alphabetic()) => {
+            Some(c.to_ascii_uppercase())
+        }
+        Some(_) => {
+            errors.add("country", "Must be a 2-letter country code");
+            None
+        }
+    };
+
+    if errors.is_empty() {
+        Ok(ValidSite {
+            name,
+            lat: input.lat,
+            lng: input.lng,
+            country,
+        })
+    } else {
+        Err(errors)
+    }
 }
 
 /// Pack `(name, id)` and base64url-encode. The name is length-prefixed so the

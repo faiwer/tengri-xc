@@ -1,18 +1,37 @@
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Input, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { SiteListItem } from '../../api/admin/sites.io';
 import { Flag } from '../../components/Flag';
 import { LoadError } from '../../components/LoadError';
 import { useErrorToast } from '../../core/hooks';
 import { SettingsSection } from './SettingsSection';
+import { SiteFormModal } from './SiteFormModal';
 import styles from './SitesSettings.module.scss';
 import { useSitesFeed } from './useSitesFeed';
 
 export function SitesSettings() {
   const feed = useSitesFeed();
   useErrorToast(feed.error, { title: "Couldn't load sites" });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  // The row being edited, or `null` when the modal is opened to create.
+  const [editing, setEditing] = useState<SiteListItem | null>(null);
+
+  const openCreate = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+  const openEdit = (site: SiteListItem) => {
+    setEditing(site);
+    setModalOpen(true);
+  };
+  const onSaved = (site: SiteListItem) => {
+    feed.onSaved(site);
+    setModalOpen(false);
+  };
 
   const columns = useMemo<ColumnsType<SiteListItem>>(
     () => [
@@ -50,6 +69,20 @@ export function SitesSettings() {
         align: 'right',
         render: (lng: number) => lng.toFixed(5),
       },
+      {
+        key: 'edit',
+        width: '48px',
+        align: 'center',
+        render: (_, record) => (
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            aria-label={`Edit "${record.name}"`}
+            onClick={() => openEdit(record)}
+          />
+        ),
+      },
     ],
     [],
   );
@@ -63,13 +96,21 @@ export function SitesSettings() {
       title="Sites"
       scrollable
       action={
-        <Input.Search
-          allowClear
-          placeholder="Search by name"
-          value={feed.query}
-          onChange={(e) => feed.setQuery(e.target.value)}
-          className={styles.search}
-        />
+        <div className={styles.actions}>
+          <Input.Search
+            allowClear
+            placeholder="Search by name"
+            value={feed.query}
+            onChange={(e) => feed.setQuery(e.target.value)}
+            className={styles.search}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openCreate}
+            aria-label="Add site"
+          />
+        </div>
       }
     >
       {hasInlineError ? (
@@ -109,6 +150,13 @@ export function SitesSettings() {
           )}
         </>
       )}
+
+      <SiteFormModal
+        open={modalOpen}
+        site={editing}
+        onSaved={onSaved}
+        onClose={() => setModalOpen(false)}
+      />
     </SettingsSection>
   );
 }

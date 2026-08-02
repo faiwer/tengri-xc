@@ -1,4 +1,4 @@
-import { Button, Form, InputNumber, Segmented, Select, Skeleton } from 'antd';
+import { Button, Form, InputNumber, Segmented, Skeleton } from 'antd';
 import { useMemo } from 'react';
 import { Navigate } from 'react-router';
 import { updateMe } from '../../api/users';
@@ -7,11 +7,11 @@ import type {
   UpdateProfileRequest,
   UserSex,
 } from '../../api/users.io';
+import { CountrySelect } from '../../components/CountrySelect';
 import { LoadError } from '../../components/LoadError';
 import { useFormSubmit } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
-import { countryOptions } from '../../utils/formatCountry';
 import { shallowEqual } from '../../utils/shallowEqual';
 import { SettingsSection } from './SettingsSection';
 
@@ -48,7 +48,6 @@ interface ProfileFormValues extends Record<string, unknown> {
 
 function ProfileForm({ initial, onSaved }: ProfileFormProps) {
   const [form] = Form.useForm<ProfileFormValues>();
-  const countries = useMemo(countryOptions, []);
 
   const { onFinish, isSubmitting } = useFormSubmit({
     form,
@@ -99,16 +98,7 @@ function ProfileForm({ initial, onSaved }: ProfileFormProps) {
         </Form.Item>
 
         <Form.Item name="country" label="Country">
-          <Select
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            placeholder="Select country"
-            options={countries.map((country) => ({
-              value: country.code,
-              label: country.label,
-            }))}
-          />
+          <CountrySelect placeholder="Select country" />
         </Form.Item>
 
         <Form.Item name="civlId" label="CIVL ID">

@@ -27,6 +27,13 @@ export interface SitesFeed {
   loadMore: () => void;
   /** Re-run the most recent fetch in place. */
   retry: () => void;
+  /**
+   * Splice a created/updated site into the current list without refetching:
+   * replace the matching id in place, or prepend a brand-new row. A new row
+   * lands at the top rather than its sorted `(name, id)` position; the next
+   * search/reload re-sorts it.
+   */
+  onSaved: (site: SiteListItem) => void;
 }
 
 /** Wait this long after the last keystroke before refetching. */
@@ -58,6 +65,19 @@ export function useSitesFeed(): SitesFeed {
   });
 
   const retry = useEventHandler(() => setRetryToken((t) => t + 1));
+
+  const onSaved = useEventHandler((saved: SiteListItem) => {
+    setState((s) => {
+      const items = s.items ?? [];
+      const exists = items.some((item) => item.id === saved.id);
+      return {
+        ...s,
+        items: exists
+          ? items.map((item) => (item.id === saved.id ? saved : item))
+          : [saved, ...items],
+      };
+    });
+  });
 
   useAsyncEffect(
     async (signal) => {
@@ -103,6 +123,7 @@ export function useSitesFeed(): SitesFeed {
     setQuery,
     loadMore,
     retry,
+    onSaved,
   };
 }
 
