@@ -1,18 +1,18 @@
-.row {
+.cell {
+  // Padding lives on the link, not the cell, so the row's hover background
+  // covers the whole cell including the gaps between adjacent cell links.
+  padding: 0;
+  // The row's `<tr>` is `display: contents` in the grid table, so its
+  // border/hover live on the cells instead.
   border-bottom: 1px solid #eef0f3;
   transition: background-color 0.12s ease;
+  // Let the 1fr Takeoff/Pilot cells shrink below their content width so the
+  // link's ellipsis can kick in.
+  min-width: 0;
 }
 
-.row:hover {
+.row:hover .cell {
   background: #f4f6f8;
-}
-
-.cell {
-  // Padding lives on the cell rather than the link so the row's hover
-  // background covers full-width even on the gap between adjacent cell
-  // links — a link-on-cell with padding-on-cell layout cannot leak gaps.
-  padding: 0;
-  vertical-align: middle;
 }
 
 .cell[data-align="right"] {

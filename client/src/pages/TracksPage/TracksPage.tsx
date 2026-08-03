@@ -12,6 +12,7 @@ import {
 } from '../../core/preferences';
 import { formatDuration, formatShortDate } from '../../utils/formatDateTime';
 import { formatDistance } from '../../utils/formatUnits';
+import { useMediaQuery } from '../../utils/useMediaQuery';
 import styles from './TracksPage.module.scss';
 import { useScrollSentinel } from './useScrollSentinel';
 import { useTracksFeed } from './useTracksFeed';
@@ -26,6 +27,9 @@ export function TracksPage() {
   const onSentinelRef = useScrollSentinel(feed.loadMore);
   const prefs = usePreferences();
 
+  const layout = useLayout();
+  const { gridTemplateColumns, thead } = useColumns(layout);
+
   // Restore the scroll position captured when we last left for a flight page.
   // Runs once on mount; a hydrated feed renders its rows synchronously, so the
   // table is already tall enough to scroll to `initialScrollTop`.
@@ -39,14 +43,14 @@ export function TracksPage() {
     () =>
       (feed.items ?? []).map((item, index) => ({
         item,
-        cells: buildHomeRowCells(item, index + 1, prefs),
+        cells: buildHomeRowCells(item, index + 1, prefs, layout),
         date: formatShortDate(
           item.track.takeoffAt,
           prefs,
           item.track.takeoffOffset,
         ),
       })),
-    [feed.items, prefs],
+    [feed.items, prefs, layout],
   );
 
   const isEmpty = feed.items?.length === 0 && !feed.isLoading;
@@ -57,22 +61,12 @@ export function TracksPage() {
     <PageLayout>
       <table
         className={styles.table}
+        style={{ gridTemplateColumns }}
         // Capture the feed into the history entry on the way out: pointerdown
         // fires while still on `/tracks`, before the row `<Link>` navigates.
         onPointerDown={feed.persist}
       >
-        <thead>
-          <tr>
-            <th className={`${styles.colIdx} ${styles.alignRight}`}>#</th>
-            <th className={styles.colTakeoff}>Takeoff</th>
-            <th>Pilot</th>
-            <th className={`${styles.colDuration} ${styles.alignRight}`}>
-              Duration
-            </th>
-            <th className={styles.colScore}>Score</th>
-            <th className={styles.colDist}>Distance</th>
-          </tr>
-        </thead>
+        {thead}
         <tbody>
           {rows.map(({ item, cells, date }, index) => {
             const showDate = index === 0 || rows[index - 1].date !== date;
@@ -108,19 +102,72 @@ export function TracksPage() {
   );
 }
 
+function useLayout() {
+  const layout = useMediaQuery({
+    micro: ['<', 450],
+    tiny: ['<', 550],
+    small: ['<', 650],
+    medium: ['<', 750],
+    normal: ['>=', 750],
+  });
+
+  return {
+    layout,
+    showTakeoff: layout !== 'micro',
+    showDuration: layout !== 'tiny',
+    showIdx: layout === 'normal',
+    showScore: layout === 'normal' || layout === 'medium',
+  };
+}
+
+function useColumns(layout: ReturnType<typeof useLayout>) {
+  const gridTemplateColumns = gridColumns([
+    [layout.showIdx, 'max-content'], // #
+    [layout.showTakeoff, '1fr'], // takeoff
+    [true, '1fr'], // pilot
+    [layout.showDuration, 'max-content'], // duration
+    [layout.showScore, 'max-content'], // score
+    [true, 'max-content'], // distance
+  ]);
+
+  const thead = (
+    <thead>
+      <tr>
+        {layout.showIdx && <th className={styles.alignRight}>#</th>}
+        {layout.showTakeoff && <th>Takeoff</th>}
+        <th>Pilot</th>
+        {layout.showDuration && (
+          <th className={styles.alignRight}>
+            {layout.layout === 'micro' ? '' : 'Duration'}
+          </th>
+        )}
+        {layout.showScore && <th>Score</th>}
+        <th>Distance</th>
+      </tr>
+    </thead>
+  );
+
+  return { gridTemplateColumns, thead };
+}
+
 function buildHomeRowCells(
   item: TrackListItem,
   rowNumber: number,
   prefs: ResolvedPreferences,
+  {
+    showScore,
+    showIdx,
+    showDuration,
+    showTakeoff,
+  }: ReturnType<typeof useLayout>,
 ): TrackRowCell[] {
-  return [
-    {
+  const cells: Array<TrackRowCell | false> = [
+    showIdx && {
       key: 'idx',
       content: rowNumber,
       align: 'right',
-      className: styles.colIdx,
     },
-    {
+    showTakeoff && {
       key: 'takeoff',
       content: item.track.takeoff.name ? (
         <>
@@ -136,7 +183,6 @@ function buildHomeRowCells(
         '—'
       ),
       muted: item.track.takeoff.name == null,
-      className: styles.colTakeoff,
     },
     {
       key: 'pilot',
@@ -152,31 +198,35 @@ function buildHomeRowCells(
         </>
       ),
     },
-    {
+    showDuration && {
       key: 'duration',
       content: formatDuration(item.track.duration),
       align: 'right',
-      className: styles.colDuration,
     },
-    {
+    showScore && {
       key: 'score',
       content: formatScore(item.track.mainRouteType, item.track.mainScore),
       align: 'left',
       muted: item.track.mainScore == null,
-      className: styles.colScore,
     },
     {
       key: 'dist',
-      content:
-        item.track.mainDistance != null
-          ? formatDistance(item.track.mainDistance, prefs)
-          : '—',
+      content: formatDistanceScored(item, showScore, prefs),
       align: 'left',
       muted: item.track.mainDistance == null,
-      className: styles.colDist,
     },
   ];
+  return cells.filter((cell) => !!cell);
 }
+
+/** Space-joined grid tracks for the columns that are currently visible. */
+const gridColumns = (
+  columns: Array<[visible: boolean, track: string]>,
+): string =>
+  columns
+    .filter(([visible]) => visible)
+    .map(([, track]) => track)
+    .join(' ');
 
 const formatScore = (
   routeType: RouteType | null,
@@ -189,6 +239,25 @@ const formatScore = (
   return (
     <>
       <RouteTypeIcon kind={routeType} /> {score.toFixed(2)}
+    </>
+  );
+};
+
+const formatDistanceScored = (
+  item: TrackListItem,
+  showScore: boolean,
+  prefs: ResolvedPreferences,
+): React.ReactNode => {
+  const { mainRouteType, mainDistance } = item.track;
+  return (
+    <>
+      {showScore || !mainRouteType ? null : (
+        <>
+          <RouteTypeIcon kind={mainRouteType} />
+          &nbsp;&nbsp;
+        </>
+      )}
+      {mainDistance ? formatDistance(mainDistance, prefs) : '—'}
     </>
   );
 };

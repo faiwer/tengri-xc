@@ -1,15 +1,20 @@
 .table {
-  width: 100%;
-  border-collapse: collapse;
-  // Fixed layout means columns size from the header alone, not from the
-  // widest cell discovered during render. Keeps the column geometry
-  // stable as new pages stream in (otherwise a long pilot name in page
-  // 2 would shift every previously-rendered row).
-  table-layout: fixed;
+  display: grid;
+  // `grid-template-columns` is set inline: the visible columns (and thus
+  // the tracks) change with the viewport, so the template is data-driven
+  // from the same show* flags that gate the header/cells.
   background: #fff;
   border: 1px solid #e3e3e7;
   border-radius: 8px;
   overflow: hidden;
+}
+
+// The table is a CSS grid: the semantic wrappers carry no box, so every
+// `<th>`/`<td>` becomes a direct grid item aligned to one column set.
+.table thead,
+.table tbody,
+.table tr {
+  display: contents;
 }
 
 .table thead th {
@@ -24,39 +29,12 @@
   background: #f7f7f8;
 }
 
-// Column widths under `table-layout: fixed`: every column except Pilot
-// gets an explicit width sized to its longest expected content; Pilot
-// is left unsized so it absorbs all the remaining horizontal space.
-// Apply to both the `<th>` and the corresponding `<td>` so the cell
-// widths stay aligned (only the first row's `<td>` widths are honoured
-// under fixed layout, but mirroring keeps it robust to refactors).
-.colIdx {
-  width: 56px;
-}
-
-.colTakeoff {
-  width: 180px;
-}
-
-.colDuration {
-  width: 100px;
-}
-
-.colScore {
-  // Fits the longest expected value: "Task 1234.56" (12 chars).
-  width: 110px;
-}
-
-.colDist {
-  // Fits the longest expected value: "1234.5 km" / "1234.5 mi".
-  width: 100px;
-}
-
 .alignRight {
   text-align: right !important;
 }
 
 .dateRow td {
+  grid-column: 1 / -1;
   padding: 0.2rem 0.85rem;
   background: #f7f7f8;
   font-size: 0.72rem;
@@ -67,6 +45,7 @@
 }
 
 .skeletonRow td {
+  grid-column: 1 / -1;
   padding: 0.55rem 0.85rem;
 }
 
