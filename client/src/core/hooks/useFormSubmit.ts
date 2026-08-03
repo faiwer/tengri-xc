@@ -64,12 +64,18 @@ export function useFormSubmit<TValues, TResult>(
       if (err instanceof ValidationError) {
         const fields = mapServerFieldsToFormFields(err.fields, fieldPrefix);
         if (fields.length > 0) {
+          const cleared = form
+            .getFieldsError()
+            .filter((field) => field.errors.length > 0)
+            .map((field) => ({ name: field.name, errors: [] as string[] }));
           // AntD `setFields` is generic over the form values shape and
           // wants `name` typed against the path type for `TValues`. The
           // server gives us untyped strings; cast at the boundary so
           // call sites don't have to thread the form generic into the
           // error map.
-          form.setFields(fields as Parameters<typeof form.setFields>[0]);
+          form.setFields([...cleared, ...fields] as Parameters<
+            typeof form.setFields
+          >[0]);
           return;
         }
       }
