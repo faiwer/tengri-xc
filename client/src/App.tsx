@@ -19,7 +19,6 @@ import {
   SitesSettings,
   StatsSettings,
   SystemSettings,
-  UserDetailSettings,
   UsersSettings,
 } from './pages/SettingsPage';
 import { TracksPage } from './pages/TracksPage';
@@ -59,7 +58,6 @@ export function App() {
                 <Route path="my-gliders" element={<MyGlidersSettings />} />
                 <Route path="system" element={<SystemSettings />} />
                 <Route path="users" element={<UsersSettings />} />
-                <Route path="users/:id" element={<UserDetailSettings />} />
                 <Route path="gliders" element={<GlidersSettings />} />
                 <Route path="sites" element={<SitesSettings />} />
               </Route>
