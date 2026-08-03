@@ -250,8 +250,8 @@ async fn create(
     let valid = validate_user(input)?;
 
     // Uniqueness pre-check for clean per-field 422s; the unique indexes
-    // (`users_login_key` / `users_email_key`) remain the backstop for a race
-    // between this check and the insert.
+    // (`users_name_key` / `users_login_key` / `users_email_key`) remain the
+    // backstop for a race between this check and the insert.
     let mut errors = FieldErrors::new();
     check_unique(state.pool(), &valid, None, &mut errors).await?;
     if valid.password.is_some() && valid.login.is_none() && valid.email.is_none() {
@@ -420,10 +420,10 @@ fn validate_user(input: UserInput) -> Result<ValidUser, AppError> {
     })
 }
 
-/// Add a `login` / `email` field error when the value is already taken by
-/// another row. `exclude` is the row being edited (skipped on PATCH). Login
-/// folds case (`users_login_key` is on `LOWER(login)`); email is stored
-/// lowercased so a plain `=` matches the index.
+/// Add a `name` / `login` / `email` field error when the value is already
+/// taken by another row. `exclude` is the row being edited (skipped on PATCH).
+/// Name and login fold case (`users_name_key` / `users_login_key` are on
+/// `LOWER(...)`); email is stored lowercased so a plain `=` matches the index.
 async fn check_unique(
     pool: &sqlx::PgPool,
     valid: &ValidUser,
@@ -431,29 +431,31 @@ async fn check_unique(
     errors: &mut FieldErrors,
 ) -> Result<(), AppError> {
     let exclude = exclude.unwrap_or(0);
+
+    // (form field, `$1` predicate, value). `name` is mandatory; `login` /
+    // `email` are skipped when unset. Name and login fold case; email is
+    // already stored lowercased so a plain `=` matches its index. The
+    // predicates are static literals — no user input reaches the SQL text.
+    let mut checks: Vec<(&str, &str, &str)> =
+        vec![("name", "LOWER(name) = LOWER($1)", valid.name.as_str())];
     if let Some(login) = valid.login.as_deref() {
-        let taken: Option<i32> =
-            sqlx::query_scalar("SELECT id FROM users WHERE LOWER(login) = LOWER($1) AND id <> $2")
-                .bind(login)
-                .bind(exclude)
-                .fetch_optional(pool)
-                .await
-                .map_err(into_internal)?;
-        if taken.is_some() {
-            errors.add("login", "Already taken");
-        }
+        checks.push(("login", "LOWER(login) = LOWER($1)", login));
+    }
+    if let Some(email) = valid.email.as_deref() {
+        checks.push(("email", "email = $1", email));
     }
 
-    if let Some(email) = valid.email.as_deref() {
-        let taken: Option<i32> =
-            sqlx::query_scalar("SELECT id FROM users WHERE email = $1 AND id <> $2")
-                .bind(email)
-                .bind(exclude)
-                .fetch_optional(pool)
-                .await
-                .map_err(into_internal)?;
+    for (field, predicate, value) in checks {
+        let taken: Option<i32> = sqlx::query_scalar(&format!(
+            "SELECT id FROM users WHERE {predicate} AND id <> $2"
+        ))
+        .bind(value)
+        .bind(exclude)
+        .fetch_optional(pool)
+        .await
+        .map_err(into_internal)?;
         if taken.is_some() {
-            errors.add("email", "Already taken");
+            errors.add(field, "Already taken");
         }
     }
     Ok(())
