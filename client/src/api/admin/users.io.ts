@@ -17,6 +17,8 @@ export const UserListItemIo = z.object({
   createdAt: z.number().int(),
   /** Unix epoch seconds (UTC). */
   lastLoginAt: z.number().int().nullable(),
+  /** Flights the user owns; shown in the delete-confirm dialog. */
+  flightCount: z.number().int(),
 });
 
 export type UserListItem = z.infer<typeof UserListItemIo>;

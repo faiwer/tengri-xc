@@ -1,4 +1,10 @@
-import { apiGet, apiPatch, apiPost, type ApiRequestOptions } from '../core';
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  type ApiRequestOptions,
+} from '../core';
 import {
   UserIo,
   UsersPageIo,
@@ -43,3 +49,13 @@ export const updateUser = (
   input: UserInput,
   options: ApiRequestOptions = {},
 ): Promise<User> => apiPatch(`/admin/users/${id}`, input, UserIo, options);
+
+/**
+ * `DELETE /admin/users/:id` — hard-delete a user and all their flights.
+ * Destructive and irreversible. Requires `MANAGE_USERS`; the server refuses
+ * self-deletion.
+ */
+export const deleteUser = (
+  id: number,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiDelete(`/admin/users/${id}`, options);

@@ -34,6 +34,8 @@ export interface UsersFeed {
    * re-sorts it.
    */
   onSaved: (user: UserListItem) => void;
+  /** Drop a deleted user from the list. */
+  onRemoved: (id: number) => void;
 }
 
 /** Wait this long after the last keystroke before refetching. */
@@ -75,14 +77,27 @@ export function useUsersFeed(): UsersFeed {
   const onSaved = useEventHandler((saved: UserListItem) => {
     setState((s) => {
       const items = s.items ?? [];
-      const exists = items.some((item) => item.id === saved.id);
+      const existing = items.find((item) => item.id === saved.id);
       return {
         ...s,
-        items: exists
-          ? items.map((item) => (item.id === saved.id ? saved : item))
+        items: existing
+          ? // Editing a user can't change their flight count, but the
+            // create/update projection doesn't carry it — keep the old value.
+            items.map((item) =>
+              item.id === saved.id
+                ? { ...saved, flightCount: existing.flightCount }
+                : item,
+            )
           : [saved, ...items],
       };
     });
+  });
+
+  const onRemoved = useEventHandler((id: number) => {
+    setState((s) => ({
+      ...s,
+      items: s.items?.filter((item) => item.id !== id) ?? null,
+    }));
   });
 
   useAsyncEffect(
@@ -130,6 +145,7 @@ export function useUsersFeed(): UsersFeed {
     loadMore,
     retry,
     onSaved,
+    onRemoved,
   };
 }
 

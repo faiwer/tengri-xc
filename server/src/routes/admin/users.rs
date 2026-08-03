@@ -15,6 +15,8 @@
 //! - `PATCH /admin/users/:id` — edit an existing user; returns the full
 //!   [`UserDto`]. Scalars are a full replace; an empty `password` leaves the
 //!   stored hash untouched.
+//! - `DELETE /admin/users/:id` — hard-delete a user and all they own (flights
+//!   and the rows that cascade off them). Refuses self-deletion. Returns 204.
 //!
 //! Search uses `ILIKE` (no trigram index yet); the user table is small enough
 //! that a Seq Scan is fine. When it isn't, the migration is `CREATE EXTENSION
@@ -24,6 +26,7 @@
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
+    http::StatusCode,
     routing::get,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -45,7 +48,10 @@ use crate::{
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/admin/users", get(list).post(create))
-        .route("/admin/users/{id}", get(detail).patch(update))
+        .route(
+            "/admin/users/{id}",
+            get(detail).patch(update).delete(remove),
+        )
 }
 
 const DEFAULT_LIMIT: u32 = 25;
@@ -94,6 +100,9 @@ struct ListItem {
     /// `timestamptz` as `bigint` on the wire.
     created_at: i64,
     last_login_at: Option<i64>,
+    /// How many flights the user owns. Drives the delete-confirm dialog ("also
+    /// deletes N flights") and is cheap enough at admin-list scale.
+    flight_count: i64,
 }
 
 async fn list(
@@ -132,6 +141,7 @@ async fn list(
         "p.country",
         "EXTRACT(EPOCH FROM u.created_at)::bigint AS created_at",
         "EXTRACT(EPOCH FROM u.last_login_at)::bigint AS last_login_at",
+        "(SELECT count(*) FROM flights f WHERE f.user_id = u.id) AS flight_count",
     ])
     .from("users u")
     .left_join("user_profiles p", "p.user_id = u.id")
@@ -357,6 +367,52 @@ async fn update(
         .await?
         .map(Json)
         .ok_or_else(|| AppError::Internal(anyhow::anyhow!("user {id} vanished after update")))
+}
+
+/// `DELETE /admin/users/:id` — hard-delete a user and everything they own.
+///
+/// `flights.user_id` is `ON DELETE RESTRICT`, so the flights are cleared first
+/// (that cascades to tracks/sources/routes/scoring_jobs and fires the
+/// orphan-custom-glider cleanup trigger); the user delete then cascades the
+/// remaining user-scoped rows (profile, preferences, custom brands/models).
+/// Both run in one transaction. Deleting your own account is refused so an
+/// admin can't lock themselves — and their whole flight history — out by
+/// accident.
+async fn remove(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<i32>,
+) -> Result<StatusCode, AppError> {
+    require_permission(&identity, Permissions::MANAGE_USERS)?;
+
+    if id == identity.user_id {
+        return Err(AppError::BadRequest(
+            "You can't delete your own account".into(),
+        ));
+    }
+
+    let mut tx = state.pool().begin().await.map_err(into_internal)?;
+
+    sqlx::query("DELETE FROM flights WHERE user_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(into_internal)?;
+
+    let deleted = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(into_internal)?;
+
+    // No row deleted → the user never existed. Drop the tx (rolls back the
+    // no-op flight delete) and 404.
+    if deleted.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    tx.commit().await.map_err(into_internal)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Validate + normalise the shared body. Field keys (`name`, `login`, `email`,

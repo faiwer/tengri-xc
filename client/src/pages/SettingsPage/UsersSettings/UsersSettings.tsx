@@ -8,10 +8,7 @@ import { Flag } from '../../../components/Flag';
 import { LoadError } from '../../../components/LoadError';
 import { useErrorToast, useEventHandler } from '../../../core/hooks';
 import { usePreferences } from '../../../core/preferences';
-import {
-  formatShortDate,
-  formatShortTime,
-} from '../../../utils/formatDateTime';
+import { formatShortDate } from '../../../utils/formatDateTime';
 import { SettingsSection } from '../SettingsSection';
 import { UserFormModal } from './UserFormModal';
 import { UserRowActions } from './UserRowActions';
@@ -72,6 +69,14 @@ export function UsersSettings() {
         render: (bits: number) => (isAdminBits(bits) ? '✔️' : null),
       },
       {
+        title: 'Flights',
+        dataIndex: 'flightCount',
+        key: 'flightCount',
+        width: '80px',
+        align: 'right',
+        render: (count: number) => count,
+      },
+      {
         title: 'Joined',
         dataIndex: 'createdAt',
         key: 'createdAt',
@@ -82,24 +87,24 @@ export function UsersSettings() {
         title: 'Last login',
         dataIndex: 'lastLoginAt',
         key: 'lastLoginAt',
-        width: '160px',
+        width: '96px',
         render: (epoch: number | null) =>
-          epoch === null ? (
-            <Muted>never</Muted>
-          ) : (
-            `${formatShortDate(epoch, prefs)} ${formatShortTime(epoch, prefs)}`
-          ),
+          epoch === null ? <Muted>never</Muted> : formatShortDate(epoch, prefs),
       },
       {
         key: 'actions',
         width: '80px',
         align: 'center',
         render: (_, record) => (
-          <UserRowActions user={record} onEdit={openEdit} />
+          <UserRowActions
+            user={record}
+            onEdit={openEdit}
+            onRemoved={feed.onRemoved}
+          />
         ),
       },
     ],
-    [prefs, openEdit],
+    [prefs, openEdit, feed.onRemoved],
   );
 
   // Inline error only for the empty/initial state — otherwise the
@@ -187,6 +192,9 @@ const toListItem = (user: User): UserListItem => ({
   country: user.profile?.country ?? null,
   createdAt: user.createdAt,
   lastLoginAt: user.lastLoginAt,
+  // Create response has no flights yet; an edit's real count is preserved by
+  // `useUsersFeed.onSaved` when it replaces the existing row.
+  flightCount: 0,
 });
 
 const Muted = ({ children }: { children: React.ReactNode }) => (
