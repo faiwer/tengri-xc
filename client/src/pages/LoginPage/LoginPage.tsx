@@ -1,81 +1,23 @@
-import { Button, Form, Input } from 'antd';
-import { Navigate, useNavigate } from 'react-router';
-import { HttpError } from '../../api/core';
-import { login } from '../../api/users';
-import { PageLayout } from '../../components/PageLayout';
-import { useAsync, useErrorToast } from '../../core/hooks';
+import { useEffect } from 'react';
+import { Navigate } from 'react-router';
 import { useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
-import styles from './LoginPage.module.scss';
-
-interface LoginFormValues {
-  identifier: string;
-  password: string;
-}
+import { useLogin } from '../../features/login';
 
 /**
- * Minimal username-or-email + password form. On success: store the
- * `Me` returned by the server in the identity context, navigate to
- * `/flights`. The session cookie is set by the server (HttpOnly).
+ * `/login` stays as a deep-link entry point, but the form itself now lives in
+ * a global modal. Logged-in users go to their flights; everyone else lands on
+ * the home page with the login modal opened.
  */
 export function LoginPage() {
-  const { me, setMe } = useIdentity();
-  const navigate = useNavigate();
+  const { me } = useIdentity();
+  const { openModal } = useLogin();
 
-  const [submit, isLoading, error] = useAsync(
-    async (values: LoginFormValues) => {
-      const next = await login(values);
-      setMe(next);
-      navigate(routes.flights());
-    },
-  );
+  useEffect(() => {
+    if (!me) {
+      openModal();
+    }
+  }, [me, openModal]);
 
-  useErrorToast(loginErrorMessage(error) ?? error, {
-    title: "Couldn't sign in",
-  });
-
-  if (me) {
-    return <Navigate to={routes.flights()} replace />;
-  }
-
-  return (
-    <PageLayout>
-      <Form<LoginFormValues>
-        layout="vertical"
-        className={styles.card}
-        onFinish={submit}
-        requiredMark={false}
-        disabled={isLoading}
-      >
-        <h1 className={styles.title}>Sign in</h1>
-
-        <Form.Item
-          label="Login or email"
-          name="identifier"
-          rules={[{ required: true, message: 'Required' }]}
-        >
-          <Input autoComplete="username" autoFocus />
-        </Form.Item>
-
-        <Form.Item
-          label="Password"
-          name="password"
-          rules={[{ required: true, message: 'Required' }]}
-        >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
-
-        <Button type="primary" htmlType="submit" loading={isLoading} block>
-          Sign in
-        </Button>
-      </Form>
-    </PageLayout>
-  );
+  return <Navigate to={me ? routes.flights() : routes.home()} replace />;
 }
-
-const loginErrorMessage = (error: unknown): string | null => {
-  if (error instanceof HttpError && error.status === 401) {
-    return 'Wrong login or password';
-  }
-  return null;
-};

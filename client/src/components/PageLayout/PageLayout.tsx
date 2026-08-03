@@ -1,5 +1,6 @@
 import {
   GithubOutlined,
+  LoginOutlined,
   LogoutOutlined,
   PlusOutlined,
   SettingOutlined,
@@ -14,6 +15,7 @@ import { useAsync, useErrorToast } from '../../core/hooks';
 import { isAdmin, useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
 import { useSite } from '../../core/site';
+import { useLogin } from '../../features/login';
 import { useUploadFlight } from '../../features/uploadFlight';
 import styles from './PageLayout.module.scss';
 
@@ -34,9 +36,10 @@ interface PageLayoutProps {
  * are owned here so individual pages don't redefine the same shell.
  */
 export function PageLayout({ children, fit = false }: PageLayoutProps) {
-  const { me, setMe } = useIdentity();
+  const { me, isLoading: meIsLoading, setMe } = useIdentity();
   const { site } = useSite();
   const { openModal: openUploadFlightModal } = useUploadFlight();
+  const { openModal: openLoginModal } = useLogin();
   const navigate = useNavigate();
 
   // Reflect the configured site name into the browser tab. Per-page titles
@@ -85,6 +88,20 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
                 aria-label="Sign out"
               />
             </Tooltip>
+          </span>
+        )}
+        {!me && !meIsLoading && (
+          <span className={styles.actions}>
+            <Button
+              icon={<LoginOutlined />}
+              aria-label="Login"
+              onClick={openLoginModal}
+            >
+              Sign in
+            </Button>
+            <Button icon={<PlusOutlined />} aria-label="Login" disabled>
+              Sign up
+            </Button>
           </span>
         )}
       </header>

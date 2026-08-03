@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { IdentityProvider } from './core/identity';
 import { PreferencesProvider } from './core/preferences';
 import { SiteProvider } from './core/site';
+import { LoginProvider } from './features/login';
 import { UploadFlightProvider } from './features/uploadFlight';
 import { PrivacyPage, TermsPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
@@ -76,6 +77,7 @@ const providers: ProviderComponent[] = [
   SiteProvider,
   IdentityProvider,
   PreferencesProvider,
+  LoginProvider,
   UploadFlightProvider,
 ];
 

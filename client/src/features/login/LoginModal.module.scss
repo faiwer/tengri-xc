@@ -1,0 +1,5 @@
+@use "../../core/mixins";
+
+.modal {
+  @include mixins.fullscreen-modal-on-mobile;
+}
