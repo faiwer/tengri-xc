@@ -48,6 +48,7 @@ export function TrackPage() {
     setHoverFraction,
     setHoverLatLng,
   } = useTrackHoverPoint(track, analysis?.window, analysis?.bounds);
+  const [mobileLayout, setMobileLayout] = useState<'info' | 'chart'>('info');
 
   return (
     <PageLayout>
@@ -108,6 +109,8 @@ export function TrackPage() {
             ground={ground}
             mapCenter={mapCenter}
             trackIndex={hoverTrackIndex}
+            mobileLayout={mobileLayout}
+            onMobileLayoutChange={setMobileLayout}
           />
           <div className={styles.chartArea}>
             {track && analysis ? (

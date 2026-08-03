@@ -1,3 +1,5 @@
+import clsx from 'clsx';
+import { InfoCircleFilled, AreaChartOutlined } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useMemo, type CSSProperties } from 'react';
 import { chartHelpItems } from '../../components/FlightChart/ChartHelp';
@@ -18,6 +20,8 @@ interface CursorReadoutProps {
   ground: Float32Array | null;
   mapCenter: LatLng | null;
   trackIndex: number | null;
+  mobileLayout: 'info' | 'chart';
+  onMobileLayoutChange: (layout: 'info' | 'chart') => void;
 }
 
 export function CursorReadout({
@@ -26,6 +30,8 @@ export function CursorReadout({
   ground,
   mapCenter,
   trackIndex,
+  mobileLayout,
+  onMobileLayoutChange,
 }: CursorReadoutProps) {
   const prefs = usePreferences();
   const readout = useMemo(
@@ -64,6 +70,10 @@ export function CursorReadout({
       role="status"
       aria-label="Cursor readout"
     >
+      <MobileLayoutSwitcher
+        mobileLayout={mobileLayout}
+        onMobileLayoutChange={onMobileLayoutChange}
+      />
       {fields.map(({ color, icon, key, tooltip, value, width }) => (
         <Tooltip key={key} title={tooltip}>
           <span
@@ -94,3 +104,28 @@ const segmentWidthStyle = (
 
 const iconColorStyle = (color: string | undefined): CSSProperties | undefined =>
   color === undefined ? undefined : { color };
+
+function MobileLayoutSwitcher({
+  mobileLayout,
+  onMobileLayoutChange,
+}: {
+  mobileLayout: 'info' | 'chart';
+  onMobileLayoutChange: (layout: 'info' | 'chart') => void;
+}) {
+  return (
+    <div className={styles.mobileLayoutSwitcher}>
+      {(['info', 'chart'] as const).map((mode) => (
+        <button
+          className={clsx(
+            styles.layoutModBtn,
+            mobileLayout === mode && styles.active,
+          )}
+          onClick={() => onMobileLayoutChange(mode)}
+          key={mode}
+        >
+          {mode === 'info' ? <InfoCircleFilled /> : <AreaChartOutlined />}
+        </button>
+      ))}
+    </div>
+  );
+}
