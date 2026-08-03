@@ -21,6 +21,7 @@ import { useTrackHoverPoint } from './useTrackHoverPoint';
 import { useTrackPageData } from './useTrackPageData';
 import { LoadingIcon } from '../components/icons/LoadingIcon';
 import { ErrorPane } from '../components/ErrorPane/ErrorPane';
+import { MobileTrackInfo } from './MobileTrackInfo';
 
 export function TrackPage() {
   const { id } = useParams() as { id: string };
@@ -112,17 +113,25 @@ export function TrackPage() {
             mobileLayout={mobileLayout}
             onMobileLayoutChange={setMobileLayout}
           />
-          <div className={styles.chartArea}>
+          <div className={styles.bottom} data-mobile-layout={mobileLayout}>
             {track && analysis ? (
-              <FlightChart
-                activeKind={activeChartKind}
-                track={track}
-                analysis={analysis}
-                ground={ground}
-                onActiveKindChange={setActiveChartKind}
-                onHoverFractionChange={setHoverFraction}
-                hoverFraction={chartHoverFraction}
-              />
+              <>
+                <FlightChart
+                  className={styles.chart}
+                  activeKind={activeChartKind}
+                  track={track}
+                  analysis={analysis}
+                  ground={ground}
+                  onActiveKindChange={setActiveChartKind}
+                  onHoverFractionChange={setHoverFraction}
+                  hoverFraction={chartHoverFraction}
+                />
+                <MobileTrackInfo
+                  className={styles.info}
+                  track={track}
+                  analysis={analysis}
+                />
+              </>
             ) : chartLoading ? (
               <div className={styles.chartLoadingSlot}>
                 <Loading />

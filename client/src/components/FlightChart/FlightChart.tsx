@@ -1,4 +1,5 @@
 import { Segmented } from 'antd';
+import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { AltitudeIcon } from '../icons/AltitudeIcon';
 import { SpeedIcon } from '../icons/SpeedIcon';
@@ -23,6 +24,7 @@ interface FlightChartProps {
   onHoverFractionChange?: HoverFractionHandler;
   /** External map hover progress; drives the chart cursor line. */
   hoverFraction?: number | null;
+  className?: string;
 }
 
 /**
@@ -44,9 +46,13 @@ export function FlightChart({
   onActiveKindChange,
   onHoverFractionChange,
   hoverFraction,
+  className,
 }: FlightChartProps) {
   return (
-    <section className={styles.panel} aria-label="Flight charts">
+    <section
+      className={clsx(styles.panel, className)}
+      aria-label="Flight charts"
+    >
       <div className={styles.controls}>
         <ChartHelpButton
           kind={activeKind}

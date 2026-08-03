@@ -69,8 +69,26 @@
   }
 }
 
-.right:fullscreen .chartArea {
+.right:fullscreen .bottom {
   display: none;
+}
+
+.bottom {
+  @media (width < 1000px) {
+    &[data-mobile-layout="info"] .chart {
+      display: none;
+    }
+
+    &[data-mobile-layout="chart"] .info {
+      display: none;
+    }
+  }
+
+  @media (width >= 1000px) {
+    .info {
+      display: none;
+    }
+  }
 }
 
 .chartLoadingSlot {

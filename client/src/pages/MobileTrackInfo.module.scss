@@ -1,0 +1,7 @@
+// Should be in sync with the chart height.
+.panel {
+  height: var(--chart-height, 220px);
+  background: var(--sidebag-bg);
+  color: var(--sidebar-text);
+  padding: var(--page-content-pad);
+}
