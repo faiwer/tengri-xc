@@ -6,7 +6,6 @@
   // map into normal flow), `height: 100%` collapses to `auto` and the
   // `min-height` floor prevents a 0-tall map.
   height: 100%;
-  min-height: 400px;
   overflow: hidden;
 }
 

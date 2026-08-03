@@ -9,6 +9,8 @@
   align-items: stretch;
   flex: 1;
   min-height: 0;
+  // TODO: enforce this in the readout component
+  --readout-height: 26px;
 
   @media (width < 1000px) {
     position: fixed;
@@ -54,6 +56,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+
+  @media (width < 1000px) and (orientation: landscape) {
+    flex-direction: row;
+    --chart-height: calc(100% - var(--readout-height));
+  }
 }
 
 .mapSlot {
@@ -63,9 +70,14 @@
   justify-content: center;
   align-items: center;
   position: relative; // for ErrorPane
+  background: #fff;
 
   .loading {
     font-size: 5rem;
+  }
+
+  @media (width < 1000px) and (orientation: landscape) {
+    margin-bottom: var(--readout-height);
   }
 }
 
@@ -79,8 +91,15 @@
       display: none;
     }
 
-    &[data-mobile-layout="chart"] .info {
-      display: none;
+    &[data-mobile-layout="chart"] {
+      .info {
+        display: none;
+      }
+
+      .chart {
+        height: 100%;
+        width: min(400px, 50vw);
+      }
     }
   }
 
@@ -99,6 +118,10 @@
 
   .loading {
     font-size: 3rem;
+  }
+
+  @media (width < 1000px) and (orientation: landscape) {
+    width: min(300px, 50vw);
   }
 }
 
@@ -119,6 +142,14 @@
   @media (width < 1000px) {
     // compensate for the layout switcher buttons.
     padding-left: calc(0.8rem + (var(--layout-btn-w) * 2));
+  }
+
+  // Occupy the whole bottom of the screen.
+  @media (width < 1000px) and (orientation: landscape) {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    right: 0;
   }
 }
 
