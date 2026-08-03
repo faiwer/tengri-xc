@@ -1,0 +1,16 @@
+# Build context is `server/`. Keep it lean: Cargo manifests, crates/, src/,
+# migrations/ (embedded by sqlx::migrate! at compile time), and data/ (needed
+# in the image for the leonardo CLI) are all kept.
+
+# Compiled artifacts — never send the local target dir into the build.
+target/
+
+# Leonardo test files.
+leo/
+
+# Secrets / local-only config. Prod injects env vars directly.
+.env
+.env.example
+
+# Docs.
+**/*.md
