@@ -7,6 +7,12 @@
   border: 1px solid #e3e3e7;
   border-radius: 8px;
   overflow: hidden;
+
+  @media (width < 1000px) {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
 }
 
 // The table is a CSS grid: the semantic wrappers carry no box, so every

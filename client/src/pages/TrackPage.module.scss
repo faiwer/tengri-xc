@@ -95,11 +95,6 @@
       .info {
         display: none;
       }
-
-      .chart {
-        height: 100%;
-        width: min(400px, 50vw);
-      }
     }
   }
 
@@ -107,6 +102,17 @@
     .info {
       display: none;
     }
+  }
+}
+
+.chart {
+  @media (width < 1000px) and (orientation: portrait) {
+    height: 100%;
+  }
+
+  @media (width < 1000px) and (orientation: landscape) {
+    width: min(400px, 50vw);
+    height: var(--chart-height);
   }
 }
 
