@@ -113,6 +113,14 @@ export function useTracksFeed(): TracksFeed {
     [state.cursor, retryToken],
   );
 
+  // Clear the feed snapshot on page unload. It makes no sense to recover the
+  // previous state on manual refresh. Users expect a fresh start.
+  useAsyncEffect(() => {
+    const clear = () => writeFeedSnapshot(null);
+    window.addEventListener('beforeunload', clear);
+    return () => window.removeEventListener('beforeunload', clear);
+  }, []);
+
   return {
     items: state.items,
     isLoading: state.isLoading,

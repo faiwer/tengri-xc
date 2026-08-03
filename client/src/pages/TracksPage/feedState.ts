@@ -43,7 +43,7 @@ export function readFeedSnapshot(state: unknown): FeedSnapshot | null {
  * re-render. `usr` is react-router's slot for `location.state`; spreading the
  * existing state keeps its `key`/`idx` bookkeeping intact.
  */
-export function writeFeedSnapshot(snapshot: FeedSnapshot): void {
+export function writeFeedSnapshot(snapshot: FeedSnapshot | null): void {
   window.history.replaceState({ ...window.history.state, usr: snapshot }, '');
 }
 

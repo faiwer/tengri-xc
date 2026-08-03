@@ -79,7 +79,7 @@ export function SitesSettings() {
 
   const columns = useMemo<ColumnsType<SiteListItem>>(
     () => [
-      { title: 'ID', dataIndex: 'id', key: 'id', width: '32px' },
+      { title: 'ID', dataIndex: 'id', key: 'id', width: '52px' },
       {
         title: 'Name',
         dataIndex: 'name',
