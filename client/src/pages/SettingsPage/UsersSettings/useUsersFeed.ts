@@ -27,6 +27,13 @@ export interface UsersFeed {
   loadMore: () => void;
   /** Re-run the most recent fetch in place. */
   retry: () => void;
+  /**
+   * Splice a created/updated user into the current list without refetching:
+   * replace the matching id in place, or prepend a brand-new row. A new row
+   * lands at the top rather than its sorted position; the next search/reload
+   * re-sorts it.
+   */
+  onSaved: (user: UserListItem) => void;
 }
 
 /** Wait this long after the last keystroke before refetching. */
@@ -64,6 +71,19 @@ export function useUsersFeed(): UsersFeed {
   });
 
   const retry = useEventHandler(() => setRetryToken((t) => t + 1));
+
+  const onSaved = useEventHandler((saved: UserListItem) => {
+    setState((s) => {
+      const items = s.items ?? [];
+      const exists = items.some((item) => item.id === saved.id);
+      return {
+        ...s,
+        items: exists
+          ? items.map((item) => (item.id === saved.id ? saved : item))
+          : [saved, ...items],
+      };
+    });
+  });
 
   useAsyncEffect(
     async (signal) => {
@@ -109,6 +129,7 @@ export function useUsersFeed(): UsersFeed {
     setQuery,
     loadMore,
     retry,
+    onSaved,
   };
 }
 

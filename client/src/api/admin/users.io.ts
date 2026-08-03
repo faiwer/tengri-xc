@@ -52,8 +52,8 @@ export interface UserInput {
   emailVerified: boolean;
   /** Raw `Permissions` bitfield; see `core/identity/permissions.ts`. */
   permissions: number;
-  /** Plaintext password to (re)set. Omit or leave empty to keep unchanged. */
-  password?: string;
+  /** Plaintext password to (re)set. `null` keeps the current one unchanged. */
+  password: string | null;
   profile: {
     civlId: number | null;
     country: string | null;

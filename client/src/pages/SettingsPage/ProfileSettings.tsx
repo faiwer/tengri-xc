@@ -12,6 +12,7 @@ import { LoadError } from '../../components/LoadError';
 import { useFormSubmit } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
 import { routes } from '../../core/routes';
+import { SEX_OPTIONS } from '../../core/sex';
 import { shallowEqual } from '../../utils/shallowEqual';
 import { SettingsSection } from './SettingsSection';
 
@@ -114,12 +115,6 @@ function ProfileForm({ initial, onSaved }: ProfileFormProps) {
     </SettingsSection>
   );
 }
-
-const SEX_OPTIONS: { label: string; value: UserSex }[] = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-  { label: 'Diverse', value: 'diverse' },
-];
 
 const profileInitial = (profile: MeProfile | null): ProfileFormValues => ({
   civlId: profile?.civlId ?? null,

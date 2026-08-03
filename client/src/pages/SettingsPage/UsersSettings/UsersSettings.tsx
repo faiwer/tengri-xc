@@ -1,28 +1,47 @@
+import { PlusOutlined } from '@ant-design/icons';
 import { Button, Input, Skeleton, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo, useState } from 'react';
 
-import type { UserListItem } from '../../../api/admin/users.io';
+import type { User, UserListItem } from '../../../api/admin/users.io';
 import { Flag } from '../../../components/Flag';
 import { LoadError } from '../../../components/LoadError';
-import { useErrorToast } from '../../../core/hooks';
-import { isAdminBits } from '../../../core/identity';
+import { useErrorToast, useEventHandler } from '../../../core/hooks';
 import { usePreferences } from '../../../core/preferences';
-import { routes } from '../../../core/routes';
 import {
   formatShortDate,
   formatShortTime,
 } from '../../../utils/formatDateTime';
 import { SettingsSection } from '../SettingsSection';
+import { UserFormModal } from './UserFormModal';
+import { UserRowActions } from './UserRowActions';
 import styles from './UsersSettings.module.scss';
 import { useUsersFeed } from './useUsersFeed';
+import { isAdminBits } from '../../../core/identity';
 
 export function UsersSettings() {
   const feed = useUsersFeed();
   const prefs = usePreferences();
-  const navigate = useNavigate();
   useErrorToast(feed.error, { title: "Couldn't load users" });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  // The id being edited, or `null` when the modal is opened to create.
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = useEventHandler((user: UserListItem) => {
+    setEditingId(user.id);
+    setModalOpen(true);
+  });
+
+  const onSaved = (user: User) => {
+    feed.onSaved(toListItem(user));
+    setModalOpen(false);
+  };
 
   const columns = useMemo<ColumnsType<UserListItem>>(
     () => [
@@ -71,8 +90,16 @@ export function UsersSettings() {
             `${formatShortDate(epoch, prefs)} ${formatShortTime(epoch, prefs)}`
           ),
       },
+      {
+        key: 'actions',
+        width: '80px',
+        align: 'center',
+        render: (_, record) => (
+          <UserRowActions user={record} onEdit={openEdit} />
+        ),
+      },
     ],
-    [prefs],
+    [prefs, openEdit],
   );
 
   // Inline error only for the empty/initial state — otherwise the
@@ -84,13 +111,22 @@ export function UsersSettings() {
       title="Users"
       scrollable
       action={
-        <Input.Search
-          allowClear
-          placeholder="Search by name, login, or email"
-          value={feed.query}
-          onChange={(e) => feed.setQuery(e.target.value)}
-          className={styles.search}
-        />
+        <div className={styles.actions}>
+          <Input.Search
+            allowClear
+            placeholder="Search by name, login, or email"
+            value={feed.query}
+            onChange={(e) => feed.setQuery(e.target.value)}
+            className={styles.search}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openCreate}
+            aria-label="Add user"
+            className={styles.actionBtn}
+          />
+        </div>
       }
     >
       {hasInlineError ? (
@@ -111,10 +147,6 @@ export function UsersSettings() {
             dataSource={feed.items}
             pagination={false}
             loading={feed.isLoading && feed.items.length > 0}
-            onRow={(record) => ({
-              onClick: () => navigate(routes.settings.user(record.id)),
-              style: { cursor: 'pointer' },
-            })}
             locale={{
               emptyText: feed.query
                 ? `No users match "${feed.query}".`
@@ -134,9 +166,28 @@ export function UsersSettings() {
           )}
         </>
       )}
+
+      <UserFormModal
+        open={modalOpen}
+        userId={editingId}
+        onSaved={onSaved}
+        onClose={() => setModalOpen(false)}
+      />
     </SettingsSection>
   );
 }
+
+/** Project the full `User` returned by create/update into a list row. */
+const toListItem = (user: User): UserListItem => ({
+  id: user.id,
+  name: user.name,
+  login: user.login,
+  email: user.email,
+  permissions: user.permissions,
+  country: user.profile?.country ?? null,
+  createdAt: user.createdAt,
+  lastLoginAt: user.lastLoginAt,
+});
 
 const Muted = ({ children }: { children: React.ReactNode }) => (
   <span className={styles.muted}>{children}</span>
