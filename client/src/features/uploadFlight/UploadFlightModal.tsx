@@ -62,6 +62,7 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
       width={760}
       maskClosable={!isSubmitting}
       onCancel={isSubmitting ? undefined : close}
+      className={styles.modal}
     >
       {step === 'source' ? (
         isUploading ? (

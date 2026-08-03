@@ -23,7 +23,7 @@ export function UploadPreviewPanel({
   const bounds = useMemo(() => pathsBounds(paths), [paths]);
 
   return (
-    <div>
+    <div className={styles.panel}>
       <div className={styles.mapSlot}>
         <MapView
           initialBounds={bounds}

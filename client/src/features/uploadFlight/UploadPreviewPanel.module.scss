@@ -1,8 +1,18 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+
+  @media (width <= 1000px) {
+    height: 100%;
+  }
+}
+
 .mapSlot {
   height: 420px;
   overflow: hidden;
   border-radius: 8px;
   pointer-events: none;
+  flex: 1 1 auto;
 }
 
 .actions {
@@ -10,4 +20,6 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  flex: 0 0 auto;
+  gap: 1rem;
 }

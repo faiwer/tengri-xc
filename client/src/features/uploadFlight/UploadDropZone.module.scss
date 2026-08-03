@@ -21,3 +21,9 @@
 .hint {
   color: #8c8c8c;
 }
+
+.dropZone {
+  @media (width <= 1000px) {
+    height: 100%;
+  }
+}

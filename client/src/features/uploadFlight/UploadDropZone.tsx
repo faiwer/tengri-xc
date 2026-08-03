@@ -17,6 +17,7 @@ export function UploadDropZone({ onFile }: { onFile: (file: File) => void }) {
         </div>
       }
       onDropFiles={(files) => onFile(files[0])}
+      className={styles.dropZone}
     >
       <div>
         <InboxOutlined className={styles.icon} />

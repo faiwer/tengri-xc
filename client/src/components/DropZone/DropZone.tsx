@@ -16,6 +16,8 @@ interface DropZoneProps {
   children: ReactNode;
   /** Called when files are dropped (DnD is done). */
   onDropFiles: (files: File[]) => void;
+  /** Additional class name. */
+  className?: string;
 }
 
 export function DropZone({
@@ -24,6 +26,7 @@ export function DropZone({
   invalidContent,
   children,
   onDropFiles,
+  className,
 }: DropZoneProps) {
   const acceptedExtensions = useMemo(
     () =>
@@ -125,6 +128,7 @@ export function DropZone({
         styles.dropZone,
         state === 'valid' && styles.dropZoneValid,
         state === 'invalid' && styles.dropZoneInvalid,
+        className,
       )}
       role="button"
       tabIndex={0}
