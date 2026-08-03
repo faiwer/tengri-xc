@@ -20,6 +20,10 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 0 0 0;
+
+  @media (width < 1000px) {
+    padding: 0.2rem 1rem;
+  }
 }
 
 // The actual "card": white surface with a full border, separated from the page
@@ -38,6 +42,10 @@
   min-height: 0;
   // Cut the corners of the content card (in favor of the page border-radius)
   overflow: hidden;
+
+  @media (width < 1000px) {
+    border-radius: 0;
+  }
 }
 
 // Opt-in via the `fit` prop. Cancels the `flex: 1` stretch so the card sits at
