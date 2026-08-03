@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-import { getUsersPage } from '../../api/admin/users';
-import type { UserListItem } from '../../api/admin/users.io';
+import { getUsersPage } from '../../../api/admin/users';
+import type { UserListItem } from '../../../api/admin/users.io';
 import {
   useAsyncEffect,
   useDebouncedValue,
   useEventHandler,
-} from '../../core/hooks';
+} from '../../../core/hooks';
 
 interface FeedState {
   items: UserListItem[] | null;

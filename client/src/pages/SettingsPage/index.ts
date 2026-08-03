@@ -5,8 +5,7 @@ export { ProfileSettings } from './ProfileSettings';
 export { SettingsLayout } from './SettingsLayout';
 export { SitesSettings } from './SitesSettings';
 export { SystemSettings } from './SystemSettings';
-export { UserDetailSettings } from './UserDetailSettings';
-export { UsersSettings } from './UsersSettings';
+export { UserDetailSettings, UsersSettings } from './UsersSettings';
 export {
   AuthorizationSettings,
   MyFlightsSettings,

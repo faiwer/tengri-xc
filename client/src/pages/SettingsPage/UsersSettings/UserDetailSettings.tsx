@@ -2,26 +2,29 @@ import { Button, Skeleton } from 'antd';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
-import { getUser } from '../../api/admin/users';
-import type { User } from '../../api/admin/users.io';
-import type { UserSex, UserSource } from '../../api/users.io';
-import { Flag } from '../../components/Flag';
-import { LoadError } from '../../components/LoadError';
+import { getUser } from '../../../api/admin/users';
+import type { User } from '../../../api/admin/users.io';
+import type { UserSex, UserSource } from '../../../api/users.io';
+import { Flag } from '../../../components/Flag';
+import { LoadError } from '../../../components/LoadError';
 import {
   useAsync,
   useAsyncEffect,
   useErrorToast,
   useEventHandler,
-} from '../../core/hooks';
+} from '../../../core/hooks';
 import {
   usePreferences,
   type ResolvedPreferences,
-} from '../../core/preferences';
-import { routes } from '../../core/routes';
-import { formatCountry } from '../../utils/formatCountry';
-import { formatShortDate, formatShortTime } from '../../utils/formatDateTime';
+} from '../../../core/preferences';
+import { routes } from '../../../core/routes';
+import { formatCountry } from '../../../utils/formatCountry';
+import {
+  formatShortDate,
+  formatShortTime,
+} from '../../../utils/formatDateTime';
 import { PermissionBadges } from './PermissionBadges';
-import { SettingsSection } from './SettingsSection';
+import { SettingsSection } from '../SettingsSection';
 import styles from './UserDetailSettings.module.scss';
 
 export function UserDetailSettings() {

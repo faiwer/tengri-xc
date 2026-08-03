@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-import { Permissions } from '../../core/identity';
+import { Permissions } from '../../../core/identity';
 import styles from './PermissionBadges.module.scss';
 
 type Variant = 'users' | 'tracks' | 'settings' | 'login';
