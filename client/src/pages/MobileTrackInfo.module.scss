@@ -4,4 +4,35 @@
   background: var(--sidebag-bg);
   color: var(--sidebar-text);
   padding: var(--page-content-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.value {
+  font-weight: 500;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon {
+  flex: 0 0 auto;
+  color: #fff;
+}
+
+.sep {
+  color: var(--sidebar-text-tertiary);
 }

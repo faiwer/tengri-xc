@@ -114,7 +114,7 @@ export function TrackPage() {
             onMobileLayoutChange={setMobileLayout}
           />
           <div className={styles.bottom} data-mobile-layout={mobileLayout}>
-            {track && analysis ? (
+            {track && analysis && metadata ? (
               <>
                 <FlightChart
                   className={styles.chart}
@@ -128,8 +128,9 @@ export function TrackPage() {
                 />
                 <MobileTrackInfo
                   className={styles.info}
-                  track={track}
+                  metadata={metadata}
                   analysis={analysis}
+                  selectedRoute={selectedRoute}
                 />
               </>
             ) : chartLoading ? (
