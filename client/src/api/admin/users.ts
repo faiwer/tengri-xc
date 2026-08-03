@@ -1,5 +1,11 @@
-import { apiGet, type ApiRequestOptions } from '../core';
-import { UserIo, UsersPageIo, type User, type UsersPage } from './users.io';
+import { apiGet, apiPatch, apiPost, type ApiRequestOptions } from '../core';
+import {
+  UserIo,
+  UsersPageIo,
+  type UserInput,
+  type User,
+  type UsersPage,
+} from './users.io';
 
 export interface GetUsersPageParams extends ApiRequestOptions {
   /** Case-insensitive substring match on `name` and `email`. */
@@ -24,3 +30,16 @@ export const getUser = (
   id: number,
   options: ApiRequestOptions = {},
 ): Promise<User> => apiGet(`/admin/users/${id}`, UserIo, options);
+
+/** `POST /admin/users` — create an internal user. Requires `MANAGE_USERS`. */
+export const createUser = (
+  input: UserInput,
+  options: ApiRequestOptions = {},
+): Promise<User> => apiPost('/admin/users', input, UserIo, options);
+
+/** `PATCH /admin/users/:id` — edit an existing user. Requires `MANAGE_USERS`. */
+export const updateUser = (
+  id: number,
+  input: UserInput,
+  options: ApiRequestOptions = {},
+): Promise<User> => apiPatch(`/admin/users/${id}`, input, UserIo, options);

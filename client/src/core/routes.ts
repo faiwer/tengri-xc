@@ -15,7 +15,6 @@ export const routes = {
     myGliders: () => '/settings/my-gliders',
     system: () => '/settings/system',
     users: () => '/settings/users',
-    user: (id: number) => `/settings/users/${id}`,
     gliders: () => '/settings/gliders',
     sites: () => '/settings/sites',
   },

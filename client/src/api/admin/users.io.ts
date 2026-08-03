@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { UserIo as SharedUserIo } from '../users.io';
+import { UserIo as SharedUserIo, type UserSex } from '../users.io';
 
 /** One row of `GET /admin/users`. Profile-side `country` is included
  * for the flag in the Name cell; the rest of the profile stays off. */
@@ -37,3 +37,26 @@ export type UsersPage = z.infer<typeof UsersPageIo>;
  */
 export const UserIo = SharedUserIo;
 export type User = z.infer<typeof UserIo>;
+
+/**
+ * Body for create (`POST /admin/users`) and edit (`PATCH /admin/users/:id`).
+ * The form always submits every field, so scalars are a full write; only
+ * `password` is special — an empty/omitted value leaves the stored hash
+ * alone (and on create means "no password / not yet able to log in").
+ */
+export interface UserInput {
+  name: string;
+  login: string | null;
+  email: string | null;
+  /** Marks/clears `emailVerifiedAt`; an already-verified edit keeps its timestamp. */
+  emailVerified: boolean;
+  /** Raw `Permissions` bitfield; see `core/identity/permissions.ts`. */
+  permissions: number;
+  /** Plaintext password to (re)set. Omit or leave empty to keep unchanged. */
+  password?: string;
+  profile: {
+    civlId: number | null;
+    country: string | null;
+    sex: UserSex | null;
+  };
+}
