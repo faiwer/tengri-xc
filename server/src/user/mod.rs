@@ -17,6 +17,8 @@ pub use preferences::{
     PreferencesDto, UpdatePreferencesRequest, apply_preferences_update, fetch_preferences,
     validate_preferences_update,
 };
-pub use profile::{UpdateProfileRequest, apply_profile_update, validate_profile_update};
+pub use profile::{
+    ProfileUpdate, UpdateProfileRequest, apply_profile_update, validate_profile_update,
+};
 pub use sex::UserSex;
 pub use source::UserSource;

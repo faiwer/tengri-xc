@@ -1,5 +1,5 @@
-//! `/admin/users/*` — list and inspect users. Both endpoints require the
-//! `MANAGE_USERS` bit.
+//! `/admin/users/*` — list, inspect, create, and edit users. Every
+//! endpoint requires the `MANAGE_USERS` bit.
 //!
 //! - `GET /admin/users?q=&cursor=&limit=` — keyset-paginated list. Sort: admins
 //!   first, then newest first — `(is_admin DESC, created_at DESC, id DESC)`.
@@ -9,6 +9,12 @@
 //!   cursor is opaque — internally `[is_admin][created_at][id]` = 1+4+4 bytes
 //!   rendered as base64url.
 //! - `GET /admin/users/:id` — full [`UserDto`] (same shape as `/users/me`).
+//! - `POST /admin/users` — create an internal user; returns the full
+//!   [`UserDto`]. The form always submits every field, so scalar columns are a
+//!   full write; `password` is optional (an account can be OAuth/import-only).
+//! - `PATCH /admin/users/:id` — edit an existing user; returns the full
+//!   [`UserDto`]. Scalars are a full replace; an empty `password` leaves the
+//!   stored hash untouched.
 //!
 //! Search uses `ILIKE` (no trigram index yet); the user table is small enough
 //! that a Seq Scan is fine. When it isn't, the migration is `CREATE EXTENSION
@@ -21,19 +27,25 @@ use axum::{
     routing::get,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     AppError, AppState,
-    auth::{Identity, require_permission},
-    db::{Order, Sql, like_contains},
-    user::{Permissions, UserDto, fetch_user},
+    auth::{Identity, password, require_permission},
+    db::{Order, Sql, Update, like_contains},
+    user::{
+        CreateUser, CreateUserPassword, Permissions, ProfileUpdate, UpdateProfileRequest, UserDto,
+        UserSex, UserSource, apply_profile_update, create_user, fetch_user,
+        validate_profile_update,
+    },
+    validation::FieldErrors,
 };
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/admin/users", get(list))
-        .route("/admin/users/{id}", get(detail))
+        .route("/admin/users", get(list).post(create))
+        .route("/admin/users/{id}", get(detail).patch(update))
 }
 
 const DEFAULT_LIMIT: u32 = 25;
@@ -176,6 +188,292 @@ async fn detail(
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
+}
+
+/// Create + edit share this body. The form always submits every field, so the
+/// scalar columns are a full write rather than a partial patch. `password` is
+/// the one exception — empty / absent means "don't set / don't change".
+#[derive(Debug, Deserialize)]
+struct UserInput {
+    name: String,
+    #[serde(default)]
+    login: Option<String>,
+    #[serde(default)]
+    email: Option<String>,
+    /// Drives `email_verified_at`: `true` marks the address verified, `false`
+    /// clears the mark. See the handlers for how an existing timestamp is
+    /// preserved on edit.
+    #[serde(default)]
+    email_verified: bool,
+    /// Raw `Permissions` bitfield. Unknown bits are rejected.
+    permissions: i32,
+    /// Plaintext password to (re)set. Empty string is treated as absent.
+    #[serde(default)]
+    password: Option<String>,
+    #[serde(default)]
+    profile: ProfileInput,
+}
+
+/// Profile section of [`UserInput`]. Full-replace: a field present with a
+/// value sets it, `null` / absent clears it.
+#[derive(Debug, Default, Deserialize)]
+struct ProfileInput {
+    #[serde(default)]
+    civl_id: Option<i32>,
+    #[serde(default)]
+    country: Option<String>,
+    #[serde(default)]
+    sex: Option<UserSex>,
+}
+
+/// Validated + normalised [`UserInput`]: `name` trimmed, `login` trimmed
+/// (casing preserved), `email` trimmed + lowercased, blanks collapsed to
+/// `None`, `permissions` masked to known bits, profile run through the shared
+/// profile validator.
+struct ValidUser {
+    name: String,
+    login: Option<String>,
+    email: Option<String>,
+    email_verified: bool,
+    permissions: i32,
+    password: Option<String>,
+    profile: ProfileUpdate,
+}
+
+async fn create(
+    State(state): State<AppState>,
+    identity: Identity,
+    Json(input): Json<UserInput>,
+) -> Result<Json<UserDto>, AppError> {
+    require_permission(&identity, Permissions::MANAGE_USERS)?;
+
+    let valid = validate_user(input)?;
+
+    // Uniqueness pre-check for clean per-field 422s; the unique indexes
+    // (`users_login_key` / `users_email_key`) remain the backstop for a race
+    // between this check and the insert.
+    let mut errors = FieldErrors::new();
+    check_unique(state.pool(), &valid, None, &mut errors).await?;
+    if valid.password.is_some() && valid.login.is_none() && valid.email.is_none() {
+        errors.add("password", "Set a login or email so the user can log in");
+    }
+    errors.into_result()?;
+
+    let created = create_user(
+        state.pool(),
+        CreateUser {
+            id: None,
+            name: valid.name,
+            login: valid.login.clone(),
+            email: valid.email.clone(),
+            password: valid.password.map(CreateUserPassword::Plaintext),
+            permissions: valid.permissions,
+            source: UserSource::Internal,
+            // A brand-new account's address starts verified only if the admin
+            // ticked the box *and* actually set an email.
+            email_verified_at: (valid.email_verified && valid.email.is_some()).then(Utc::now),
+            last_login_at: None,
+            created_at: None,
+        },
+    )
+    .await
+    .map_err(AppError::Internal)?;
+
+    // Profile lives in a separate table; write it (best-effort atomic via its
+    // own transaction). Reuses the shared upsert so a missing profile row is
+    // created.
+    let mut tx = state.pool().begin().await.map_err(into_internal)?;
+    apply_profile_update(&mut tx, created.id, &valid.profile).await?;
+    tx.commit().await.map_err(into_internal)?;
+
+    fetch_user(state.pool(), created.id)
+        .await?
+        .map(Json)
+        .ok_or_else(|| {
+            AppError::Internal(anyhow::anyhow!("user {} vanished after create", created.id))
+        })
+}
+
+async fn update(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<i32>,
+    Json(input): Json<UserInput>,
+) -> Result<Json<UserDto>, AppError> {
+    require_permission(&identity, Permissions::MANAGE_USERS)?;
+
+    let valid = validate_user(input)?;
+
+    // 404 before any write, and gives us the current `email_verified_at` so a
+    // re-save doesn't churn an already-verified timestamp.
+    let current = fetch_user(state.pool(), id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    let mut errors = FieldErrors::new();
+    check_unique(state.pool(), &valid, Some(id), &mut errors).await?;
+
+    let password_hash = match valid.password.as_deref() {
+        Some(pw) => {
+            if valid.login.is_none() && valid.email.is_none() {
+                errors.add("password", "Set a login or email so the user can log in");
+                None
+            } else {
+                Some(password::hash_argon2(pw).map_err(|e| AppError::Internal(e.into()))?)
+            }
+        }
+        None => None,
+    };
+    errors.into_result()?;
+
+    let mut tx = state.pool().begin().await.map_err(into_internal)?;
+
+    let mut q = Update::new("users");
+    q.set("name", valid.name);
+    q.set("login", valid.login);
+    q.set("email", valid.email);
+    q.set("permissions", valid.permissions);
+    if let Some(hash) = password_hash {
+        q.set("password_hash", hash);
+    }
+    // Only touch `email_verified_at` when the flag actually flips, so an
+    // unchanged "verified" checkbox preserves the original timestamp.
+    match (valid.email_verified, current.email_verified_at.is_some()) {
+        (true, false) => {
+            q.set("email_verified_at", Some(Utc::now()));
+        }
+        (false, true) => {
+            q.set("email_verified_at", None::<chrono::DateTime<Utc>>);
+        }
+        _ => {}
+    }
+    q.and_where("id = $", (id,));
+    q.execute_tx(&mut tx).await.map_err(into_internal)?;
+
+    apply_profile_update(&mut tx, id, &valid.profile).await?;
+    tx.commit().await.map_err(into_internal)?;
+
+    fetch_user(state.pool(), id)
+        .await?
+        .map(Json)
+        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("user {id} vanished after update")))
+}
+
+/// Validate + normalise the shared body. Field keys (`name`, `login`, `email`,
+/// `permissions`, `profile.country`, …) match the client form field names 1:1
+/// so a 422 lands on the right input via `Form.setFields`.
+fn validate_user(input: UserInput) -> Result<ValidUser, AppError> {
+    let mut errors = FieldErrors::new();
+
+    let name = {
+        let trimmed = input.name.trim();
+        if trimmed.is_empty() {
+            errors.add("name", "Cannot be empty");
+        }
+        trimmed.to_owned()
+    };
+
+    let login = blank_to_none(input.login);
+
+    let email = match blank_to_none(input.email) {
+        None => None,
+        Some(raw) => {
+            let lowered = raw.to_ascii_lowercase();
+            if looks_like_email(&lowered) {
+                Some(lowered)
+            } else {
+                errors.add("email", "Enter a valid email address");
+                None
+            }
+        }
+    };
+
+    let permissions = input.permissions;
+    if permissions < 0 || (permissions & !Permissions::all().bits()) != 0 {
+        errors.add("permissions", "Unknown permission bits");
+    }
+
+    let profile = match validate_profile_update(UpdateProfileRequest {
+        civl_id: Some(input.profile.civl_id),
+        country: Some(input.profile.country),
+        sex: Some(input.profile.sex),
+    }) {
+        Ok(update) => update,
+        Err(field_errors) => {
+            errors.merge_prefixed("profile", field_errors);
+            ProfileUpdate::default()
+        }
+    };
+
+    let password = input.password.filter(|p| !p.is_empty());
+
+    errors.into_result()?;
+
+    Ok(ValidUser {
+        name,
+        login,
+        email,
+        email_verified: input.email_verified,
+        permissions,
+        password,
+        profile,
+    })
+}
+
+/// Add a `login` / `email` field error when the value is already taken by
+/// another row. `exclude` is the row being edited (skipped on PATCH). Login
+/// folds case (`users_login_key` is on `LOWER(login)`); email is stored
+/// lowercased so a plain `=` matches the index.
+async fn check_unique(
+    pool: &sqlx::PgPool,
+    valid: &ValidUser,
+    exclude: Option<i32>,
+    errors: &mut FieldErrors,
+) -> Result<(), AppError> {
+    let exclude = exclude.unwrap_or(0);
+    if let Some(login) = valid.login.as_deref() {
+        let taken: Option<i32> =
+            sqlx::query_scalar("SELECT id FROM users WHERE LOWER(login) = LOWER($1) AND id <> $2")
+                .bind(login)
+                .bind(exclude)
+                .fetch_optional(pool)
+                .await
+                .map_err(into_internal)?;
+        if taken.is_some() {
+            errors.add("login", "Already taken");
+        }
+    }
+
+    if let Some(email) = valid.email.as_deref() {
+        let taken: Option<i32> =
+            sqlx::query_scalar("SELECT id FROM users WHERE email = $1 AND id <> $2")
+                .bind(email)
+                .bind(exclude)
+                .fetch_optional(pool)
+                .await
+                .map_err(into_internal)?;
+        if taken.is_some() {
+            errors.add("email", "Already taken");
+        }
+    }
+    Ok(())
+}
+
+fn blank_to_none(value: Option<String>) -> Option<String> {
+    value.map(|v| v.trim().to_owned()).filter(|v| !v.is_empty())
+}
+
+/// Deliberately loose: exactly one `@`, non-empty local + domain, no spaces.
+/// Real validity is confirmed by a verification mail, not a regex — this only
+/// catches obvious typos.
+fn looks_like_email(value: &str) -> bool {
+    let mut parts = value.split('@');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some(local), Some(domain), None) => {
+            !local.is_empty() && !domain.is_empty() && !value.contains(char::is_whitespace)
+        }
+        _ => false,
+    }
 }
 
 /// Pack `(is_admin, created_at, id)` into 9 bytes and base64url-encode.
