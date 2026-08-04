@@ -30,23 +30,6 @@ use tracing::Level;
 pub use crate::{config::Config, error::AppError, state::AppState};
 
 pub fn build_app(state: AppState) -> Router {
-    // The session cookie is `SameSite=Lax`, so cross-origin XHR
-    // only carries it with `credentials: 'include'` *and*
-    // `Access-Control-Allow-Credentials: true`. That in turn
-    // forbids the wildcard origin — list real origins via
-    // `CLIENT_ORIGINS` (comma-separated). Empty list = same-origin
-    // only, which is fine when the SPA is served by us.
-    let mut cors = CorsLayer::new()
-        .allow_credentials(true)
-        .allow_methods(tower_http::cors::AllowMethods::mirror_request())
-        .allow_headers(tower_http::cors::AllowHeaders::mirror_request());
-    for origin in state.client_origins() {
-        match HeaderValue::from_str(origin) {
-            Ok(v) => cors = cors.allow_origin(v),
-            Err(e) => tracing::warn!(%origin, error = %e, "ignoring invalid CLIENT_ORIGINS entry"),
-        }
-    }
-
     let trace = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
         .on_response(
@@ -57,9 +40,31 @@ pub fn build_app(state: AppState) -> Router {
 
     routes::router(state.clone())
         .with_state(state)
-        .layer(cors)
         .layer(trace)
         .layer(CompressionLayer::new().compress_when(DefaultPredicate::new().and(is_json_response)))
+}
+
+/// CORS for the SPA. The `SameSite=Lax` session cookie only rides cross-origin
+/// XHR with `credentials: 'include'` *and* `Access-Control-Allow-Credentials:
+/// true`, which forbids the wildcard origin — so echo only the configured
+/// `origins` (`CLIENT_ORIGINS`). Empty list = same-origin only, fine when the
+/// SPA is served by us.
+///
+/// Applied as the outermost layer (see `main`) so it covers the 404 fallback
+/// too. Layered inside the router it would miss unmatched routes, and a
+/// headerless 404 reads to the browser as a CORS error rather than a plain 404.
+pub fn cors_layer(origins: &[String]) -> CorsLayer {
+    let mut cors = CorsLayer::new()
+        .allow_credentials(true)
+        .allow_methods(tower_http::cors::AllowMethods::mirror_request())
+        .allow_headers(tower_http::cors::AllowHeaders::mirror_request());
+    for origin in origins {
+        match HeaderValue::from_str(origin) {
+            Ok(v) => cors = cors.allow_origin(v),
+            Err(e) => tracing::warn!(%origin, error = %e, "ignoring invalid CLIENT_ORIGINS entry"),
+        }
+    }
+    cors
 }
 
 fn is_json_response(

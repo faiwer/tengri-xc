@@ -1,7 +1,7 @@
 use anyhow::Context;
 use axum::Router;
 use sqlx::postgres::PgPoolOptions;
-use tengri_server::{AppState, Config, build_app, migrate, telemetry};
+use tengri_server::{AppState, Config, build_app, cors_layer, migrate, telemetry};
 use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
@@ -41,7 +41,9 @@ async fn main() -> anyhow::Result<()> {
         config.client_origins.clone(),
         config.leonardo_cookie_domain.clone(),
     );
-    let app = Router::new().nest("/api", build_app(state));
+    let app = Router::new()
+        .nest("/api", build_app(state))
+        .layer(cors_layer(&config.client_origins));
 
     let listener = TcpListener::bind(config.server_addr)
         .await
