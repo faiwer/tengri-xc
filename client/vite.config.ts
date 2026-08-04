@@ -4,8 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  base: './',
+export default defineConfig(({ mode }) => ({
+  // Root-served SPA in prod: an absolute base lets client-side deep links
+  // (`/flights/123` reloaded from scratch) resolve `/assets/*` correctly.
+  // Relative `./` stays for dev/preview.
+  base: mode === 'production' ? '/' : './',
   plugins: [react()],
   resolve: {
     alias: {
@@ -38,4 +41,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

@@ -1,4 +1,5 @@
 use anyhow::Context;
+use axum::Router;
 use sqlx::postgres::PgPoolOptions;
 use tengri_server::{AppState, Config, build_app, migrate, telemetry};
 use tokio::{net::TcpListener, signal};
@@ -40,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
         config.client_origins.clone(),
         config.leonardo_cookie_domain.clone(),
     );
-    let app = build_app(state);
+    let app = Router::new().nest("/api", build_app(state));
 
     let listener = TcpListener::bind(config.server_addr)
         .await

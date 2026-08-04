@@ -19,8 +19,10 @@ COPY . .
 RUN cargo build --release --bin tengri-server --bin tengri --bin leonardo
 
 FROM debian:bookworm-slim AS runtime
+# `curl` backs the container HealthCmd (`curl -fsS .../health`) used by the
+# Quadlet; `ca-certificates` covers outbound TLS.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/tengri-server /usr/local/bin/tengri-server

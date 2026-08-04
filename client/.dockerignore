@@ -1,0 +1,22 @@
+# Build context is `client/`. Keep the build inputs (package*.json, patches/,
+# src/, packages/ submodule, public/, index.html, tsconfig*, vite.config). Drop
+# artifacts and local-only files. The Dockerfile writes .env.production itself.
+
+# Installed/compiled artifacts — reinstalled/rebuilt inside the image.
+node_modules
+dist
+
+# Env files. .env carries E2E_DATABASE_URL and a dev API host; .env.production
+# is generated in the Dockerfile, so ignore any local one too.
+.env
+.env.production
+.env.*.local
+
+# Test/dev noise not needed to build a production bundle.
+e2e
+playwright-report
+test-results
+coverage
+
+# Docs.
+**/*.md
