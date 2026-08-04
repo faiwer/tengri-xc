@@ -3,6 +3,7 @@ export const routes = {
   flights: () => '/flights',
   login: () => '/login',
   flight: (id: string) => `/flight/${id}`,
+  compare: (ids: string[]) => `/compare/${ids.join(',')}`,
   terms: () => '/terms',
   privacy: () => '/privacy',
   settings: {

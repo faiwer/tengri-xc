@@ -23,6 +23,7 @@ import {
 } from './pages/SettingsPage';
 import { TracksPage } from './pages/TracksPage';
 import { TrackPage } from './pages/TrackPage';
+import { ComparePage } from './pages/ComparePage';
 import styles from './App.module.scss';
 
 const theme: ThemeConfig = {
@@ -44,6 +45,7 @@ export function App() {
               <Route path="/flights" element={<TracksPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/flight/:id" element={<TrackPage />} />
+              <Route path="/compare/:ids" element={<ComparePage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
