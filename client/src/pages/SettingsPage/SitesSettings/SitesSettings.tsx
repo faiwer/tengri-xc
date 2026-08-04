@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 
 import { deleteSite, reindexSites } from '../../../api/admin/sites';
 import type { SiteListItem } from '../../../api/admin/sites.io';
-import { Flag } from '../../../components/Flag';
+import { TextWithIcon } from '../../../components/TextWithIcon';
 import { LoadError } from '../../../components/LoadError';
 import { useErrorToast, useEventHandler } from '../../../core/hooks';
 import { SettingsSection } from '../SettingsSection';
@@ -86,15 +86,7 @@ export function SitesSettings() {
         key: 'name',
         ellipsis: true,
         render: (name: string, record) => (
-          <>
-            {record.country && (
-              <>
-                <Flag code={record.country} />
-                &nbsp;&nbsp;
-              </>
-            )}
-            {name}
-          </>
+          <TextWithIcon flag={record.country} text={name} />
         ),
       },
       {

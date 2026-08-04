@@ -14,7 +14,7 @@ import {
   formatDistance,
   formatVario,
 } from '../../utils/formatUnits';
-import { Flag } from '../Flag';
+import { TextWithIcon } from '../TextWithIcon';
 import { LandingLabel } from './LandingLabel';
 import styles from './TrackMetaPanel.module.scss';
 
@@ -51,23 +51,11 @@ export function TrackMetaPanel({
   return (
     <section className={styles.panel} aria-label="Flight metadata">
       <Cell>
-        {data.pilot.country && (
-          <>
-            <Flag code={data.pilot.country} />
-            &nbsp;&nbsp;
-          </>
-        )}
-        {data.pilot.name}
+        <TextWithIcon flag={data.pilot.country} text={data.pilot.name} />
       </Cell>
       {data.takeoff.name && (
         <Cell>
-          {data.takeoff.country && (
-            <>
-              <Flag code={data.takeoff.country} />
-              &nbsp;&nbsp;
-            </>
-          )}
-          {data.takeoff.name}
+          <TextWithIcon flag={data.takeoff.country} text={data.takeoff.name} />
         </Cell>
       )}
       <Cell label="Glider">

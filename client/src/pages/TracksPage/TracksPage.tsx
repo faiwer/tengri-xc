@@ -1,7 +1,7 @@
 import { Skeleton } from 'antd';
 import { Fragment, useMemo } from 'react';
 import type { RouteType, TrackListItem } from '../../api/tracks.io';
-import { Flag } from '../../components/Flag';
+import { TextWithIcon } from '../../components/TextWithIcon';
 import { LoadError } from '../../components/LoadError';
 import { PageLayout } from '../../components/PageLayout';
 import { TrackRow, type TrackRowCell } from '../../components/TrackRow';
@@ -170,15 +170,10 @@ function buildHomeRowCells(
     showTakeoff && {
       key: 'takeoff',
       content: item.track.takeoff.name ? (
-        <>
-          {item.track.takeoff.country && (
-            <>
-              <Flag code={item.track.takeoff.country} />
-              &nbsp;&nbsp;
-            </>
-          )}
-          {item.track.takeoff.name}
-        </>
+        <TextWithIcon
+          flag={item.track.takeoff.country}
+          text={item.track.takeoff.name}
+        />
       ) : (
         '—'
       ),
@@ -187,15 +182,7 @@ function buildHomeRowCells(
     {
       key: 'pilot',
       content: (
-        <>
-          {item.pilot.country && (
-            <>
-              <Flag code={item.pilot.country} />
-              &nbsp;&nbsp;
-            </>
-          )}
-          {item.pilot.name}
-        </>
+        <TextWithIcon flag={item.pilot.country} text={item.pilot.name} />
       ),
     },
     showDuration && {

@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
 import type { User, UserListItem } from '../../../api/admin/users.io';
-import { Flag } from '../../../components/Flag';
+import { TextWithIcon } from '../../../components/TextWithIcon';
 import { LoadError } from '../../../components/LoadError';
 import { useErrorToast, useEventHandler } from '../../../core/hooks';
 import { usePreferences } from '../../../core/preferences';
@@ -49,15 +49,7 @@ export function UsersSettings() {
         key: 'name',
         ellipsis: true,
         render: (name: string, record) => (
-          <>
-            {record.country && (
-              <>
-                <Flag code={record.country} />
-                &nbsp;&nbsp;
-              </>
-            )}
-            {name}
-          </>
+          <TextWithIcon flag={record.country} text={name} />
         ),
       },
       {

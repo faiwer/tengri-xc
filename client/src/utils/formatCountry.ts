@@ -53,6 +53,10 @@ export const formatCountry = (code: string): FormattedCountry | null => {
   return !name ? null : { flag, name };
 };
 
+/** Localized country name for an alpha-2 code, or `null` if unrecognized. */
+export const getCountryName = (code: string): string | null =>
+  formatCountry(code)?.name ?? null;
+
 export const countryOptions = (): CountryOption[] => {
   if (cachedCountryOptions !== null) {
     return cachedCountryOptions;
