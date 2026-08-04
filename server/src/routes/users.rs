@@ -1,11 +1,12 @@
 //! `/users/*` — auth and current-user.
 //!
-//! - `POST /users/login`  — `{ identifier, password }` → cookie +
-//!   `/users/me` body. Identifier matches `login` or `email`,
-//!   case-insensitively.
+//! - `POST /users/login`  — `{ identifier, password }` → cookie + `/users/me`
+//!   body. Identifier matches `login` or `email`, case-insensitively.
 //! - `POST /users/logout` — clear the cookie. Always 204.
-//! - `GET  /users/me`     — current user, or `null` if anonymous.
-//!   Always 200.
+//! - `GET  /users/me`     — current user, or `null` if anonymous. Always 200.
+//! - `POST /users/me/password` — owner-self change/set password. Sets an
+//!   initial `login` too when the account has none. Returns the refreshed
+//!   `/users/me` body.
 
 use axum::{
     Json, Router,
@@ -26,6 +27,7 @@ use crate::{
         password::{self, Verified},
         token::encode_jwt,
     },
+    db::Update,
     user::{
         MeDto, Permissions, UpdatePreferencesRequest, UpdateProfileRequest,
         apply_preferences_update, apply_profile_update, fetch_me, validate_preferences_update,
@@ -45,7 +47,9 @@ pub fn public_router() -> Router<AppState> {
 /// Routes that read identity from extensions; mounted behind the
 /// slide middleware.
 pub fn session_router() -> Router<AppState> {
-    Router::new().route("/users/me", get(me).patch(update_me))
+    Router::new()
+        .route("/users/me", get(me).patch(update_me))
+        .route("/users/me/password", post(change_password))
 }
 
 // -----------------------------------------------------------------
@@ -272,6 +276,127 @@ async fn update_me(
             ))
         })?;
     Ok(Json(body))
+}
+
+/// Change (or, for a password-less account, set) the caller's password. `login`
+/// is honored only when the account has none yet — a set-once initial login;
+/// once a login exists the client sends nothing and any value here is ignored.
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordRequest {
+    #[serde(default)]
+    login: Option<String>,
+    #[serde(default)]
+    current_password: String,
+    new_password: String,
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    identity: Identity,
+    Json(req): Json<ChangePasswordRequest>,
+) -> Result<Json<MeDto>, AppError> {
+    let user_id = identity.user_id;
+
+    let row = sqlx::query("SELECT login, email, password_hash FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_optional(state.pool())
+        .await
+        .map_err(into_internal)?
+        .ok_or(AppError::NotFound)?;
+    let stored_login: Option<String> = row.try_get("login").map_err(sqlx_to_internal)?;
+    let stored_email: Option<String> = row.try_get("email").map_err(sqlx_to_internal)?;
+    let stored_hash: Option<String> = row.try_get("password_hash").map_err(sqlx_to_internal)?;
+
+    // Stage one: format + credential checks. The login-availability query is
+    // deliberately *not* here — it runs last, so a caller who fails these can't
+    // use this endpoint to enumerate taken logins.
+    let mut errors = FieldErrors::new();
+
+    if let Some(msg) = weak_password(&req.new_password) {
+        errors.add("new_password", msg);
+    }
+
+    // A password-less account (OAuth / import) sets its first password here
+    // with no current-password check. Otherwise verify it.
+    if let Some(hash) = stored_hash.as_deref() {
+        if req.current_password.is_empty() {
+            errors.add("current_password", "Enter your current password");
+        } else {
+            match password::verify(&req.current_password, hash) {
+                Ok(Some(_)) => {}
+                Ok(None) => errors.add("current_password", "Incorrect password"),
+                Err(e) => return Err(AppError::Internal(e.into())),
+            }
+        }
+    }
+
+    // Login is set-once: editable only while NULL.
+    let new_login = if stored_login.is_none() {
+        req.login
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    } else {
+        None
+    };
+
+    // The account must be able to sign in afterward.
+    if stored_login.is_none() && new_login.is_none() && stored_email.is_none() {
+        errors.add("login", "Set a login so you can sign in");
+    }
+
+    errors.into_result()?;
+
+    // Runs last, and only when setting an initial login. Case-insensitive,
+    // matching the `users_login_key` functional index.
+    if let Some(login) = new_login.as_deref() {
+        let taken: Option<i32> =
+            sqlx::query_scalar("SELECT id FROM users WHERE LOWER(login) = LOWER($1) AND id <> $2")
+                .bind(login)
+                .bind(user_id)
+                .fetch_optional(state.pool())
+                .await
+                .map_err(into_internal)?;
+        if taken.is_some() {
+            let mut errors = FieldErrors::new();
+            errors.add("login", "Already taken");
+            errors.into_result()?;
+        }
+    }
+
+    let hash =
+        password::hash_argon2(&req.new_password).map_err(|e| AppError::Internal(e.into()))?;
+
+    let mut q = Update::new("users");
+    q.set("password_hash", hash);
+    if let Some(login) = new_login {
+        q.set("login", login);
+    }
+    q.and_where("id = $", (user_id,));
+    q.execute(state.pool()).await.map_err(into_internal)?;
+
+    let body = fetch_me(state.pool(), user_id).await?.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!(
+            "user {user_id} vanished mid-password-change"
+        ))
+    })?;
+    Ok(Json(body))
+}
+
+/// `None` when `password` meets the policy (>= 8 chars, at least one letter and
+/// one digit), otherwise the message to surface on the field. Mirrored
+/// client-side in the Authorization form.
+fn weak_password(password: &str) -> Option<&'static str> {
+    if password.chars().count() < 8 {
+        return Some("At least 8 characters");
+    }
+    let has_letter = password.chars().any(|c| c.is_ascii_alphabetic());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+    if !has_letter || !has_digit {
+        return Some("Must include a letter and a digit");
+    }
+    None
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

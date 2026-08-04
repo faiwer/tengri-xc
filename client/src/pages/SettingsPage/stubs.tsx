@@ -7,6 +7,5 @@ const Stub = ({ title }: { title: string }) => (
 );
 
 export const ProfileSettings = () => <Stub title="Profile" />;
-export const AuthorizationSettings = () => <Stub title="Authorization" />;
 export const StatsSettings = () => <Stub title="Stats" />;
 export const MyFlightsSettings = () => <Stub title="My flights" />;

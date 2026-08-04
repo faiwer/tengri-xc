@@ -5,7 +5,13 @@ import {
   apiPostVoid,
   type ApiRequestOptions,
 } from './core';
-import { MeIo, MeResponseIo, type Me, type UpdateMeRequest } from './users.io';
+import {
+  MeIo,
+  MeResponseIo,
+  type ChangePasswordRequest,
+  type Me,
+  type UpdateMeRequest,
+} from './users.io';
 
 export interface LoginParams {
   /** `login` or `email`, case-insensitive. */
@@ -51,3 +57,16 @@ export const updateMe = async (
   body: UpdateMeRequest,
   options: ApiRequestOptions = {},
 ): Promise<Me> => apiPatch('/users/me', body, MeIo, options);
+
+/**
+ * `POST /users/me/password` — owner-self password change (and initial
+ * `login` set for accounts that have none). Returns the refreshed
+ * [`Me`] so the caller can swap it into the identity context.
+ *
+ * On 422, throws [`ValidationError`] with per-field messages keyed
+ * `login` / `currentPassword` / `newPassword`.
+ */
+export const changeMyPassword = async (
+  body: ChangePasswordRequest,
+  options: ApiRequestOptions = {},
+): Promise<Me> => apiPost('/users/me/password', body, MeIo, options);

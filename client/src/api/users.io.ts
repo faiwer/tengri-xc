@@ -58,6 +58,8 @@ export const UserIo = z.object({
   lastLoginAt: z.number().int().nullable(),
   /** Unix epoch seconds (UTC). */
   createdAt: z.number().int(),
+  /** Whether the account has a password set. */
+  hasPassword: z.boolean(),
   profile: MeProfileIo.nullable(),
 });
 
@@ -100,4 +102,15 @@ export type UpdateProfileRequest = Partial<MeProfile>;
 export interface UpdateMeRequest {
   profile?: UpdateProfileRequest;
   preferences?: UpdatePreferencesRequest;
+}
+
+/**
+ * Body for `POST /users/me/password`. `login` is sent only when the account has
+ * no login yet (set-once); `currentPassword` only when the account already
+ * {@link User.hasPassword | has a password}.
+ */
+export interface ChangePasswordRequest {
+  login?: string;
+  currentPassword?: string;
+  newPassword: string;
 }

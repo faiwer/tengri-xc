@@ -36,6 +36,8 @@ pub struct UserDto {
     pub email_verified_at: Option<i64>,
     pub last_login_at: Option<i64>,
     pub created_at: i64,
+    /// Whether the account has a password set.
+    pub has_password: bool,
     pub profile: Option<UserProfileDto>,
 }
 
@@ -56,6 +58,7 @@ pub async fn fetch_user(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<User
             EXTRACT(EPOCH FROM u.email_verified_at)::bigint AS email_verified_at, \
             EXTRACT(EPOCH FROM u.last_login_at)::bigint     AS last_login_at, \
             EXTRACT(EPOCH FROM u.created_at)::bigint        AS created_at, \
+            (u.password_hash IS NOT NULL)                   AS has_password, \
             p.civl_id, p.country, p.sex \
          FROM users u \
          LEFT JOIN user_profiles p ON p.user_id = u.id \
@@ -94,6 +97,7 @@ pub async fn fetch_user(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<User
         email_verified_at: row.try_get("email_verified_at").map_err(sqlx_to_internal)?,
         last_login_at: row.try_get("last_login_at").map_err(sqlx_to_internal)?,
         created_at: row.try_get("created_at").map_err(sqlx_to_internal)?,
+        has_password: row.try_get("has_password").map_err(sqlx_to_internal)?,
         profile,
     }))
 }

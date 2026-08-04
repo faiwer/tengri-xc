@@ -1,3 +1,4 @@
+export { AuthorizationSettings } from './AuthorizationSettings';
 export { GlidersSettings } from './GlidersSettings';
 export { MyGlidersSettings } from './MyGlidersSettings';
 export { PreferencesSettings } from './PreferencesSettings';
@@ -6,8 +7,4 @@ export { SettingsLayout } from './SettingsLayout';
 export { SitesSettings } from './SitesSettings';
 export { SystemSettings } from './SystemSettings';
 export { UsersSettings } from './UsersSettings';
-export {
-  AuthorizationSettings,
-  MyFlightsSettings,
-  StatsSettings,
-} from './stubs';
+export { MyFlightsSettings, StatsSettings } from './stubs';
