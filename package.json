@@ -9,7 +9,9 @@
     "e2e": "npm --prefix client run e2e",
     "prune": "cargo run --quiet --manifest-path server/Cargo.toml --bin tengri -- prune",
     "server": "cd server && bacon",
-    "server:restart": "date +%s > server/.restart"
+    "server:restart": "date +%s > server/.restart",
+    "deploy-server": "./scripts/deploy-server.sh",
+    "deploy-client": "./scripts/deploy-client.sh"
   },
   "lint-staged": {
     "server/**/*.rs": [
