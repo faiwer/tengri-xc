@@ -13,6 +13,8 @@ describe('track API schemas', () => {
         modelId: 'target',
         modelName: 'Target',
       },
+      launchMethod: 'foot',
+      propulsion: 'free',
       takeoffAt: Date.UTC(2025, 6, 15, 12) / 1000,
       landingAt: Date.UTC(2025, 6, 15, 12) / 1000,
       takeoffTimezone: 'Europe/Vienna',
