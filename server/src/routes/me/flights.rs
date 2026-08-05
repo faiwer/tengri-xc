@@ -11,7 +11,7 @@ use axum::{
     http::StatusCode,
     routing::{delete, post},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tengri_formats::{detect_format, tengri::VERSION};
 use tokio::task;
 
@@ -23,10 +23,14 @@ use crate::{
             MAX_DECOMPRESSED_FLIGHT_BYTES, MAX_TRACK_POINTS, MAX_UPLOAD_BYTES, PrepareError,
             Prepared, gunzip_bounded, has_gzip_magic, prepare_bytes_for_storage,
         },
-        store::{FlightRow, insert_flight, insert_source, insert_track, model_exists},
+        store::{
+            FlightMetaUpdate, FlightRow, insert_flight, insert_source, insert_track, model_exists,
+            update_flight_meta,
+        },
     },
     glider::{CATALOG_KINDS, LAUNCH_METHODS, PROPULSIONS},
     ids::nanoid_8,
+    routes::tracks_md::{TrackMd, fetch_track_md},
     user::Permissions,
 };
 
@@ -39,7 +43,7 @@ pub fn router() -> Router<AppState> {
             "/me/flights",
             post(create).layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES)),
         )
-        .route("/me/flights/{id}", delete(remove))
+        .route("/me/flights/{id}", delete(remove).patch(edit))
 }
 
 #[derive(Serialize)]
@@ -118,9 +122,91 @@ async fn remove(
     Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
     require_permission(&identity, Permissions::CAN_AUTHORIZE)?;
+    require_flight_access(&state, &identity, &id).await?;
 
-    let owner_id: Option<i32> = sqlx::query_scalar("SELECT user_id FROM flights WHERE id = $1")
+    sqlx::query("DELETE FROM flights WHERE id = $1")
         .bind(&id)
+        .execute(state.pool())
+        .await
+        .map_err(|e| AppError::Internal(e.into()))?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// The glider/launch metadata a `PATCH /me/flights/{id}` can change. the
+/// enum-valued ones are validated against their catalogs before the update
+/// runs.
+#[derive(Deserialize)]
+struct EditFlightBody {
+    kind: String,
+    brand_id: String,
+    model_id: String,
+    launch_method: String,
+    propulsion: String,
+}
+
+/// `PATCH /me/flights/{id}` — edit a flight's glider/launch metadata. Same
+/// access rule as `remove` (owner or `MANAGE_TRACKS`). Returns the refreshed
+/// `/md` payload. The track itself is untouched.
+async fn edit(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<String>,
+    Json(body): Json<EditFlightBody>,
+) -> Result<Json<TrackMd>, AppError> {
+    require_permission(&identity, Permissions::CAN_AUTHORIZE)?;
+    require_flight_access(&state, &identity, &id).await?;
+
+    let kind = require_one_of(body.kind, &CATALOG_KINDS, "kind")?;
+    let launch_method = require_one_of(body.launch_method, &LAUNCH_METHODS, "launch_method")?;
+    let propulsion = require_one_of(body.propulsion, &PROPULSIONS, "propulsion")?;
+
+    let exists = model_exists(
+        state.pool(),
+        identity.user_id,
+        &body.brand_id,
+        &kind,
+        &body.model_id,
+    )
+    .await
+    .map_err(|e| AppError::Internal(e.into()))?;
+    if !exists {
+        return Err(AppError::BadRequest(format!(
+            "no glider {}/{}/{} available to you",
+            body.brand_id, kind, body.model_id
+        )));
+    }
+
+    update_flight_meta(
+        state.pool(),
+        &id,
+        &FlightMetaUpdate {
+            kind: &kind,
+            brand_id: &body.brand_id,
+            model_id: &body.model_id,
+            propulsion: &propulsion,
+            launch_method: &launch_method,
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(e.into()))?;
+
+    fetch_track_md(state.pool(), &id)
+        .await?
+        .map(Json)
+        .ok_or(AppError::NotFound)
+}
+
+/// Ensure the flight exists and `identity` may mutate it: its owner, or an
+/// admin with `MANAGE_TRACKS`. `NotFound` when the flight is gone, `Forbidden`
+/// when the caller isn't allowed.
+async fn require_flight_access(
+    state: &AppState,
+    identity: &Identity,
+    id: &str,
+) -> Result<(), AppError> {
+    let owner_id: Option<i32> = sqlx::query_scalar("SELECT user_id FROM flights WHERE id = $1")
+        .bind(id)
         .fetch_optional(state.pool())
         .await
         .map_err(|e| AppError::Internal(e.into()))?;
@@ -133,13 +219,7 @@ async fn remove(
         return Err(AppError::Forbidden);
     }
 
-    sqlx::query("DELETE FROM flights WHERE id = $1")
-        .bind(&id)
-        .execute(state.pool())
-        .await
-        .map_err(|e| AppError::Internal(e.into()))?;
-
-    Ok(StatusCode::NO_CONTENT)
+    Ok(())
 }
 
 async fn persist_flight(

@@ -18,10 +18,14 @@ pub fn router() -> Router<AppState> {
 }
 
 #[derive(Serialize)]
-struct TrackMd {
+pub(crate) struct TrackMd {
     id: String,
     pilot: Pilot,
     glider: Glider,
+    /// `free` / `self_launch` / `powered`.
+    propulsion: String,
+    /// `foot` / `winch` / `aerotow`.
+    launch_method: String,
     /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we project it as
     /// `bigint` epoch so the wire format stays numeric and the client can do
     /// `new Date(seconds * 1000)` without parsing strings.
@@ -92,6 +96,17 @@ async fn get_track_md(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<TrackMd>, AppError> {
+    let md = fetch_track_md(state.pool(), &id).await?;
+    md.map(Json).ok_or(AppError::NotFound)
+}
+
+/// Assemble the `/md` payload for one flight, or `None` when no such flight
+/// exists. Shared by the `GET` handler and the flight-edit `PATCH`, which
+/// returns the refreshed metadata so the client can update in place.
+pub(crate) async fn fetch_track_md(
+    pool: &sqlx::PgPool,
+    id: &str,
+) -> Result<Option<TrackMd>, AppError> {
     // `LEFT JOIN user_profiles` because country is profile-side and
     // optional; users without a profile row still resolve with a
     // `null` country rather than dropping the flight to a 404.
@@ -100,6 +115,7 @@ async fn get_track_md(
                 u.id AS pilot_id, u.name AS pilot_name, p.country AS pilot_country, \
                 f.kind::text AS kind, \
                 f.brand_id, b.name AS brand_name, f.model_id, m.name AS model_name, \
+                f.propulsion::text AS propulsion, f.launch_method::text AS launch_method, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint AS takeoff_at, \
                 EXTRACT(EPOCH FROM f.landing_at)::bigint AS landing_at, \
                 f.takeoff_timezone, f.landing_timezone, \
@@ -124,18 +140,18 @@ async fn get_track_md(
          JOIN flight_tracks t ON t.flight_id = f.id AND t.kind = 'full' \
          WHERE f.id = $1",
     )
-    .bind(&id)
-    .fetch_optional(state.pool())
+    .bind(id)
+    .fetch_optional(pool)
     .await
     .map_err(anyhow::Error::from)?;
 
     let Some(row) = row else {
-        return Err(AppError::NotFound);
+        return Ok(None);
     };
 
-    let routes = fetch_scored_routes(state.pool(), &row.id).await?;
+    let routes = fetch_scored_routes(pool, &row.id).await?;
 
-    Ok(Json(TrackMd {
+    Ok(Some(TrackMd {
         id: row.id,
         pilot: Pilot {
             id: row.pilot_id,
@@ -149,6 +165,8 @@ async fn get_track_md(
             model_id: row.model_id,
             model_name: row.model_name,
         },
+        propulsion: row.propulsion,
+        launch_method: row.launch_method,
         takeoff_at: row.takeoff_at,
         landing_at: row.landing_at,
         takeoff_timezone: row.takeoff_timezone,
@@ -194,6 +212,8 @@ struct TrackMdRow {
     brand_name: String,
     model_id: String,
     model_name: String,
+    propulsion: String,
+    launch_method: String,
     takeoff_at: i64,
     landing_at: i64,
     takeoff_timezone: String,
