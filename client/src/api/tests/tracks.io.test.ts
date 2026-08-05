@@ -7,6 +7,7 @@ describe('track API schemas', () => {
       id: 'track-1',
       pilot: { name: 'Pilot', country: null },
       glider: {
+        kind: 'hg',
         brandId: 'aeros',
         brandName: 'Aeros',
         modelId: 'target',
@@ -68,6 +69,7 @@ describe('track API schemas', () => {
       pilot: { id: 1, name: 'Pilot', country: null },
       track: {
         id: 'track-1',
+        kind: 'hg',
         takeoffAt: Date.UTC(2025, 6, 15, 12) / 1000,
         duration: 3600,
         takeoffTimezone: 'Europe/Vienna',

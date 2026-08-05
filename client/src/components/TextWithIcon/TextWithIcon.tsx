@@ -18,6 +18,8 @@ export interface TextWithIconProps {
   flag?: string | null;
   /** Hover tooltip for {@link TextWithIconProps.text}. */
   tooltip?: ReactNode;
+  /** Layout direction. */
+  layout?: 'normal' | 'reverse';
 }
 
 /**
@@ -29,6 +31,7 @@ export const TextWithIcon = ({
   icon,
   flag,
   tooltip,
+  layout = 'normal',
 }: TextWithIconProps) => {
   const leading = flag ? (
     <Tooltip title={getCountryName(flag)}>
@@ -49,10 +52,21 @@ export const TextWithIcon = ({
       text
     );
 
-  return (
+  const iconElement = leading != null && (
+    <span className={styles.icon} data-layout={layout}>
+      {leading}
+    </span>
+  );
+
+  return layout === 'normal' ? (
     <>
-      {leading != null && <span className={styles.icon}>{leading}</span>}
+      {iconElement}
       {body}
+    </>
+  ) : (
+    <>
+      {body}
+      {iconElement}
     </>
   );
 };

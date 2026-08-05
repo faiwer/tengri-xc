@@ -24,6 +24,7 @@ const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
   id: 'track-1',
   pilot: { name: 'Pilot', country: null },
   glider: {
+    kind: 'hg',
     brandId: 'aeros',
     brandName: 'Aeros',
     modelId: 'target',

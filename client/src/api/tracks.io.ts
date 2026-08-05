@@ -123,6 +123,7 @@ export const TrackMetadataIo = z
       country: z.string().nullable(),
     }),
     glider: z.object({
+      kind: z.enum(SPORTS),
       brandId: z.string(),
       brandName: z.string(),
       modelId: z.string(),

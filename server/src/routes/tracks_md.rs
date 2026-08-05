@@ -78,6 +78,8 @@ struct Takeoff {
 
 #[derive(Serialize)]
 struct Glider {
+    /// Glider kind: `pg` / `hg` / `sp` / `other`.
+    kind: String,
     brand_id: String,
     brand_name: String,
     model_id: String,
@@ -94,6 +96,7 @@ async fn get_track_md(
     let row: Option<TrackMdRow> = sqlx::query_as(
         "SELECT f.id, \
                 u.name AS pilot_name, p.country AS pilot_country, \
+                f.kind::text AS kind, \
                 f.brand_id, b.name AS brand_name, f.model_id, m.name AS model_name, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint AS takeoff_at, \
                 EXTRACT(EPOCH FROM f.landing_at)::bigint AS landing_at, \
@@ -137,6 +140,7 @@ async fn get_track_md(
             country: row.pilot_country,
         },
         glider: Glider {
+            kind: row.kind,
             brand_id: row.brand_id,
             brand_name: row.brand_name,
             model_id: row.model_id,
@@ -181,6 +185,7 @@ struct TrackMdRow {
     id: String,
     pilot_name: String,
     pilot_country: Option<String>,
+    kind: String,
     brand_id: String,
     brand_name: String,
     model_id: String,

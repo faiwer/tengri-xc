@@ -17,6 +17,7 @@ import {
 import { TextWithIcon } from '../TextWithIcon';
 import { LandingLabel } from './LandingLabel';
 import styles from './TrackMetaPanel.module.scss';
+import { GliderKindIcon } from '../icons';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
@@ -59,7 +60,11 @@ export function TrackMetaPanel({
         </Cell>
       )}
       <Cell label="Glider">
-        {data.glider.brandName} {data.glider.modelName}
+        <TextWithIcon
+          layout="reverse"
+          icon={<GliderKindIcon kind={data.glider.kind} tooltip="singular" />}
+          text={data.glider.brandName + ' ' + data.glider.modelName}
+        />
       </Cell>
       <Cell label="Date">
         {formatVerboseDate(data.takeoffAt, data.takeoffOffset)}

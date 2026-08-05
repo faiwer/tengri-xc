@@ -2,3 +2,8 @@
   // Matches the old `&nbsp;&nbsp;` gap between the flag/icon and the text.
   margin-inline-end: 0.4rem;
 }
+
+.icon[data-layout="reverse"] {
+  margin-inline-end: 0;
+  margin-inline-start: 0.4rem;
+}
