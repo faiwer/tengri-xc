@@ -19,6 +19,11 @@
   text-align: right;
 }
 
+.cell[data-mode="compact"] .link {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 // Generic "this column is contextual / secondary" styling. The link
 // inside the cell inherits color via `color: inherit`, so setting it on
 // the `<td>` reaches the visible text without a more specific rule.

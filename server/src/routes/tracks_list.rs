@@ -83,6 +83,8 @@ struct Pilot {
 #[derive(Serialize)]
 struct TrackRef {
     id: String,
+    /// Glider kind: `pg` / `hg` / `sp` / `other`.
+    kind: String,
     /// Unix epoch seconds (UTC). Same wire shape as `/tracks/{id}/md`.
     takeoff_at: i64,
     /// Whole seconds, from the `flights.duration` generated column.
@@ -147,6 +149,7 @@ async fn list_tracks(
 
     let mut query = Sql::select(&[
         "f.id",
+        "f.kind::text AS kind",
         "EXTRACT(EPOCH FROM f.takeoff_at)::bigint AS takeoff_at",
         "f.duration",
         "f.takeoff_timezone",
@@ -215,6 +218,7 @@ async fn list_tracks(
             },
             track: TrackRef {
                 id: r.id,
+                kind: r.kind,
                 takeoff_at: r.takeoff_at,
                 duration: r.duration,
                 takeoff_timezone: r.takeoff_timezone,
@@ -243,6 +247,7 @@ async fn list_tracks(
 #[derive(sqlx::FromRow)]
 struct TrackListRow {
     id: String,
+    kind: String,
     takeoff_at: i64,
     duration: i32,
     takeoff_timezone: String,

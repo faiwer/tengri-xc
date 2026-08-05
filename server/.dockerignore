@@ -5,8 +5,9 @@
 # Compiled artifacts — never send the local target dir into the build.
 target/
 
-# Leonardo test files.
+# Leonardo & map test files.
 leo/
+crates/tengri-maps/_tmp/
 
 # Secrets / local-only config. Prod injects env vars directly.
 .env

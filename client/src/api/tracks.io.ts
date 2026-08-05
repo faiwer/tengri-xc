@@ -13,6 +13,7 @@ import {
 } from 'bincode-ts';
 import { keyByField } from '../utils/keyBy';
 import { DecimalDegreeIo, E5CoordinateIo } from '../utils/geo/coordinates';
+import { SPORTS } from '../core/sport';
 
 // --- JSON metadata (zod) -----------------------------------------------------
 //
@@ -183,6 +184,8 @@ export const TrackListItemIo = z.object({
   track: z
     .object({
       id: z.string(),
+      /** Glider kind. */
+      kind: z.enum(SPORTS),
       /** Unix epoch seconds (UTC). */
       takeoffAt: z.number().int(),
       /** Whole seconds, from `flights.duration`. */

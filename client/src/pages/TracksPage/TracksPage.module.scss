@@ -33,6 +33,10 @@
   padding: 0.65rem 0.85rem;
   border-bottom: 1px solid #e3e3e7;
   background: #f7f7f8;
+
+  &.compact {
+    padding: 0;
+  }
 }
 
 .alignRight {

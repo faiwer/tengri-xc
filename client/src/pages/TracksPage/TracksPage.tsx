@@ -17,6 +17,7 @@ import styles from './TracksPage.module.scss';
 import { useScrollSentinel } from './useScrollSentinel';
 import { useTracksFeed } from './useTracksFeed';
 import { RouteTypeIcon } from '../../components/icons/RouteTypeIcon';
+import { GliderKindIcon } from '../../components/icons';
 
 /**
  * Global tracks feed: cursor-paginated, infinite-scroll on window
@@ -125,6 +126,7 @@ function useColumns(layout: ReturnType<typeof useLayout>) {
     [layout.showIdx, 'max-content'], // #
     [layout.showTakeoff, '1fr'], // takeoff
     [true, '1fr'], // pilot
+    [true, 'max-content'], // glider kind
     [layout.showDuration, 'max-content'], // duration
     [layout.showScore, 'max-content'], // score
     [true, 'max-content'], // distance
@@ -136,9 +138,10 @@ function useColumns(layout: ReturnType<typeof useLayout>) {
         {layout.showIdx && <th className={styles.alignRight}>#</th>}
         {layout.showTakeoff && <th>Takeoff</th>}
         <th>Pilot</th>
+        <th className={styles.compact} />
         {layout.showDuration && (
-          <th className={styles.alignRight}>
-            {layout.layout === 'micro' ? '' : 'Duration'}
+          <th className={styles.alignLeft}>
+            {layout.layout === 'micro' ? '' : 'Time'}
           </th>
         )}
         {layout.showScore && <th>Score</th>}
@@ -184,6 +187,12 @@ function buildHomeRowCells(
       content: (
         <TextWithIcon flag={item.pilot.country} text={item.pilot.name} />
       ),
+    },
+    {
+      key: 'kind',
+      content: <GliderKindIcon kind={item.track.kind} tooltip="singular" />,
+      align: 'left',
+      mode: 'compact',
     },
     showDuration && {
       key: 'duration',

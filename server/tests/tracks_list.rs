@@ -61,6 +61,7 @@ async fn list_returns_flights_newest_first_with_full_payload_shape() {
     // Payload shape on the first item.
     assert_eq!(items[0]["pilot"]["id"], TEST_USER_ID);
     assert_eq!(items[0]["pilot"]["name"], TEST_USER_NAME);
+    assert_eq!(items[0]["track"]["kind"], "pg"); // seed default `TEST_KIND`
     assert_eq!(items[0]["track"]["takeoff_at"], TAKEOFF_NEWEST);
     assert_eq!(items[0]["track"]["duration"], 600); // landing = takeoff + 600
     // Timezone/point fields ride along on every list row from the seed

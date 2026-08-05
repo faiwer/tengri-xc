@@ -32,6 +32,8 @@ export interface TrackRowCell {
   muted?: boolean;
   /** Optional CSS classname merged onto the `<td>`. */
   className?: string;
+  /** Custom styles */
+  mode?: 'normal' | 'compact';
 }
 
 interface TrackRowProps {
@@ -53,6 +55,7 @@ export function TrackRow({ item, cells }: TrackRowProps) {
             cell.className,
           )}
           data-align={cell.align ?? 'left'}
+          data-mode={cell.mode ?? 'normal'}
         >
           <Link to={href} className={styles.link}>
             {cell.content}
