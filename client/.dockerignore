@@ -3,8 +3,10 @@
 # artifacts and local-only files. The Dockerfile writes .env.production itself.
 
 # Installed/compiled artifacts — reinstalled/rebuilt inside the image.
-node_modules
-dist
+# Match at any depth so the submodule's own node_modules
+# (packages/tengri-maplibre/node_modules) is dropped too, not just the root.
+**/node_modules
+**/dist
 
 # Env files. .env carries E2E_DATABASE_URL and a dev API host; .env.production
 # is generated in the Dockerfile, so ignore any local one too.
