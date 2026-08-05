@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Sport } from '../admin/gliders.io';
-import { apiPostRaw, type ApiRequestOptions } from '../core';
+import { apiDelete, apiPostRaw, type ApiRequestOptions } from '../core';
 import type { LaunchMethod, Propulsion } from '../flights.io';
 import { gzipFlightFile } from '../tracks';
 
@@ -39,3 +39,13 @@ export async function createFlight(
   form.append('propulsion', meta.propulsion);
   return apiPostRaw('/me/flights', form, CreateFlightResponseIo, options);
 }
+
+/**
+ * Delete a flight and all its data. Allowed for the flight's owner or an admin
+ * with `MANAGE_TRACKS`; the server cascades tracks/routes/scoring and reaps a
+ * now-orphaned private glider.
+ */
+export const deleteFlight = (
+  id: string,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiDelete(`/me/flights/${id}`, options);

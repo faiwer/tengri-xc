@@ -60,7 +60,12 @@ export function TrackMetaPanel({
     <section className={styles.panel} aria-label="Flight metadata">
       <div className={clsx(styles.header, canManage && styles.withMenu)}>
         <Cell>{formatVerboseDate(data.takeoffAt, data.takeoffOffset)}</Cell>
-        {canManage && <FlightActionsMenu anchorClassName={styles.menuAnchor} />}
+        {canManage && (
+          <FlightActionsMenu
+            flightId={data.id}
+            anchorClassName={styles.menuAnchor}
+          />
+        )}
       </div>
       <Cell>
         <TextWithIcon flag={data.pilot.country} text={data.pilot.name} />

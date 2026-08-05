@@ -5,18 +5,26 @@ import {
   EditOutlined,
   EllipsisOutlined,
 } from '@ant-design/icons';
+import { useRemoveFlight } from './useRemoveFlight';
 
 export function FlightActionsMenu({
+  flightId,
   anchorClassName,
 }: {
+  flightId: string;
   anchorClassName?: string;
 }) {
+  const removeFlight = useRemoveFlight(flightId);
+
+  const onClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'remove') {
+      removeFlight();
+    }
+  };
+
   return (
     <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
-      <Dropdown
-        menu={{ items: MENU_ITEMS, onClick: () => {} }}
-        trigger={['click']}
-      >
+      <Dropdown menu={{ items: MENU_ITEMS, onClick }} trigger={['click']}>
         <Button
           type="text"
           className={anchorClassName}

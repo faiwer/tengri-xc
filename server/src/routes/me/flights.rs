@@ -7,8 +7,9 @@ use std::time::Duration;
 
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Multipart, State, multipart::MultipartRejection},
-    routing::post,
+    extract::{DefaultBodyLimit, Multipart, Path, State, multipart::MultipartRejection},
+    http::StatusCode,
+    routing::{delete, post},
 };
 use serde::Serialize;
 use tengri_formats::{detect_format, tengri::VERSION};
@@ -33,10 +34,12 @@ use crate::{
 const SCORING_WAIT: Duration = Duration::from_secs(3);
 
 pub fn router() -> Router<AppState> {
-    Router::new().route(
-        "/me/flights",
-        post(create).layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES)),
-    )
+    Router::new()
+        .route(
+            "/me/flights",
+            post(create).layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES)),
+        )
+        .route("/me/flights/{id}", delete(remove))
 }
 
 #[derive(Serialize)]
@@ -102,6 +105,41 @@ async fn create(
         id: flight_id,
         position,
     }))
+}
+
+/// `DELETE /me/flights/{id}` — remove a flight and everything hanging off it.
+/// The flight's owner may delete their own; `MANAGE_TRACKS` may delete any. The
+/// `ON DELETE CASCADE` FKs reap tracks/sources/routes/scoring jobs, and the
+/// `flights_cleanup_orphan_customs` trigger reaps a now-orphaned private
+/// model/brand.
+async fn remove(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    require_permission(&identity, Permissions::CAN_AUTHORIZE)?;
+
+    let owner_id: Option<i32> = sqlx::query_scalar("SELECT user_id FROM flights WHERE id = $1")
+        .bind(&id)
+        .fetch_optional(state.pool())
+        .await
+        .map_err(|e| AppError::Internal(e.into()))?;
+
+    let Some(owner_id) = owner_id else {
+        return Err(AppError::NotFound);
+    };
+
+    if owner_id != identity.user_id && !identity.permissions.contains(Permissions::MANAGE_TRACKS) {
+        return Err(AppError::Forbidden);
+    }
+
+    sqlx::query("DELETE FROM flights WHERE id = $1")
+        .bind(&id)
+        .execute(state.pool())
+        .await
+        .map_err(|e| AppError::Internal(e.into()))?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn persist_flight(
