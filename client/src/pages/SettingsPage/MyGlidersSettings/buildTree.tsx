@@ -2,6 +2,7 @@ import type { DataNode } from 'antd/es/tree';
 
 import type { MyGlider } from '../../../api/me/gliders.io';
 import type { Sport } from '../../../api/admin/gliders.io';
+import { GLIDER_KIND_LABEL_PLURAL } from '../../../core/sport';
 import { GliderKindIcon } from '../../../components/icons';
 import { groupBy } from '../../../utils/groupBy';
 import { BrandIcon, KindIcon } from '../GlidersTree';
@@ -56,7 +57,7 @@ export function buildTree(gliders: MyGlider[]): TreeBuild {
     const kindKey = `kind:${kind}`;
     treeData.push({
       key: kindKey,
-      title: KIND_LABEL[kind],
+      title: GLIDER_KIND_LABEL_PLURAL[kind],
       icon: <KindIcon kind={kind} />,
       children: brandNodes,
     });
@@ -95,13 +96,6 @@ function Leaf({ glider }: { glider: MyGlider }) {
 }
 
 const KIND_ORDER: Sport[] = ['pg', 'hg', 'sp', 'other'];
-
-const KIND_LABEL: Record<Sport, string> = {
-  pg: 'Paragliders',
-  hg: 'Hang-gliders',
-  sp: 'Sailplanes',
-  other: 'Other',
-};
 
 /** Whatever the antd Tree accepts as a node key. */
 type TreeKey = string | number;

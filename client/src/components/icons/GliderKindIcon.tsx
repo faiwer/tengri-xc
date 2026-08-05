@@ -1,13 +1,19 @@
 import { DingdingOutlined } from '@ant-design/icons';
 
-import type { Sport } from '../../core/sport';
+import {
+  GLIDER_KIND_LABEL,
+  GLIDER_KIND_LABEL_PLURAL,
+  type Sport,
+} from '../../core/sport';
 import { HgIcon } from './HgIcon';
 import type { IconProps } from './icon';
 import { PgIcon } from './PgIcon';
 import { SpIcon } from './SpIcon';
+import { Tooltip } from 'antd';
 
 export interface GliderKindIconProps extends IconProps {
   kind: Sport;
+  tooltip?: 'plural' | 'singular' | 'none';
 }
 
 const ICON_BY_SPORT = {
@@ -17,7 +23,23 @@ const ICON_BY_SPORT = {
   other: DingdingOutlined,
 } satisfies Record<Sport, unknown>;
 
-export function GliderKindIcon({ kind, ...rest }: GliderKindIconProps) {
+export function GliderKindIcon({
+  kind,
+  tooltip = 'none',
+  ...rest
+}: GliderKindIconProps) {
   const Icon = ICON_BY_SPORT[kind];
-  return <Icon {...rest} />;
+  const label =
+    tooltip === 'plural'
+      ? GLIDER_KIND_LABEL_PLURAL[kind]
+      : GLIDER_KIND_LABEL[kind];
+  return tooltip !== 'none' ? (
+    <Tooltip title={label}>
+      <span>
+        <Icon {...rest} />
+      </span>
+    </Tooltip>
+  ) : (
+    <Icon {...rest} />
+  );
 }

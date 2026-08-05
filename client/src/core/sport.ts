@@ -13,3 +13,17 @@ export type CatalogSport = (typeof CATALOG_SPORTS)[number];
 
 export const isCatalogSport = (sport: Sport): sport is CatalogSport =>
   sport !== 'other';
+
+export const GLIDER_KIND_LABEL: Record<Sport, string> = {
+  pg: 'Paraglider',
+  hg: 'Hang-glider',
+  sp: 'Sailplane',
+  other: 'Other',
+};
+
+export const GLIDER_KIND_LABEL_PLURAL: Record<Sport, string> = {
+  pg: 'Paragliders',
+  hg: 'Hang-gliders',
+  sp: 'Sailplanes',
+  other: 'Other',
+};
