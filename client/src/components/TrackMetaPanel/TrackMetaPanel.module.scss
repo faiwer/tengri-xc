@@ -10,6 +10,16 @@
   color: inherit;
 }
 
+.header.withMenu {
+  position: relative;
+
+  .menuAnchor {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+  }
+}
+
 .cell {
   display: flex;
   flex-direction: column;

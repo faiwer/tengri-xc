@@ -5,7 +5,7 @@ describe('track API schemas', () => {
   it('derives metadata offsets from timezone names', () => {
     const parsed = TrackMetadataIo.parse({
       id: 'track-1',
-      pilot: { name: 'Pilot', country: null },
+      pilot: { id: 1, name: 'Pilot', country: null },
       glider: {
         kind: 'hg',
         brandId: 'aeros',

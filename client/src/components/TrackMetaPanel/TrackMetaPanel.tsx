@@ -4,6 +4,7 @@ import { RouteSwitcher } from './RouteSwitcher';
 import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
 import type { VarioPeaks } from '../../track/varioSegments';
+import clsx from 'clsx';
 import {
   formatDuration,
   formatShortTime,
@@ -16,8 +17,10 @@ import {
 } from '../../utils/formatUnits';
 import { TextWithIcon } from '../TextWithIcon';
 import { LandingLabel } from './LandingLabel';
+import { FlightActionsMenu } from './FlightActionsMenu';
 import styles from './TrackMetaPanel.module.scss';
 import { GliderKindIcon } from '../icons';
+import { useIdentity, hasPermission, Permissions } from '../../core/identity';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
@@ -47,10 +50,18 @@ export function TrackMetaPanel({
   altitudes,
 }: TrackMetaPanelProps) {
   const prefs = usePreferences();
+  const { me } = useIdentity();
   const showAltitudeFields = hasAltitudeData !== false;
+  const canManage =
+    me != null &&
+    (hasPermission(me, Permissions.MANAGE_TRACKS) || me.id === data.pilot.id);
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
+      <div className={clsx(styles.header, canManage && styles.withMenu)}>
+        <Cell>{formatVerboseDate(data.takeoffAt, data.takeoffOffset)}</Cell>
+        {canManage && <FlightActionsMenu anchorClassName={styles.menuAnchor} />}
+      </div>
       <Cell>
         <TextWithIcon flag={data.pilot.country} text={data.pilot.name} />
       </Cell>
@@ -65,9 +76,6 @@ export function TrackMetaPanel({
           icon={<GliderKindIcon kind={data.glider.kind} tooltip="singular" />}
           text={data.glider.brandName + ' ' + data.glider.modelName}
         />
-      </Cell>
-      <Cell label="Date">
-        {formatVerboseDate(data.takeoffAt, data.takeoffOffset)}
       </Cell>
       <Cell label="Takeoff">
         {formatShortTime(data.takeoffAt, prefs, data.takeoffOffset)}

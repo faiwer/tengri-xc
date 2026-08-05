@@ -22,7 +22,7 @@ const buildTrack = (input: {
 
 const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
   id: 'track-1',
-  pilot: { name: 'Pilot', country: null },
+  pilot: { id: 1, name: 'Pilot', country: null },
   glider: {
     kind: 'hg',
     brandId: 'aeros',

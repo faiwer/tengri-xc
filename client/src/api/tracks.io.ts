@@ -118,6 +118,8 @@ export const TrackMetadataIo = z
   .object({
     id: z.string(),
     pilot: z.object({
+      /** Owning user's id; used to gate the owner-only actions menu. */
+      id: z.number().int(),
       name: z.string(),
       /** ISO 3166-1 alpha-2 country code, or `null` if unknown. */
       country: z.string().nullable(),

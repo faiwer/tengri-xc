@@ -53,6 +53,8 @@ struct MainRoute {
 
 #[derive(Serialize)]
 struct Pilot {
+    /// Owning user's id;
+    id: i32,
     name: String,
     /// ISO 3166-1 alpha-2 country code from the user's profile, or
     /// `None` if no profile / no country recorded. The client renders
@@ -95,7 +97,7 @@ async fn get_track_md(
     // `null` country rather than dropping the flight to a 404.
     let row: Option<TrackMdRow> = sqlx::query_as(
         "SELECT f.id, \
-                u.name AS pilot_name, p.country AS pilot_country, \
+                u.id AS pilot_id, u.name AS pilot_name, p.country AS pilot_country, \
                 f.kind::text AS kind, \
                 f.brand_id, b.name AS brand_name, f.model_id, m.name AS model_name, \
                 EXTRACT(EPOCH FROM f.takeoff_at)::bigint AS takeoff_at, \
@@ -136,6 +138,7 @@ async fn get_track_md(
     Ok(Json(TrackMd {
         id: row.id,
         pilot: Pilot {
+            id: row.pilot_id,
             name: row.pilot_name,
             country: row.pilot_country,
         },
@@ -183,6 +186,7 @@ async fn get_track_md(
 #[derive(sqlx::FromRow)]
 struct TrackMdRow {
     id: String,
+    pilot_id: i32,
     pilot_name: String,
     pilot_country: Option<String>,
     kind: String,
