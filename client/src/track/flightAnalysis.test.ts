@@ -30,6 +30,8 @@ const metadata = (takeoffAt: number, landingAt: number): TrackMetadata => ({
     modelId: 'target',
     modelName: 'Target',
   },
+  launchMethod: 'foot',
+  propulsion: 'free',
   takeoffAt,
   landingAt,
   takeoffTimezone: 'Etc/UTC',

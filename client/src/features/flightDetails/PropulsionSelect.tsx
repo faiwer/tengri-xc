@@ -1,5 +1,5 @@
 import { Select } from 'antd';
-import type { Propulsion } from '../../../api/flights.io';
+import type { Propulsion } from '../../api/flights.io';
 import styles from './FlightDetailsStep.module.scss';
 
 export function PropulsionSelect({

@@ -29,7 +29,7 @@ export function TrackPage() {
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
   const [activeChartKind, setActiveChartKind] = useChartKind();
   const setMapCenterDebounced = useMemo(() => debounce(setMapCenter, 500), []);
-  const { state, trackState, track } = useTrackPageData(id);
+  const { state, setMetadata, trackState, track } = useTrackPageData(id);
   const metadata = state.status === 'ok' ? state.data : null;
   const { selectedRoute, onRouteSelect } = useRoute(metadata);
   const analysis = useFlightAnalysis(
@@ -59,6 +59,7 @@ export function TrackPage() {
           {state.status === 'ok' && (
             <TrackMetaPanel
               data={state.data}
+              onMetadataChange={setMetadata}
               selectedRoute={selectedRoute}
               onRouteSelect={onRouteSelect}
               hasAltitudeData={analysis?.hasAltitudeData}

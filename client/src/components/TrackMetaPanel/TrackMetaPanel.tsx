@@ -1,5 +1,6 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import type { Route, TrackMetadata } from '../../api/tracks.io';
+import { EditFlightModal } from '../EditFlightModal';
 import { RouteSwitcher } from './RouteSwitcher';
 import { usePreferences } from '../../core/preferences';
 import type { AltitudeRange } from '../../track/altitudeRange';
@@ -24,6 +25,8 @@ import { useIdentity, hasPermission, Permissions } from '../../core/identity';
 
 interface TrackMetaPanelProps {
   data: TrackMetadata;
+  /** Called with the refreshed metadata after an in-panel edit succeeds. */
+  onMetadataChange: (data: TrackMetadata) => void;
   selectedRoute: Route | null;
   onRouteSelect: (route: Route) => void;
   /** `undefined` until track analysis has loaded. */
@@ -43,6 +46,7 @@ interface TrackMetaPanelProps {
 
 export function TrackMetaPanel({
   data,
+  onMetadataChange,
   selectedRoute,
   onRouteSelect,
   hasAltitudeData,
@@ -51,6 +55,7 @@ export function TrackMetaPanel({
 }: TrackMetaPanelProps) {
   const prefs = usePreferences();
   const { me } = useIdentity();
+  const [isEditing, setIsEditing] = useState(false);
   const showAltitudeFields = hasAltitudeData !== false;
   const canManage =
     me != null &&
@@ -64,9 +69,21 @@ export function TrackMetaPanel({
           <FlightActionsMenu
             flightId={data.id}
             anchorClassName={styles.menuAnchor}
+            onEdit={() => setIsEditing(true)}
           />
         )}
       </div>
+      {canManage && (
+        <EditFlightModal
+          open={isEditing}
+          flight={data}
+          onClose={() => setIsEditing(false)}
+          onSaved={(updated) => {
+            onMetadataChange(updated);
+            setIsEditing(false);
+          }}
+        />
+      )}
       <Cell>
         <TextWithIcon flag={data.pilot.country} text={data.pilot.name} />
       </Cell>

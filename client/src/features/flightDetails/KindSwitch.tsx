@@ -1,7 +1,7 @@
 import { Segmented, Tooltip } from 'antd';
-import type { Sport } from '../../../api/admin/gliders.io';
-import { GliderKindIcon } from '../../../components/icons/GliderKindIcon';
-import { CATALOG_SPORTS, type CatalogSport } from '../../../core/sport';
+import type { Sport } from '../../api/admin/gliders.io';
+import { GliderKindIcon } from '../../components/icons/GliderKindIcon';
+import { CATALOG_SPORTS, type CatalogSport } from '../../core/sport';
 import styles from './FlightDetailsStep.module.scss';
 
 export function KindSwitch({

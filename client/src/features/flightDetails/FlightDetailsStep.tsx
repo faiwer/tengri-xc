@@ -1,11 +1,8 @@
 import { Button } from 'antd';
 import { type ReactNode, useState } from 'react';
-import type { Sport } from '../../../api/admin/gliders.io';
-import type { LaunchMethod, Propulsion } from '../../../api/flights.io';
-import { isCatalogSport } from '../../../core/sport';
-import type { RecentGlider } from '../../../api/me/recentGliders.io';
-import { nullthrows } from '../../../utils/nullthrows';
-import type { UploadPreview } from '../UploadPreviewPanel';
+import type { Sport } from '../../api/admin/gliders.io';
+import type { LaunchMethod, Propulsion } from '../../api/flights.io';
+import { nullthrows } from '../../utils/nullthrows';
 import { GliderSelect } from './GliderSelect';
 import { KindSwitch } from './KindSwitch';
 import { LaunchMethodSelect } from './LaunchMethodSelect';
@@ -15,24 +12,24 @@ import type { FlightDetails, FlightDetailsForm } from './types';
 import styles from './FlightDetailsStep.module.scss';
 
 interface FlightDetailsStepProps {
-  preview: UploadPreview;
-  /** Glider picked in the previous step, or `null` when skipped. */
-  glider: RecentGlider | null;
-  /** `true` while the upload request is in flight — locks the form. */
+  /** Seed values; the working state is a copy, so edits don't mutate the caller. */
+  initial: FlightDetailsForm;
+  /** `true` while the submit request is in flight — locks the form. */
   isSubmitting: boolean;
+  /** Primary button label. Defaults to `Submit`. */
+  submitLabel?: string;
   onSubmit: (value: FlightDetails) => void;
   onCancel: () => void;
 }
 
 export function FlightDetailsStep({
-  glider,
+  initial,
   isSubmitting,
+  submitLabel = 'Submit',
   onSubmit,
   onCancel,
 }: FlightDetailsStepProps) {
-  const [form, setForm] = useState<FlightDetailsForm>(() =>
-    initialForm(glider),
-  );
+  const [form, setForm] = useState<FlightDetailsForm>(initial);
   const { catalog, isLoading } = useGliderCatalog(form.kind);
 
   const onKindChange = (kind: Sport) =>
@@ -105,7 +102,7 @@ export function FlightDetailsStep({
           loading={isSubmitting}
           onClick={onSubmitClick}
         >
-          Submit
+          {submitLabel}
         </Button>
       </div>
     </div>
@@ -119,28 +116,4 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </div>
   );
-}
-
-function initialForm(glider: RecentGlider | null): FlightDetailsForm {
-  if (!glider) {
-    return {
-      kind: 'hg',
-      brandId: null,
-      modelId: null,
-      launchMethod: null,
-      propulsion: 'free',
-    };
-  }
-
-  const kind = isCatalogSport(glider.kind) ? glider.kind : 'hg';
-  // Only carry the brand/model over when they belong to the resolved kind's
-  // catalog (they won't if we fell back off an `'other'` glider).
-  const sameKind = kind === glider.kind;
-  return {
-    kind,
-    brandId: sameKind ? glider.brandId : null,
-    modelId: sameKind ? glider.modelId : null,
-    launchMethod: glider.launchMethod,
-    propulsion: 'free',
-  };
 }

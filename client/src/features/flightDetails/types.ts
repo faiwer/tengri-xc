@@ -1,5 +1,5 @@
-import type { Sport } from '../../../api/admin/gliders.io';
-import type { LaunchMethod, Propulsion } from '../../../api/flights.io';
+import type { Sport } from '../../api/admin/gliders.io';
+import type { LaunchMethod, Propulsion } from '../../api/flights.io';
 
 /** Working form state — fields are nullable until the pilot fills them. */
 export interface FlightDetailsForm {

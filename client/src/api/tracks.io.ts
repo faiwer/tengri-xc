@@ -14,6 +14,7 @@ import {
 import { keyByField } from '../utils/keyBy';
 import { DecimalDegreeIo, E5CoordinateIo } from '../utils/geo/coordinates';
 import { SPORTS } from '../core/sport';
+import { LaunchMethodIo, PropulsionIo } from './flights.io';
 
 // --- JSON metadata (zod) -----------------------------------------------------
 //
@@ -131,6 +132,10 @@ export const TrackMetadataIo = z
       modelId: z.string(),
       modelName: z.string(),
     }),
+    /** How the flight got airborne. */
+    launchMethod: LaunchMethodIo,
+    /** How the flight stayed airborne. */
+    propulsion: PropulsionIo,
     /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
     takeoffAt: z.number().int(),
     /** Unix epoch seconds (UTC). */

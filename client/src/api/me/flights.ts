@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import type { Sport } from '../admin/gliders.io';
-import { apiDelete, apiPostRaw, type ApiRequestOptions } from '../core';
+import {
+  apiDelete,
+  apiPatch,
+  apiPostRaw,
+  type ApiRequestOptions,
+} from '../core';
 import type { LaunchMethod, Propulsion } from '../flights.io';
 import { gzipFlightFile } from '../tracks';
+import { TrackMetadataIo, type TrackMetadata } from '../tracks.io';
 
 export interface CreateFlightMeta {
   kind: Sport;
@@ -39,6 +45,21 @@ export async function createFlight(
   form.append('propulsion', meta.propulsion);
   return apiPostRaw('/me/flights', form, CreateFlightResponseIo, options);
 }
+
+/** Glider/launch metadata an owner (or admin) can change after upload. */
+export type UpdateFlightMeta = CreateFlightMeta;
+
+/**
+ * Edit a flight's glider/launch metadata. Allowed for the flight's owner or an
+ * admin with `MANAGE_TRACKS`. The track is untouched, so route scores stay put;
+ * the server returns the refreshed metadata so the page can update in place.
+ */
+export const updateFlight = (
+  id: string,
+  meta: UpdateFlightMeta,
+  options: ApiRequestOptions = {},
+): Promise<TrackMetadata> =>
+  apiPatch(`/me/flights/${id}`, meta, TrackMetadataIo, options);
 
 /**
  * Delete a flight and all its data. Allowed for the flight's owner or an admin

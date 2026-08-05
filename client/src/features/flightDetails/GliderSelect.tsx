@@ -1,6 +1,6 @@
 import { Select } from 'antd';
 import { useMemo } from 'react';
-import type { GliderCatalog } from '../../../api/admin/gliders.io';
+import type { GliderCatalog } from '../../api/admin/gliders.io';
 import styles from './FlightDetailsStep.module.scss';
 
 interface GliderSelectProps {

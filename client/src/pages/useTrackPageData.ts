@@ -31,8 +31,11 @@ export function useTrackPageData(id: string) {
     [id],
   );
 
+  const setMetadata = (data: TrackMetadata) => setState({ status: 'ok', data });
+
   return {
     state,
+    setMetadata,
     trackState,
     track: trackState.status === 'ok' ? trackState.data : null,
   };

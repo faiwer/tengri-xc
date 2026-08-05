@@ -10,14 +10,18 @@ import { useRemoveFlight } from './useRemoveFlight';
 export function FlightActionsMenu({
   flightId,
   anchorClassName,
+  onEdit,
 }: {
   flightId: string;
   anchorClassName?: string;
+  onEdit: () => void;
 }) {
   const removeFlight = useRemoveFlight(flightId);
 
   const onClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === 'remove') {
+    if (key === 'edit') {
+      onEdit();
+    } else if (key === 'remove') {
       removeFlight();
     }
   };

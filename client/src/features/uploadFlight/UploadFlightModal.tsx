@@ -7,8 +7,13 @@ import { peekTrack } from '../../api/tracks';
 import { LoadingIcon } from '../../components/icons/LoadingIcon';
 import { useAsync, useErrorToast } from '../../core/hooks';
 import { routes } from '../../core/routes';
+import { isCatalogSport } from '../../core/sport';
 import { nullthrows } from '../../utils/nullthrows';
-import { FlightDetailsStep, type FlightDetails } from './FlightDetailsStep';
+import {
+  FlightDetailsStep,
+  type FlightDetails,
+  type FlightDetailsForm,
+} from '../flightDetails';
 import { GliderPickerStep } from './GliderPickerStep';
 import { UploadDropZone } from './UploadDropZone';
 import { UploadPreviewPanel, type UploadPreview } from './UploadPreviewPanel';
@@ -86,8 +91,7 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
         />
       ) : (
         <FlightDetailsStep
-          preview={nullthrows(preview)}
-          glider={glider}
+          initial={initialForm(glider)}
           isSubmitting={isSubmitting}
           onCancel={close}
           onSubmit={(details) => void submitFlight(details)}
@@ -100,3 +104,28 @@ export function UploadFlightModal({ open, onClose }: UploadFlightModalProps) {
 const STEP_TITLES: Partial<Record<Step, string>> = {
   glider: 'Copy data from previous flights?',
 };
+
+/** Seed the details form from a copied recent glider, or an empty draft. */
+function initialForm(glider: RecentGlider | null): FlightDetailsForm {
+  if (!glider) {
+    return {
+      kind: 'hg',
+      brandId: null,
+      modelId: null,
+      launchMethod: null,
+      propulsion: 'free',
+    };
+  }
+
+  const kind = isCatalogSport(glider.kind) ? glider.kind : 'hg';
+  // Only carry the brand/model over when they belong to the resolved kind's
+  // catalog (they won't if we fell back off an `'other'` glider).
+  const sameKind = kind === glider.kind;
+  return {
+    kind,
+    brandId: sameKind ? glider.brandId : null,
+    modelId: sameKind ? glider.modelId : null,
+    launchMethod: glider.launchMethod,
+    propulsion: 'free',
+  };
+}

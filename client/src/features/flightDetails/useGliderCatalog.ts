@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { getMyGliderCatalog } from '../../../api/me/gliderCatalog';
-import type { GliderCatalog, Sport } from '../../../api/admin/gliders.io';
-import { useAsyncEffect, useErrorToast } from '../../../core/hooks';
+import { getMyGliderCatalog } from '../../api/me/gliderCatalog';
+import type { GliderCatalog, Sport } from '../../api/admin/gliders.io';
+import { useAsyncEffect, useErrorToast } from '../../core/hooks';
 
 /**
  * Load the brand + model catalog for `sport`, served from a per-mount cache
