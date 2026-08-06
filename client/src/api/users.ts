@@ -8,9 +8,11 @@ import {
 import {
   MeIo,
   MeResponseIo,
+  UpdateMeResponseIo,
   type ChangePasswordRequest,
   type Me,
   type UpdateMeRequest,
+  type UpdateMeResponse,
 } from './users.io';
 
 export interface LoginParams {
@@ -45,18 +47,20 @@ export async function getMe(
 }
 
 /**
- * `PATCH /users/me` — owner-self update for any subset of editable
- * sections (currently `profile` and `preferences`). Returns the
- * full updated [`Me`] so the caller can swap it into the identity
- * context wholesale.
+ * `PATCH /users/me` — owner-self update for any subset of editable sections
+ * (currently `profile` and `preferences`). Returns the full updated [`Me`] (so
+ * the caller can swap it into the identity context wholesale) plus an
+ * `emailVerificationReset` flag that's `true` when the change dropped the email
+ * confirmation.
  *
- * On 422, throws [`ValidationError`] (from `core`) carrying the
- * per-field messages.
+ * On 422, throws [`ValidationError`] (from `core`) carrying the per-field
+ * messages.
  */
 export const updateMe = async (
   body: UpdateMeRequest,
   options: ApiRequestOptions = {},
-): Promise<Me> => apiPatch('/users/me', body, MeIo, options);
+): Promise<UpdateMeResponse> =>
+  apiPatch('/users/me', body, UpdateMeResponseIo, options);
 
 /**
  * `POST /users/me/password` — owner-self password change (and initial

@@ -10,14 +10,28 @@ use axum::{
     http::{Request, StatusCode, header},
 };
 use http_body_util::BodyExt;
+use jsonwebtoken::DecodingKey;
 use serde_json::{Value, json};
 use serial_test::serial;
 use sqlx::Row;
+use tengri_server::auth::token::decode_jwt;
+use tengri_server::user::Permissions;
 use tower::ServiceExt;
 
 async fn body_json(resp: axum::response::Response) -> Value {
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     serde_json::from_slice(&bytes).unwrap()
+}
+
+/// Pull the `tengri-jwt` value out of a response's `Set-Cookie` header, or
+/// `None` if the handler didn't reissue the session cookie.
+fn session_jwt_from(resp: &axum::response::Response) -> Option<String> {
+    let raw = resp.headers().get(header::SET_COOKIE)?.to_str().ok()?;
+    raw.split(';')
+        .next()?
+        .trim()
+        .strip_prefix("tengri-jwt=")
+        .map(str::to_owned)
 }
 
 #[tokio::test]
@@ -228,4 +242,252 @@ async fn patch_me_validation_failure_does_not_partially_apply() {
         .await
         .unwrap();
     assert_eq!(row.try_get::<String, _>("units").unwrap(), "system");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_writes_name_and_email_to_users() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            // Email is mixed-case on the wire — the server lowercases it.
+            json!({ "profile": { "name": "Renamed Pilot", "email": "Renamed@Example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["name"], "Renamed Pilot");
+    assert_eq!(body["email"], "renamed@example.com");
+
+    let row = sqlx::query("SELECT name, email FROM users WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(row.try_get::<String, _>("name").unwrap(), "Renamed Pilot");
+    assert_eq!(
+        row.try_get::<String, _>("email").unwrap(),
+        "renamed@example.com"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_name_change_reissues_session_cookie() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Renamed Pilot" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    // The JWT caches the display name; a name change must re-mint it so
+    // the navbar doesn't stay stale until the next slide.
+    let jwt = session_jwt_from(&resp).expect("name change reissues the session cookie");
+    let key = DecodingKey::from_secret(common::TEST_JWT_SECRET);
+    let claims = decode_jwt(&jwt, &key).unwrap();
+    assert_eq!(claims.name, "Renamed Pilot");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_unchanged_name_does_not_reissue_cookie() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            // Same name as the session — no cookie churn expected.
+            json!({ "profile": { "name": "Pilot", "country": "de" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert!(session_jwt_from(&resp).is_none());
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_rejects_name_and_email_already_taken() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    // A second user owns "Taken" and the address; user 1 tries to grab both.
+    sqlx::query("INSERT INTO users (id, name, email) VALUES (2, 'Taken', 'taken@example.com')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            // Name match folds case (`users_name_lower_key`).
+            json!({ "profile": { "name": "taken", "email": "taken@example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert_eq!(body["error"], "validation");
+    assert_eq!(body["fields"]["profile.name"], "Already taken");
+    assert_eq!(body["fields"]["profile.email"], "Already taken");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_blank_email_leaves_existing_untouched() {
+    // Email is never cleared via self-service — a blank value is a no-op.
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    sqlx::query("UPDATE users SET email = 'keep@example.com' WHERE id = 1")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Pilot", "email": "" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["email"], "keep@example.com");
+
+    let row = sqlx::query("SELECT email FROM users WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        row.try_get::<String, _>("email").unwrap(),
+        "keep@example.com"
+    );
+}
+
+/// Seed `id=1` with a verified address, returning the cookie the test uses.
+async fn seed_verified_email(pool: &sqlx::PgPool, email: &str) {
+    common::seed_user(pool, 1, "Pilot").await;
+    sqlx::query("UPDATE users SET email = $1, email_verified_at = now() WHERE id = 1")
+        .bind(email)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
+async fn email_unverified(pool: &sqlx::PgPool) -> bool {
+    sqlx::query_scalar("SELECT email_verified_at IS NULL FROM users WHERE id = 1")
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_email_change_by_non_admin_resets_verification() {
+    // A regular owner swapping their address hasn't proven the new one —
+    // the confirmation must drop so no stale "verified" badge carries over.
+    let (app, pool) = common::test_app().await;
+    seed_verified_email(&pool, "old@example.com").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Pilot", "email": "new@example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(
+        body["email_verification_reset"], true,
+        "response must flag the reset so the client can toast"
+    );
+    assert!(
+        email_unverified(&pool).await,
+        "changing the address as a non-admin must clear email_verified_at"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_same_email_keeps_verification() {
+    // Re-saving the *same* address (here only case differs, and the server
+    // lowercases both) isn't a change, so the confirmation must survive.
+    let (app, pool) = common::test_app().await;
+    seed_verified_email(&pool, "keep@example.com").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Pilot", "email": "Keep@Example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["email_verification_reset"], false);
+    assert!(
+        !email_unverified(&pool).await,
+        "an unchanged address must not churn email_verified_at"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_email_change_by_admin_keeps_verification() {
+    // A MANAGE_USERS owner is trusted to manage verification explicitly, so
+    // even a self-edit that swaps the address leaves the timestamp intact.
+    let (app, pool) = common::test_app().await;
+    seed_verified_email(&pool, "old@example.com").await;
+    let cookie = common::auth_cookie_with_permissions(
+        1,
+        "Pilot",
+        Permissions::CAN_AUTHORIZE | Permissions::MANAGE_USERS,
+    );
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Pilot", "email": "new@example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["email_verification_reset"], false);
+    assert!(
+        !email_unverified(&pool).await,
+        "an admin's self-edit must not clear email_verified_at"
+    );
 }

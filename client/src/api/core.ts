@@ -171,26 +171,43 @@ async function readErrorBody(response: Response): Promise<HttpError> {
     return new HttpError(response.status);
   }
 
-  // Same camelcase rewrite as success bodies: server keys are
-  // snake_case (`profile.civl_id`), the FE wants camelCase tail
-  // segments (`profile.civlId`) so they match `Form.Item name={…}`.
-  const camelized =
+  const body =
     raw !== null && typeof raw === 'object'
-      ? (camelcaseKeys(raw as Record<string, unknown>, { deep: true }) as {
-          message?: string;
-          fields?: Record<string, string>;
-        })
+      ? (raw as { message?: string; fields?: Record<string, string> })
       : null;
 
   if (response.status === 422) {
-    const fields = camelized?.fields;
+    const fields = body?.fields;
     if (!fields || typeof fields !== 'object') {
-      return new HttpError(422, camelized?.message);
+      return new HttpError(422, body?.message);
     }
-    return new ValidationError(fields, camelized?.message);
+    return new ValidationError(camelizeFieldKeys(fields), body?.message);
   }
 
-  return new HttpError(response.status, camelized?.message);
+  return new HttpError(response.status, body?.message);
+}
+
+/**
+ * Camelize each dot-separated segment of a field path while keeping the dots
+ * (`profile.civl_id` → `profile.civlId`). A blanket `camelcaseKeys` treats `.`
+ * as a separator and collapses the whole path to `profileCivlId`, which no
+ * longer matches the form's `['profile', 'civlId']` name nor the `fieldPrefix`
+ * the form strips — so the field error silently never lands.
+ */
+function camelizeFieldKeys(
+  fields: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, message] of Object.entries(fields)) {
+    const camelPath = path
+      .split('.')
+      .map((segment) =>
+        segment.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase()),
+      )
+      .join('.');
+    out[camelPath] = message;
+  }
+  return out;
 }
 
 /**

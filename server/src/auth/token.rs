@@ -5,11 +5,13 @@
 
 use std::time::Duration;
 
+use chrono::Utc;
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
 };
 use serde::{Deserialize, Serialize};
 
+use super::cookie::set_session;
 use crate::user::Permissions;
 
 pub const JWT_LIFETIME: Duration = Duration::from_secs(60 * 60 * 24 * 30 * 6);
@@ -53,6 +55,21 @@ pub fn encode_jwt(
     encoding_key: &EncodingKey,
 ) -> Result<String, jsonwebtoken::errors::Error> {
     encode(&Header::new(Algorithm::HS256), claims, encoding_key)
+}
+
+/// `Set-Cookie` value carrying a freshly-minted session JWT for
+/// `user_id`. Bundles [`Claims::new`] + [`encode_jwt`] + [`set_session`]
+/// so login, slide-renewal, and profile-update don't each re-spell it.
+pub fn mint_session_cookie(
+    user_id: i32,
+    name: String,
+    permissions: Permissions,
+    encoding_key: &EncodingKey,
+    https: bool,
+) -> Result<String, jsonwebtoken::errors::Error> {
+    let claims = Claims::new(user_id, name, permissions, Utc::now().timestamp());
+    let jwt = encode_jwt(&claims, encoding_key)?;
+    Ok(set_session(&jwt, https))
 }
 
 /// Verify signature + `exp`. "Is this account still allowed?" is

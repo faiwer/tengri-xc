@@ -39,8 +39,8 @@ use crate::{
     db::{Order, Sql, Update, like_contains},
     user::{
         CreateUser, CreateUserPassword, Permissions, ProfileUpdate, UpdateProfileRequest, UserDto,
-        UserSex, UserSource, apply_profile_update, create_user, fetch_user,
-        validate_profile_update,
+        UserSex, UserSource, apply_profile_update, blank_to_none, check_unique, create_user,
+        fetch_user, validate_email, validate_name, validate_profile_update,
     },
     validation::FieldErrors,
 };
@@ -267,7 +267,15 @@ async fn create(
     // (`users_name_key` / `users_login_key` / `users_email_key`) remain the
     // backstop for a race between this check and the insert.
     let mut errors = FieldErrors::new();
-    check_unique(state.pool(), &valid, None, &mut errors).await?;
+    check_unique(
+        state.pool(),
+        Some(&valid.name),
+        valid.login.as_deref(),
+        valid.email.as_deref(),
+        None,
+        &mut errors,
+    )
+    .await?;
     if valid.password.is_some() && valid.login.is_none() && valid.email.is_none() {
         errors.add("password", "Set a login or email so the user can log in");
     }
@@ -325,7 +333,15 @@ async fn update(
         .ok_or(AppError::NotFound)?;
 
     let mut errors = FieldErrors::new();
-    check_unique(state.pool(), &valid, Some(id), &mut errors).await?;
+    check_unique(
+        state.pool(),
+        Some(&valid.name),
+        valid.login.as_deref(),
+        valid.email.as_deref(),
+        Some(id),
+        &mut errors,
+    )
+    .await?;
 
     let password_hash = match valid.password.as_deref() {
         Some(pw) => {
@@ -425,28 +441,9 @@ async fn remove(
 fn validate_user(input: UserInput) -> Result<ValidUser, AppError> {
     let mut errors = FieldErrors::new();
 
-    let name = {
-        let trimmed = input.name.trim();
-        if trimmed.is_empty() {
-            errors.add("name", "Cannot be empty");
-        }
-        trimmed.to_owned()
-    };
-
+    let name = validate_name(&input.name, &mut errors);
     let login = blank_to_none(input.login);
-
-    let email = match blank_to_none(input.email) {
-        None => None,
-        Some(raw) => {
-            let lowered = raw.to_ascii_lowercase();
-            if looks_like_email(&lowered) {
-                Some(lowered)
-            } else {
-                errors.add("email", "Enter a valid email address");
-                None
-            }
-        }
-    };
+    let email = validate_email(input.email, &mut errors);
 
     let permissions = input.permissions;
     if permissions < 0 || (permissions & !Permissions::all().bits()) != 0 {
@@ -478,64 +475,6 @@ fn validate_user(input: UserInput) -> Result<ValidUser, AppError> {
         password,
         profile,
     })
-}
-
-/// Add a `name` / `login` / `email` field error when the value is already
-/// taken by another row. `exclude` is the row being edited (skipped on PATCH).
-/// Name and login fold case (`users_name_key` / `users_login_key` are on
-/// `LOWER(...)`); email is stored lowercased so a plain `=` matches the index.
-async fn check_unique(
-    pool: &sqlx::PgPool,
-    valid: &ValidUser,
-    exclude: Option<i32>,
-    errors: &mut FieldErrors,
-) -> Result<(), AppError> {
-    let exclude = exclude.unwrap_or(0);
-
-    // (form field, `$1` predicate, value). `name` is mandatory; `login` /
-    // `email` are skipped when unset. Name and login fold case; email is
-    // already stored lowercased so a plain `=` matches its index. The
-    // predicates are static literals — no user input reaches the SQL text.
-    let mut checks: Vec<(&str, &str, &str)> =
-        vec![("name", "LOWER(name) = LOWER($1)", valid.name.as_str())];
-    if let Some(login) = valid.login.as_deref() {
-        checks.push(("login", "LOWER(login) = LOWER($1)", login));
-    }
-    if let Some(email) = valid.email.as_deref() {
-        checks.push(("email", "email = $1", email));
-    }
-
-    for (field, predicate, value) in checks {
-        let taken: Option<i32> = sqlx::query_scalar(&format!(
-            "SELECT id FROM users WHERE {predicate} AND id <> $2"
-        ))
-        .bind(value)
-        .bind(exclude)
-        .fetch_optional(pool)
-        .await
-        .map_err(into_internal)?;
-        if taken.is_some() {
-            errors.add(field, "Already taken");
-        }
-    }
-    Ok(())
-}
-
-fn blank_to_none(value: Option<String>) -> Option<String> {
-    value.map(|v| v.trim().to_owned()).filter(|v| !v.is_empty())
-}
-
-/// Deliberately loose: exactly one `@`, non-empty local + domain, no spaces.
-/// Real validity is confirmed by a verification mail, not a regex — this only
-/// catches obvious typos.
-fn looks_like_email(value: &str) -> bool {
-    let mut parts = value.split('@');
-    match (parts.next(), parts.next(), parts.next()) {
-        (Some(local), Some(domain), None) => {
-            !local.is_empty() && !domain.is_empty() && !value.contains(char::is_whitespace)
-        }
-        _ => false,
-    }
 }
 
 /// Pack `(is_admin, created_at, id)` into 9 bytes and base64url-encode.

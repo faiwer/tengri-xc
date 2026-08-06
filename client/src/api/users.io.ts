@@ -85,6 +85,17 @@ export type Me = z.infer<typeof MeIo>;
 export const MeResponseIo = MeIo.nullable();
 
 /**
+ * `PATCH /users/me` response: the refreshed {@link Me} plus a transient
+ * `emailVerificationReset` flag — `true` when a self-service email change
+ * dropped the server-side confirmation, so the UI can prompt a re-verify.
+ */
+export const UpdateMeResponseIo = MeIo.extend({
+  emailVerificationReset: z.boolean(),
+});
+
+export type UpdateMeResponse = z.infer<typeof UpdateMeResponseIo>;
+
+/**
  * Partial of {@link Preferences} — every field optional, same value union.
  * Derived from the schema so the wire literals stay defined in exactly
  * one place ({@link PreferencesIo}).
@@ -92,12 +103,17 @@ export const MeResponseIo = MeIo.nullable();
 export type UpdatePreferencesRequest = Partial<Preferences>;
 
 /**
- * Partial of {@link MeProfile} — every field optional, same nullable
- * value type. `null` clears the column, omitting leaves it alone.
- * JS doesn't distinguish absent vs. `undefined`, so we filter
- * undefined fields out before serialisation.
+ * The `profile` block of a `PATCH /users/me` body. Flat, but it spans
+ * two tables server-side: `name` / `email` live on `users` (top-level
+ * on {@link Me}, not in {@link MeProfile}), the rest on `user_profiles`.
+ * For the {@link MeProfile} fields `null` clears the column and omitting
+ * leaves it alone; `name` / `email` are never cleared — a blank `email`
+ * is a no-op server-side.
  */
-export type UpdateProfileRequest = Partial<MeProfile>;
+export type UpdateProfileRequest = Partial<MeProfile> & {
+  name?: string;
+  email?: string;
+};
 
 export interface UpdateMeRequest {
   profile?: UpdateProfileRequest;

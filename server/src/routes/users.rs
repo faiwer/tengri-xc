@@ -15,23 +15,23 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use chrono::Utc;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
 use crate::{
     AppError, AppState,
     auth::{
-        Claims, Identity,
-        cookie::{clear_session, set_session},
+        Identity,
+        cookie::clear_session,
         password::{self, Verified},
-        token::encode_jwt,
+        token::mint_session_cookie,
     },
     db::Update,
     user::{
-        MeDto, Permissions, UpdatePreferencesRequest, UpdateProfileRequest,
-        apply_preferences_update, apply_profile_update, fetch_me, validate_preferences_update,
-        validate_profile_update,
+        AccountUpdate, MeDto, Permissions, UpdatePreferencesRequest, UpdateProfileRequest, UserSex,
+        apply_account_update, apply_preferences_update, apply_profile_update, check_unique,
+        fetch_me, should_clear_email_verification, validate_email, validate_name,
+        validate_preferences_update, validate_profile_update,
     },
     validation::FieldErrors,
 };
@@ -149,12 +149,18 @@ async fn login(
         tracing::warn!(user_id, error = %e, "failed to update last_login_at");
     }
 
-    let claims = Claims::new(user_id, name, permissions, Utc::now().timestamp());
-    let jwt = encode_jwt(&claims, state.jwt_encoding_key()).map_err(jwt_to_internal)?;
+    let cookie = mint_session_cookie(
+        user_id,
+        name,
+        permissions,
+        state.jwt_encoding_key(),
+        state.https(),
+    )
+    .map_err(jwt_to_internal)?;
     let mut headers = HeaderMap::new();
     headers.insert(
         SET_COOKIE,
-        HeaderValue::from_str(&set_session(&jwt, state.https())).map_err(into_internal)?,
+        HeaderValue::from_str(&cookie).map_err(into_internal)?,
     );
 
     let body = fetch_me(state.pool(), user_id)
@@ -203,25 +209,57 @@ async fn me(
 
 /// Owner-edit envelope. Each top-level block is optional and applied
 /// independently — the FE form for preferences sends only `preferences`,
-/// a future profile form sends only `profile`, and a "save everything"
-/// flow can send both. Empty body = 400 (no-op PATCH is a misuse).
+/// the profile form sends only `profile`, and a "save everything" flow
+/// can send both. Empty body = 400 (no-op PATCH is a misuse).
 ///
 /// Admin endpoints don't share this struct: the admin form has its own
 /// envelope (with `permissions`, etc.) but reuses the same per-section
-/// validators and appliers from `user::profile` / `user::preferences`.
+/// validators and appliers from `user::account` / `user::profile` /
+/// `user::preferences`.
 #[derive(Debug, Deserialize)]
 pub struct UpdateMeRequest {
     #[serde(default)]
-    pub profile: Option<UpdateProfileRequest>,
+    pub profile: Option<MeProfileUpdate>,
     #[serde(default)]
     pub preferences: Option<UpdatePreferencesRequest>,
+}
+
+/// The self-service `profile` block. Flat on the wire, but spans two tables:
+/// `name` / `email` live on `users`, the rest on `user_profiles`. `name` /
+/// `email` are a plain `Option` (self-service never clears them); the
+/// `user_profiles` fields keep the triple-state `Option<Option<T>>` (absent =
+/// leave alone, `null` = clear, value = set).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct MeProfileUpdate {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default, deserialize_with = "crate::user::profile::deserialize_some")]
+    pub civl_id: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "crate::user::profile::deserialize_some")]
+    pub country: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::user::profile::deserialize_some")]
+    pub sex: Option<Option<UserSex>>,
+}
+
+/// `PATCH /users/me` response: the refreshed [`MeDto`], flattened to the same
+/// shape `GET /users/me` returns, plus a transient `email_verification_reset`
+/// flag. The flag is `true` when a self-service address change dropped the
+/// confirmation, so the client can toast a "re-verify your email" notice.
+#[derive(Debug, Serialize)]
+struct UpdateMeResponse {
+    #[serde(flatten)]
+    me: MeDto,
+    email_verification_reset: bool,
 }
 
 async fn update_me(
     State(state): State<AppState>,
     identity: Identity,
     Json(req): Json<UpdateMeRequest>,
-) -> Result<Json<MeDto>, AppError> {
+) -> Result<Response, AppError> {
     if req.profile.is_none() && req.preferences.is_none() {
         return Err(AppError::BadRequest(
             "PATCH body must include at least one of: profile, preferences".into(),
@@ -232,12 +270,60 @@ async fn update_me(
     // under namespaced keys, *then* apply. A single bad field shouldn't
     // half-write the request.
     let mut errors = FieldErrors::new();
+    let mut account_update = None;
     let mut profile_update = None;
     if let Some(input) = req.profile {
-        match validate_profile_update(input) {
+        // Everything in the flat `profile` block is reported under the
+        // `profile.` namespace so the FE keeps a single `fieldPrefix`.
+        let mut section = FieldErrors::new();
+
+        let name = input.name.map(|raw| validate_name(&raw, &mut section));
+        let email = validate_email(input.email, &mut section);
+        match validate_profile_update(UpdateProfileRequest {
+            civl_id: input.civl_id,
+            country: input.country,
+            sex: input.sex,
+        }) {
             Ok(u) => profile_update = Some(u),
-            Err(field_errors) => errors.merge_prefixed("profile", field_errors),
+            Err(field_errors) => {
+                for (key, message) in field_errors.fields {
+                    section.add(key, message);
+                }
+            }
         }
+
+        // Uniqueness (DB reads) — only the values we'd actually write. `login`
+        // isn't editable here. `validate_email` already errored on a malformed
+        // address, so a `None` email skips the check rather than
+        // double-reporting.
+        check_unique(
+            state.pool(),
+            name.as_deref(),
+            None,
+            email.as_deref(),
+            Some(identity.user_id),
+            &mut section,
+        )
+        .await?;
+
+        errors.merge_prefixed("profile", section);
+
+        // A non-admin who changes their own address must re-verify it, so null
+        // the confirmation — otherwise a stale "verified" badge would ride a
+        // fresh, unproven email. Admins manage verification explicitly.
+        let clear_email_verification = should_clear_email_verification(
+            state.pool(),
+            identity.user_id,
+            identity.permissions,
+            email.as_deref(),
+        )
+        .await?;
+
+        account_update = Some(AccountUpdate {
+            name,
+            email,
+            clear_email_verification,
+        });
     }
     let mut preferences_update = None;
     if let Some(input) = req.preferences {
@@ -248,15 +334,24 @@ async fn update_me(
     }
     errors.into_result()?;
 
+    // Reissue the session cookie only when the display name actually changes.
+    let name_changed = account_update
+        .as_ref()
+        .and_then(|a| a.name.as_deref())
+        .is_some_and(|new| new != identity.name);
+
     // Single transaction so a profile-write that succeeds is rolled
-    // back if the preferences-write trips on a constraint (or vice
-    // versa). Failures here are infra-level (DB went away mid-request);
+    // back if a later write trips on a constraint (or vice versa).
+    // Failures here are infra-level (DB went away mid-request);
     // user-input failures already turned into 422 above.
     let mut tx = state
         .pool()
         .begin()
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
+    if let Some(u) = &account_update {
+        apply_account_update(&mut tx, identity.user_id, u).await?;
+    }
     if let Some(u) = profile_update {
         apply_profile_update(&mut tx, identity.user_id, &u).await?;
     }
@@ -267,6 +362,10 @@ async fn update_me(
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
 
+    let email_verification_reset = account_update
+        .as_ref()
+        .is_some_and(|a| a.clear_email_verification);
+
     let body = fetch_me(state.pool(), identity.user_id)
         .await?
         .ok_or_else(|| {
@@ -275,7 +374,28 @@ async fn update_me(
                 identity.user_id
             ))
         })?;
-    Ok(Json(body))
+
+    let mut headers = HeaderMap::new();
+    if name_changed {
+        let cookie = mint_session_cookie(
+            identity.user_id,
+            body.user.name.clone(),
+            identity.permissions,
+            state.jwt_encoding_key(),
+            state.https(),
+        )
+        .map_err(jwt_to_internal)?;
+        headers.insert(
+            SET_COOKIE,
+            HeaderValue::from_str(&cookie).map_err(into_internal)?,
+        );
+    }
+
+    let response = UpdateMeResponse {
+        me: body,
+        email_verification_reset,
+    };
+    Ok((StatusCode::OK, headers, Json(response)).into_response())
 }
 
 /// Change (or, for a password-less account, set) the caller's password. `login`

@@ -155,7 +155,7 @@ fn validate_country(raw: &str) -> Result<String, &'static str> {
 /// Standard serde recipe for distinguishing "field absent" from
 /// "field present and explicitly null" in JSON. Used with
 /// `#[serde(default, deserialize_with = "deserialize_some")]`.
-fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+pub(crate) fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     T: Deserialize<'de>,
     D: Deserializer<'de>,

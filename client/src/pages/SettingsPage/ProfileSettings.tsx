@@ -1,12 +1,16 @@
-import { Button, Form, InputNumber, Segmented, Skeleton } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Segmented,
+  Skeleton,
+} from 'antd';
 import { useMemo } from 'react';
 import { Navigate } from 'react-router';
 import { updateMe } from '../../api/users';
-import type {
-  MeProfile,
-  UpdateProfileRequest,
-  UserSex,
-} from '../../api/users.io';
+import type { Me, UpdateProfileRequest, UserSex } from '../../api/users.io';
 import { CountrySelect } from '../../components/CountrySelect';
 import { LoadError } from '../../components/LoadError';
 import { useFormSubmit } from '../../core/hooks';
@@ -33,7 +37,7 @@ export function ProfileSettings() {
     return <Navigate replace to={routes.login()} />;
   }
 
-  return <ProfileForm initial={profileInitial(me.profile)} onSaved={setMe} />;
+  return <ProfileForm initial={profileInitial(me)} onSaved={setMe} />;
 }
 
 interface ProfileFormProps {
@@ -42,6 +46,8 @@ interface ProfileFormProps {
 }
 
 interface ProfileFormValues extends Record<string, unknown> {
+  name: string;
+  email: string;
   civlId: number | null;
   country: string | null;
   sex: UserSex | null;
@@ -49,11 +55,22 @@ interface ProfileFormValues extends Record<string, unknown> {
 
 function ProfileForm({ initial, onSaved }: ProfileFormProps) {
   const [form] = Form.useForm<ProfileFormValues>();
+  const { notification } = App.useApp();
 
   const { onFinish, isSubmitting } = useFormSubmit({
     form,
     submit: (values) => updateMe({ profile: normalizeProfile(values) }),
-    onSuccess: onSaved,
+    onSuccess: ({ emailVerificationReset, ...me }) => {
+      onSaved(me);
+      if (emailVerificationReset) {
+        notification.warning({
+          title: 'Verify your new email',
+          description:
+            'Your email address changed, so it needs to be verified again.',
+          placement: 'bottomRight',
+        });
+      }
+    },
     fieldPrefix: 'profile',
     successTitle: 'Profile saved',
     errorTitle: "Couldn't save profile",
@@ -91,6 +108,18 @@ function ProfileForm({ initial, onSaved }: ProfileFormProps) {
         onFinish={onFinish}
       >
         <Form.Item
+          name="name"
+          label="Name"
+          rules={[{ required: true, message: 'Cannot be empty' }]}
+        >
+          <Input placeholder="Display name" />
+        </Form.Item>
+
+        <Form.Item name="email" label="Email">
+          <Input type="email" placeholder="you@example.com" />
+        </Form.Item>
+
+        <Form.Item
           name="sex"
           label="Sex"
           rules={[{ required: true, message: 'Choose a value' }]}
@@ -116,13 +145,19 @@ function ProfileForm({ initial, onSaved }: ProfileFormProps) {
   );
 }
 
-const profileInitial = (profile: MeProfile | null): ProfileFormValues => ({
-  civlId: profile?.civlId ?? null,
-  country: profile?.country ?? null,
-  sex: profile?.sex ?? null,
+const profileInitial = (me: Me): ProfileFormValues => ({
+  name: me.name,
+  // Coalesce to '' so an empty input matches `initial` and dirty-detection
+  // doesn't false-fire on load for a user with no email.
+  email: me.email ?? '',
+  civlId: me.profile?.civlId ?? null,
+  country: me.profile?.country ?? null,
+  sex: me.profile?.sex ?? null,
 });
 
 const normalizeProfile = (values: ProfileFormValues): UpdateProfileRequest => ({
+  name: values.name,
+  email: values.email,
   civlId: values.civlId ?? null,
   country: values.country ?? null,
   sex: values.sex,
