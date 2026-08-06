@@ -4,6 +4,7 @@ import {
   apiDelete,
   apiPatch,
   apiPostRaw,
+  apiPostVoid,
   type ApiRequestOptions,
 } from '../core';
 import type { LaunchMethod, Propulsion } from '../flights.io';
@@ -70,3 +71,13 @@ export const deleteFlight = (
   id: string,
   options: ApiRequestOptions = {},
 ): Promise<void> => apiDelete(`/me/flights/${id}`, options);
+
+/**
+ * Hand a flight to another user. Admin-only (`MANAGE_TRACKS`); a private wing
+ * on the flight is carried across to the new owner server-side.
+ */
+export const transferFlight = (
+  id: string,
+  userId: number,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiPostVoid(`/me/flights/${id}/owner`, { userId }, options);

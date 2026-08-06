@@ -60,6 +60,8 @@ export function TrackMetaPanel({
   const canManage =
     me != null &&
     (hasPermission(me, Permissions.MANAGE_TRACKS) || me.id === data.pilot.id);
+  const canTransfer =
+    me != null && hasPermission(me, Permissions.MANAGE_TRACKS);
 
   return (
     <section className={styles.panel} aria-label="Flight metadata">
@@ -70,6 +72,7 @@ export function TrackMetaPanel({
             flightId={data.id}
             anchorClassName={styles.menuAnchor}
             onEdit={() => setIsEditing(true)}
+            canTransfer={canTransfer}
           />
         )}
       </div>

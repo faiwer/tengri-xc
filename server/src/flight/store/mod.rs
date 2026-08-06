@@ -26,6 +26,8 @@
 //!   [`TAKEOFF_SITE_RADIUS_M`].
 //! - `meta` — editable glider/launch metadata: [`model_exists`] visibility
 //!   check and [`update_flight_meta`] ([`FlightMetaUpdate`]).
+//! - `transfer` — ownership handoff: [`transfer_flight_owner`]
+//!   ([`TransferOutcome`]), carrying a private wing to the new owner.
 //! - `sources` — the gzipped original upload: [`insert_source`],
 //!   [`fetch_source`] ([`StoredSource`]), [`fetch_source_track`].
 //! - `tracks` — the compact binary track the client decodes: [`insert_track`].
@@ -39,6 +41,7 @@ mod routes;
 mod sites;
 mod sources;
 mod tracks;
+mod transfer;
 
 pub use flights::{FlightRow, InsertFlightError, insert_flight, insert_flight_idempotent};
 pub use meta::{FlightMetaUpdate, model_exists, update_flight_meta};
@@ -46,3 +49,4 @@ pub use routes::{fetch_scored_routes, upsert_scored_route, upsert_scored_routes}
 pub use sites::{TAKEOFF_SITE_RADIUS_M, reindex_takeoff_sites};
 pub use sources::{StoredSource, fetch_source, fetch_source_track, insert_source};
 pub use tracks::insert_track;
+pub use transfer::{TransferOutcome, transfer_flight_owner};

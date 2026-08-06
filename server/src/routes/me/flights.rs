@@ -24,8 +24,8 @@ use crate::{
             Prepared, gunzip_bounded, has_gzip_magic, prepare_bytes_for_storage,
         },
         store::{
-            FlightMetaUpdate, FlightRow, insert_flight, insert_source, insert_track, model_exists,
-            update_flight_meta,
+            FlightMetaUpdate, FlightRow, TransferOutcome, insert_flight, insert_source,
+            insert_track, model_exists, transfer_flight_owner, update_flight_meta,
         },
     },
     glider::{CATALOG_KINDS, LAUNCH_METHODS, PROPULSIONS},
@@ -44,6 +44,7 @@ pub fn router() -> Router<AppState> {
             post(create).layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES)),
         )
         .route("/me/flights/{id}", delete(remove).patch(edit))
+        .route("/me/flights/{id}/owner", post(transfer))
 }
 
 #[derive(Serialize)]
@@ -195,6 +196,36 @@ async fn edit(
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
+}
+
+/// The target owner of a `POST /me/flights/{id}/owner` transfer.
+#[derive(Deserialize)]
+struct TransferFlightBody {
+    user_id: i32,
+}
+
+/// `POST /me/flights/{id}/owner` — hand a flight to another user. Admin-only
+/// (`MANAGE_TRACKS`); a private wing on the flight is carried across to the new
+/// owner. `404` for an unknown flight, `400` for an unknown target user.
+async fn transfer(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<String>,
+    Json(body): Json<TransferFlightBody>,
+) -> Result<StatusCode, AppError> {
+    require_permission(&identity, Permissions::MANAGE_TRACKS)?;
+
+    match transfer_flight_owner(state.pool(), &id, body.user_id)
+        .await
+        .map_err(|e| AppError::Internal(e.into()))?
+    {
+        TransferOutcome::Transferred => Ok(StatusCode::NO_CONTENT),
+        TransferOutcome::FlightNotFound => Err(AppError::NotFound),
+        TransferOutcome::UnknownUser => Err(AppError::BadRequest(format!(
+            "no user with id {}",
+            body.user_id
+        ))),
+    }
 }
 
 /// Ensure the flight exists and `identity` may mutate it: its owner, or an
