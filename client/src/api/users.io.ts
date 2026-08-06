@@ -6,7 +6,7 @@ import { z } from 'zod';
 const UserSourceIo = z.enum(['internal', 'leo']);
 export type UserSource = z.infer<typeof UserSourceIo>;
 
-const UserSexIo = z.enum(['male', 'female', 'diverse']);
+export const UserSexIo = z.enum(['male', 'female', 'diverse']);
 export type UserSex = z.infer<typeof UserSexIo>;
 
 const MeProfileIo = z.object({

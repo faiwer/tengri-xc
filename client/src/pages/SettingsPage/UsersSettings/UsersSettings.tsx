@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useMemo, useState } from 'react';
 
 import type { User, UserListItem } from '../../../api/admin/users.io';
+import { GenderIcon } from '../../../components/GenderIcon';
 import { TextWithIcon } from '../../../components/TextWithIcon';
 import { LoadError } from '../../../components/LoadError';
 import { useErrorToast, useEventHandler } from '../../../core/hooks';
@@ -49,7 +50,15 @@ export function UsersSettings() {
         key: 'name',
         ellipsis: true,
         render: (name: string, record) => (
-          <TextWithIcon flag={record.country} text={name} />
+          <>
+            <TextWithIcon flag={record.country} text={name} />
+            {record.sex && (
+              <>
+                &nbsp;
+                <GenderIcon gender={record.sex} tooltip />
+              </>
+            )}
+          </>
         ),
       },
       {
@@ -182,6 +191,7 @@ const toListItem = (user: User): UserListItem => ({
   email: user.email,
   permissions: user.permissions,
   country: user.profile?.country ?? null,
+  sex: user.profile?.sex ?? null,
   createdAt: user.createdAt,
   lastLoginAt: user.lastLoginAt,
   // Create response has no flights yet; an edit's real count is preserved by

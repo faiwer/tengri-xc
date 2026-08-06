@@ -1,0 +1,19 @@
+.icon {
+  // Force text presentation so `color` below controls the glyph instead
+  // of the emoji font painting it a fixed colour.
+  font-variant-emoji: text;
+  font-family: sans-serif;
+  vertical-align: middle;
+}
+
+.male {
+  color: #2563eb;
+}
+
+.female {
+  color: #db2777;
+}
+
+.diverse {
+  color: #7c3aed;
+}

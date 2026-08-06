@@ -83,9 +83,9 @@ struct ListResponse {
     next_cursor: Option<String>,
 }
 
-/// Trimmed projection for the table view. `country` is the only profile-side
-/// field we pull (one optional `text`, ~3 bytes); the rest of the profile stays
-/// off the list query.
+/// Trimmed projection for the table view. `country` and `sex` are the only
+/// profile-side fields we pull (both tiny); the rest of the profile stays off
+/// the list query.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 struct ListItem {
     id: i32,
@@ -96,6 +96,9 @@ struct ListItem {
     /// ISO 3166-1 alpha-2, from the user's profile. `None` when the
     /// user has no profile row or hasn't set a country.
     country: Option<String>,
+    /// Self-described gender, from the user's profile. `None` when the
+    /// user has no profile row or hasn't set it.
+    sex: Option<UserSex>,
     /// Unix epoch seconds (UTC). See [`UserDto`] for why we project
     /// `timestamptz` as `bigint` on the wire.
     created_at: i64,
@@ -139,6 +142,7 @@ async fn list(
         "u.email",
         "u.permissions",
         "p.country",
+        "p.sex",
         "EXTRACT(EPOCH FROM u.created_at)::bigint AS created_at",
         "EXTRACT(EPOCH FROM u.last_login_at)::bigint AS last_login_at",
         "(SELECT count(*) FROM flights f WHERE f.user_id = u.id) AS flight_count",

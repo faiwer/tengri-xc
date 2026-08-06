@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-import { UserIo as SharedUserIo, type UserSex } from '../users.io';
+import { UserIo as SharedUserIo, UserSexIo, type UserSex } from '../users.io';
 
-/** One row of `GET /admin/users`. Profile-side `country` is included
- * for the flag in the Name cell; the rest of the profile stays off. */
+/** One row of `GET /admin/users`. Profile-side `country` and `sex` are
+ * included for the Name cell; the rest of the profile stays off. */
 export const UserListItemIo = z.object({
   id: z.number().int(),
   name: z.string(),
@@ -13,6 +13,8 @@ export const UserListItemIo = z.object({
   permissions: z.number().int(),
   /** ISO 3166-1 alpha-2, or `null` when unset. */
   country: z.string().nullable(),
+  /** Self-described gender, or `null` when unset. */
+  sex: UserSexIo.nullable(),
   /** Unix epoch seconds (UTC). */
   createdAt: z.number().int(),
   /** Unix epoch seconds (UTC). */
