@@ -25,18 +25,20 @@ export function UploadPreviewPanel({
   return (
     <div className={styles.panel}>
       <div className={styles.mapSlot}>
-        <MapView
-          initialBounds={bounds}
-          initialPadding={MAP_PADDING_PX}
-          hideControls
-        >
-          <TrackPolyline paths={paths} />
-          <FitBounds
-            bounds={bounds}
-            skipInitialFit={!!bounds}
-            padding={MAP_PADDING_PX}
-          />
-        </MapView>
+        {bounds && (
+          <MapView
+            initialBounds={bounds}
+            initialPadding={MAP_PADDING_PX}
+            hideControls
+          >
+            <TrackPolyline paths={paths} />
+            <FitBounds
+              bounds={bounds}
+              skipInitialFit={!!bounds}
+              padding={MAP_PADDING_PX}
+            />
+          </MapView>
+        )}
       </div>
       <div className={styles.actions}>
         <RoutesSummary metadata={preview.metadata} />

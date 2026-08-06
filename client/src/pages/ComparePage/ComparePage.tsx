@@ -35,10 +35,12 @@ export function ComparePage() {
         </aside>
         <div ref={rightRef} className={styles.right}>
           <div className={styles.mapSlot}>
-            <MapView initialBounds={bounds} fullscreenContainerRef={rightRef}>
-              <TrackPolyline paths={paths} />
-              <FitBounds bounds={bounds} skipInitialFit={!!bounds} />
-            </MapView>
+            {bounds && (
+              <MapView initialBounds={bounds} fullscreenContainerRef={rightRef}>
+                <TrackPolyline paths={paths} />
+                <FitBounds bounds={bounds} skipInitialFit={!!bounds} />
+              </MapView>
+            )}
           </div>
         </div>
       </div>

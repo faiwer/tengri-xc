@@ -86,11 +86,11 @@ export function TrackPage() {
                 title="Couldn't load flight track"
                 error={trackState.error}
               />
-            ) : trackState.status === 'loading' ? (
+            ) : trackState.status === 'loading' || !analysis?.bounds ? (
               <Loading />
             ) : (
               <MapView
-                initialBounds={analysis?.bounds ?? null}
+                initialBounds={analysis.bounds}
                 onCenterLatLng={setMapCenterDebounced}
                 onHoverLatLng={setHoverLatLng}
                 fullscreenContainerRef={rightRef}
@@ -98,10 +98,7 @@ export function TrackPage() {
                 {analysis && <TrackPolyline paths={analysis.paths} />}
                 {selectedRoute && <TrackRoute route={selectedRoute} />}
                 <TrackHoverMarker point={hoverPoint} />
-                <FitBounds
-                  bounds={analysis?.bounds ?? null}
-                  skipInitialFit={!!analysis?.bounds}
-                />
+                <FitBounds bounds={analysis.bounds} />
               </MapView>
             )}
           </div>
