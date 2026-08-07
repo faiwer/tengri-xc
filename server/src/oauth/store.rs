@@ -29,6 +29,43 @@ pub async fn fetch_oauth_providers_admin(
     .map_err(into_internal)
 }
 
+/// Enabled providers, in display order — the set offered for login/link. Used
+/// by the public `/oauth/providers` endpoint and to gate `start`/`callback`.
+pub async fn fetch_enabled_providers(pool: &sqlx::PgPool) -> Result<Vec<OAuthProvider>, AppError> {
+    let rows: Vec<(OAuthProvider,)> = sqlx::query_as(
+        "SELECT provider FROM oauth_provider_settings WHERE enabled = TRUE ORDER BY provider",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(into_internal)?;
+    Ok(rows.into_iter().map(|(p,)| p).collect())
+}
+
+/// Credentials for an *enabled* provider, or `None` when it's absent/disabled.
+/// The flow requires enablement, so a disabled provider is indistinguishable
+/// from an unconfigured one here.
+pub async fn fetch_enabled_provider_credentials(
+    pool: &sqlx::PgPool,
+    provider: OAuthProvider,
+) -> Result<Option<ProviderCredentials>, AppError> {
+    sqlx::query_as::<_, ProviderCredentials>(
+        "SELECT client_id, client_secret \
+         FROM oauth_provider_settings \
+         WHERE provider = $1::oauth_provider AND enabled = TRUE",
+    )
+    .bind(provider.pg_enum_value())
+    .fetch_optional(pool)
+    .await
+    .map_err(into_internal)
+}
+
+/// `client_id` + `client_secret` for the authorization-code exchange.
+#[derive(Debug, sqlx::FromRow)]
+pub struct ProviderCredentials {
+    pub client_id: String,
+    pub client_secret: String,
+}
+
 /// PATCH body. Every field is optional: an absent (or empty-string) credential
 /// means "leave unchanged", mirroring the password field in `admin/users.rs`,
 /// so saving `enabled` alone doesn't wipe the stored secret.

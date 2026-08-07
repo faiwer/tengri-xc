@@ -21,21 +21,42 @@ struct AppStateInner {
     client_origins: Vec<String>,
     /// Keep to be able to clear the cookie.
     leonardo_cookie_domain: Option<String>,
+    /// Public API base URL (matches the SPA's `VITE_SERVER_URL`); OAuth
+    /// redirect URIs are built from it. Trailing slash already trimmed by
+    /// `Config`.
+    api_public_url: String,
+    /// Public SPA origin; OAuth callbacks redirect the browser back under it.
+    /// Trailing slash already trimmed by `Config`.
+    app_base_url: String,
     /// Global route-scoring queue; drains its worker pool in the background.
     scoring_queue: ScoringQueue,
 }
 
 impl AppState {
-    pub fn new(pool: PgPool, jwt_secret: &[u8], https: bool) -> Self {
-        Self::with_origins(pool, jwt_secret, https, Vec::new(), None)
+    /// Minimal constructor for tests: no client origins, no OAuth URLs. The
+    /// prod path uses [`with_origins`](Self::with_origins) with values from
+    /// `Config`.
+    pub fn new_for_tests(pool: PgPool, jwt_secret: &[u8], https: bool) -> Self {
+        Self::with_origins(
+            pool,
+            jwt_secret,
+            https,
+            Vec::new(),
+            None,
+            String::new(),
+            String::new(),
+        )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_origins(
         pool: PgPool,
         jwt_secret: &[u8],
         https: bool,
         client_origins: Vec<String>,
         leonardo_cookie_domain: Option<String>,
+        api_public_url: String,
+        app_base_url: String,
     ) -> Self {
         let scoring_queue = ScoringQueue::spawn(pool.clone(), default_worker_count());
         Self {
@@ -46,6 +67,8 @@ impl AppState {
                 https,
                 client_origins,
                 leonardo_cookie_domain,
+                api_public_url,
+                app_base_url,
                 scoring_queue,
             }),
         }
@@ -77,5 +100,13 @@ impl AppState {
 
     pub fn leonardo_cookie_domain(&self) -> Option<&str> {
         self.inner.leonardo_cookie_domain.as_deref()
+    }
+
+    pub fn api_public_url(&self) -> &str {
+        &self.inner.api_public_url
+    }
+
+    pub fn app_base_url(&self) -> &str {
+        &self.inner.app_base_url
     }
 }

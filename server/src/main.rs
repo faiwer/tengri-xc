@@ -40,6 +40,8 @@ async fn main() -> anyhow::Result<()> {
         config.https,
         config.client_origins.clone(),
         config.leonardo_cookie_domain.clone(),
+        config.api_public_url.clone(),
+        config.app_base_url.clone(),
     );
     let app = Router::new()
         .nest("/api", build_app(state))

@@ -51,28 +51,22 @@ export function App() {
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
-                <Route
-                  path="profile"
-                  element={
-                    <>
-                      <ProfileSettings />
-                      <OAuthSettings />
-                    </>
-                  }
-                />
+                <Route path="profile" element={<ProfileSettings />} />
                 <Route path="preferences" element={<PreferencesSettings />} />
                 <Route
                   path="authorization"
-                  element={<AuthorizationSettings />}
+                  element={
+                    <>
+                      <AuthorizationSettings />
+                      <OAuthSettings />
+                    </>
+                  }
                 />
                 <Route path="stats" element={<StatsSettings />} />
                 <Route path="my-flights" element={<MyFlightsSettings />} />
                 <Route path="my-gliders" element={<MyGlidersSettings />} />
                 <Route path="system" element={<SystemSettings />} />
-                <Route
-                  path="oauth-providers"
-                  element={<AppOAuthSettings />}
-                />
+                <Route path="oauth-providers" element={<AppOAuthSettings />} />
                 <Route path="users" element={<UsersSettings />} />
                 <Route path="gliders" element={<GlidersSettings />} />
                 <Route path="sites" element={<SitesSettings />} />

@@ -237,7 +237,7 @@ pub async fn test_app() -> (Router, PgPool) {
     // `https=false` keeps the cookie un-`Secure` so the test
     // client (plain HTTP) doesn't have its cookie silently
     // dropped by the cookie crate.
-    let app = build_app(AppState::new(pool.clone(), &[0u8; 32], false));
+    let app = build_app(AppState::new_for_tests(pool.clone(), &[0u8; 32], false));
     (app, pool)
 }
 

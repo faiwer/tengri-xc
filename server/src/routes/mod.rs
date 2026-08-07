@@ -5,6 +5,7 @@ use crate::{AppState, auth::session_layer};
 mod admin;
 mod health;
 mod me;
+mod oauth;
 mod site;
 mod tracks;
 mod tracks_list;
@@ -22,6 +23,7 @@ pub fn router(state: AppState) -> Router<AppState> {
         .merge(admin::router())
         .merge(health::router())
         .merge(me::router())
+        .merge(oauth::session_router())
         .merge(site::public_router())
         .merge(tracks::router())
         .merge(tracks_list::router())
@@ -32,5 +34,6 @@ pub fn router(state: AppState) -> Router<AppState> {
 
     Router::new()
         .merge(users::public_router())
+        .merge(oauth::public_router())
         .merge(session_aware)
 }

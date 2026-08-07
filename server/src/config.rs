@@ -26,6 +26,16 @@ pub struct Config {
     /// `LEONARDO_COOKIE_DOMAIN` env var. Used to clear the cookie once we've
     /// detected a Leonardo autologin.
     pub leonardo_cookie_domain: Option<String>,
+    /// Public base URL of this API, including any path prefix — the same value
+    /// the SPA uses as `VITE_SERVER_URL`. OAuth redirect URIs are built from it
+    /// (`{api_public_url}/oauth/{provider}/callback`), so it must match exactly
+    /// what's registered with each provider. `API_PUBLIC_URL` env var; trailing
+    /// slash trimmed. Defaults to `http://localhost:5757/api`.
+    pub api_public_url: String,
+    /// Public base URL (origin) of the SPA. OAuth callbacks redirect the
+    /// browser back to `{app_base_url}{return_to}`. `APP_BASE_URL` env var;
+    /// trailing slash trimmed. Defaults to `http://localhost:5173`.
+    pub app_base_url: String,
 }
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
@@ -66,6 +76,8 @@ impl Config {
         let https = parse_bool_env("HTTPS", false)?;
         let client_origins = parse_origins("CLIENT_ORIGINS");
         let leonardo_cookie_domain = parse_optional_string("LEONARDO_COOKIE_DOMAIN");
+        let api_public_url = parse_base_url("API_PUBLIC_URL", "http://localhost:5757/api");
+        let app_base_url = parse_base_url("APP_BASE_URL", "http://localhost:5173");
         Ok(Self {
             server_addr,
             database_url,
@@ -73,6 +85,8 @@ impl Config {
             https,
             client_origins,
             leonardo_cookie_domain,
+            api_public_url,
+            app_base_url,
         })
     }
 }
@@ -89,6 +103,13 @@ fn parse_origins(var: &'static str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+/// Read a base URL from `var`, falling back to `default`. The trailing slash is
+/// trimmed so callers can concatenate `"/path"` without doubling up.
+fn parse_base_url(var: &'static str, default: &str) -> String {
+    let raw = env::var(var).unwrap_or_else(|_| default.to_owned());
+    raw.trim().trim_end_matches('/').to_owned()
 }
 
 fn parse_optional_string(var: &'static str) -> Option<String> {
