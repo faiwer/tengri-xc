@@ -1,4 +1,4 @@
-import { Spin } from 'antd';
+import { Spin, Typography } from 'antd';
 import { getEnabledProviders, getMyLinks } from '../../../api/oauth';
 import { useAsyncData, useErrorToast } from '../../../core/hooks';
 import { OAuthRow } from '../../../features/oauth/OAuthRow';
@@ -29,17 +29,31 @@ export function LinkedAccounts() {
     return null;
   }
 
+  if (providers.data.length === 0) {
+    return (
+      <Typography.Text type="secondary">
+        Authorization via social media is not available on this platform.
+      </Typography.Text>
+    );
+  }
+
   return (
     <div className={styles.container}>
       {links.data.length > 0 && (
-        <ol className={styles.linkList}>
-          {links.data.map((link, index) => (
-            <ConnectedLink key={index} link={link} />
-          ))}
-        </ol>
+        <div className={styles.section}>
+          <h4 className={styles.sectionHeader}>Connected accounts</h4>
+          <ol className={styles.linkList}>
+            {links.data.map((link, index) => (
+              <ConnectedLink key={index} link={link} />
+            ))}
+          </ol>
+        </div>
       )}
 
-      <OAuthRow providerIds={providers.data} intent="link" />
+      <div className={styles.section}>
+        <h4 className={styles.sectionHeader}>Add a new account</h4>
+        <OAuthRow providerIds={providers.data} intent="link" />
+      </div>
     </div>
   );
 }

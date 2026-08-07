@@ -21,7 +21,7 @@ export function OAuthLoginButtons() {
   return (
     <>
       <Divider plain>or</Divider>
-      <OAuthRow providerIds={providers.data} intent="login" />
+      <OAuthRow providerIds={providers.data} intent="login" align="center" />
     </>
   );
 }

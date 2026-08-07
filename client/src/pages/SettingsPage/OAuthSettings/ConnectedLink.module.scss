@@ -2,6 +2,15 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  counter-increment: connectedLink;
+
+  // `display: flex` suppresses the native `::marker`, so re-create the
+  // ordered-list number ourselves (counter reset lives on the `<ol>`).
+  &::before {
+    content: counter(connectedLink) '.';
+    color: #999;
+    min-width: 1.25rem;
+  }
 }
 
 .linkIcon {

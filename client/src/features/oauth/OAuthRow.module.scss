@@ -3,6 +3,10 @@
   gap: 0.5rem;
 }
 
+.center {
+  justify-content: center;
+}
+
 .oauthButton {
   --size: 24px;
   font-size: var(--size);
