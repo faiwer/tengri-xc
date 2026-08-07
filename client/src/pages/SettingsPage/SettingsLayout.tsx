@@ -1,4 +1,5 @@
 import {
+  ApiOutlined,
   BarChartOutlined,
   ControlOutlined,
   EnvironmentOutlined,
@@ -92,6 +93,12 @@ export function SettingsLayout() {
           label: 'Settings',
           to: routes.settings.system(),
           icon: <SettingOutlined />,
+          permission: Permissions.MANAGE_SETTINGS,
+        },
+        {
+          label: 'OAuth',
+          to: routes.settings.oauthProviders(),
+          icon: <ApiOutlined />,
           permission: Permissions.MANAGE_SETTINGS,
         },
         {

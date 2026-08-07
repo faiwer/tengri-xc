@@ -1,0 +1,29 @@
+.provider {
+  padding: 20px 0 0;
+  border-top: 1px solid #f0f0f0;
+
+  &:first-child {
+    padding-top: 4px;
+    border-top: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: 8px;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0 16px;
+  align-items: start;
+}

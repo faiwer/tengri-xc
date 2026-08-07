@@ -9,6 +9,7 @@ import { UploadFlightProvider } from './features/uploadFlight';
 import { PrivacyPage, TermsPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
 import {
+  AppOAuthSettings,
   AuthorizationSettings,
   GlidersSettings,
   MyFlightsSettings,
@@ -68,6 +69,10 @@ export function App() {
                 <Route path="my-flights" element={<MyFlightsSettings />} />
                 <Route path="my-gliders" element={<MyGlidersSettings />} />
                 <Route path="system" element={<SystemSettings />} />
+                <Route
+                  path="oauth-providers"
+                  element={<AppOAuthSettings />}
+                />
                 <Route path="users" element={<UsersSettings />} />
                 <Route path="gliders" element={<GlidersSettings />} />
                 <Route path="sites" element={<SitesSettings />} />
