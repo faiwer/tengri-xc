@@ -1,0 +1,23 @@
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.oauthButton {
+  --size: 24px;
+  font-size: var(--size);
+  width: var(--size);
+  height: var(--size);
+  color: #333;
+  // Reset button styles.
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  cursor: pointer;
+
+  &:hover, &:focus, &:active {
+    color: #999;
+  }
+}

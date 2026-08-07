@@ -25,6 +25,7 @@ import { TracksPage } from './pages/TracksPage';
 import { TrackPage } from './pages/TrackPage';
 import { ComparePage } from './pages/ComparePage';
 import styles from './App.module.scss';
+import { OAuthSettings } from './pages/SettingsPage/OAuthSettings';
 
 const theme: ThemeConfig = {
   token: {
@@ -49,7 +50,15 @@ export function App() {
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/settings" element={<SettingsLayout />}>
-                <Route path="profile" element={<ProfileSettings />} />
+                <Route
+                  path="profile"
+                  element={
+                    <>
+                      <ProfileSettings />
+                      <OAuthSettings />
+                    </>
+                  }
+                />
                 <Route path="preferences" element={<PreferencesSettings />} />
                 <Route
                   path="authorization"
