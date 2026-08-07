@@ -3,6 +3,7 @@ import { HttpError } from '../../api/core';
 import { login } from '../../api/users';
 import { useAsync, useErrorToast } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
+import { OAuthLoginButtons } from '../oauth/OAuthLoginButtons';
 import styles from './LoginModal.module.scss';
 
 interface LoginModalProps {
@@ -69,6 +70,8 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
           Sign in
         </Button>
       </Form>
+
+      <OAuthLoginButtons />
     </Modal>
   );
 }

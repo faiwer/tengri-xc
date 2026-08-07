@@ -28,3 +28,7 @@ export const OAUTH_PROVIDERS: OAuthProviderMeta[] = [
   { id: 'microsoft', label: 'Microsoft', Icon: WindowsOutlined },
   { id: 'github', label: 'GitHub', Icon: GithubOutlined },
 ];
+
+export const PROVIDER_META = Object.fromEntries(
+  OAUTH_PROVIDERS.map((provider) => [provider.id, provider]),
+) as Record<OAuthProviderId, OAuthProviderMeta>;

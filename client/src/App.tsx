@@ -5,6 +5,7 @@ import { IdentityProvider } from './core/identity';
 import { PreferencesProvider } from './core/preferences';
 import { SiteProvider } from './core/site';
 import { LoginProvider } from './features/login';
+import { OAuthReturnHandler } from './features/oauth/OAuthReturnHandler';
 import { UploadFlightProvider } from './features/uploadFlight';
 import { PrivacyPage, TermsPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
@@ -42,6 +43,7 @@ export function App() {
       <AntdApp className={styles.container}>
         <BrowserRouter>
           <Providers>
+            <OAuthReturnHandler />
             <Routes>
               <Route path="/" element={<TracksPage />} />
               <Route path="/flights" element={<TracksPage />} />

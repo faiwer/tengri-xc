@@ -1,0 +1,20 @@
+.linkItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.linkIcon {
+  display: inline-flex;
+  font-size: 18px;
+  color: #333;
+}
+
+.linkName {
+  font-weight: 500;
+}
+
+.linkEmail {
+  color: #999;
+  font-size: 0.85em;
+}

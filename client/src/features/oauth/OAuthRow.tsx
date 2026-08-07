@@ -1,24 +1,35 @@
-import {
-  FacebookFilled,
-  GithubFilled,
-  GoogleCircleFilled,
-  TwitterCircleFilled,
-  WindowsFilled,
-} from '@ant-design/icons';
+import { Tooltip } from 'antd';
+import type { OAuthProviderId } from '../../api/admin/oauthProviders.io';
+import { startOAuth, type OAuthIntent } from '../../api/oauth';
+import { PROVIDER_META } from './providers';
 import styles from './OAuthRow.module.scss';
 
-export function OAuthRow() {
-  return (
-    <div className={styles.row}>
-      <OAuthIcon icon={<FacebookFilled />} />
-      <OAuthIcon icon={<TwitterCircleFilled />} />
-      <OAuthIcon icon={<GoogleCircleFilled />} />
-      <OAuthIcon icon={<GithubFilled />} />
-      <OAuthIcon icon={<WindowsFilled />} />
-    </div>
-  );
+interface OAuthRowProps {
+  providerIds: OAuthProviderId[];
+  intent: OAuthIntent;
 }
 
-function OAuthIcon({ icon }: { icon: React.ReactNode }) {
-  return <button className={styles.oauthButton}>{icon}</button>;
+/** A single row of provider icon buttons, each starting an OAuth flow. */
+export function OAuthRow({ providerIds, intent }: OAuthRowProps) {
+  return (
+    <div className={styles.row}>
+      {providerIds.map((id) => {
+        const meta = PROVIDER_META[id];
+        const label =
+          intent === 'login' ? `Sign in with ${meta.label}` : `Link ${meta.label}`;
+        return (
+          <Tooltip key={id} title={label}>
+            <button
+              type="button"
+              className={styles.oauthButton}
+              aria-label={label}
+              onClick={() => startOAuth(id, intent)}
+            >
+              <meta.Icon />
+            </button>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
 }

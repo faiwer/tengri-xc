@@ -1,4 +1,4 @@
-import { OAuthRow } from '../../../features/oauth/OAuthRow';
+import { LinkedAccounts } from './LinkedAccounts';
 import { SettingsSection } from '../SettingsSection';
 
 export function OAuthSettings() {
@@ -7,7 +7,7 @@ export function OAuthSettings() {
       title="Authorization via social networks"
       subtitle="Link your social network accounts to sign in in one click"
     >
-      <OAuthRow />
+      <LinkedAccounts />
     </SettingsSection>
   );
 }

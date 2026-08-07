@@ -9,11 +9,11 @@ use crate::AppError;
 
 use super::provider::{OAuthIdentity, OAuthProvider};
 
-/// One connected account, as listed in the user's settings.
+/// One connected account, as listed in the user's settings. The provider
+/// subject id is the identity key and stays server-side — never serialized.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct LinkSnapshot {
     pub provider: OAuthProvider,
-    pub provider_user_id: String,
     pub email: Option<String>,
     pub display_name: Option<String>,
 }
@@ -37,7 +37,7 @@ pub async fn list_links_for_user(
     user_id: i32,
 ) -> Result<Vec<LinkSnapshot>, AppError> {
     sqlx::query_as::<_, LinkSnapshot>(
-        "SELECT provider, provider_user_id, email, display_name \
+        "SELECT provider, email, display_name \
          FROM user_oauth_links \
          WHERE user_id = $1 \
          ORDER BY provider, created_at",
