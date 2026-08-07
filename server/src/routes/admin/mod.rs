@@ -8,6 +8,7 @@ use axum::Router;
 use crate::AppState;
 
 pub mod gliders;
+pub mod oauth_providers;
 pub mod site;
 pub mod sites;
 pub mod users;
@@ -18,4 +19,5 @@ pub fn router() -> Router<AppState> {
         .merge(site::router())
         .merge(gliders::router())
         .merge(sites::router())
+        .merge(oauth_providers::router())
 }
