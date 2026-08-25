@@ -59,20 +59,57 @@ function resolveDateFormat(raw: Preferences['dateFormat']): 'dmy' | 'mdy' {
   return monthIdx >= 0 && dayIdx >= 0 && monthIdx < dayIdx ? 'mdy' : 'dmy';
 }
 
-// Regions that culturally use US customary or imperial units. Source: the
-// Wikipedia "Metrication" article; in practice it's a four-region list (US,
-// Liberia, Myanmar) plus the UK as a hybrid. The UK reports itself as `en-GB`;
-// we err on the side of imperial because British pilots commonly expect feet
-// for altitude.
-const IMPERIAL_REGIONS = new Set(['US', 'GB', 'LR', 'MM']);
+// Timezones whose country conventionally uses US customary or imperial units.
+// GB is excluded deliberately: it's a hybrid, and UK free-flight convention is
+// km/h. Anything unlisted — including an unavailable timezone — is metric.
+const IMPERIAL_ZONES = new Set([
+  'America/Adak',
+  'America/Anchorage',
+  'America/Boise',
+  'America/Chicago',
+  'America/Denver',
+  'America/Detroit',
+  'America/Juneau',
+  'America/Los_Angeles',
+  'America/Menominee',
+  'America/Metlakatla',
+  'America/New_York',
+  'America/Nome',
+  'America/Phoenix',
+  'America/Sitka',
+  'America/Yakutat',
+  'Pacific/Honolulu',
+  'Africa/Monrovia',
+  'Asia/Rangoon',
+  'Asia/Yangon',
+]);
+
+// Zone families that expand to many per-county US entries, plus the legacy
+// `US/*` aliases still emitted by some systems.
+const IMPERIAL_ZONE_PREFIXES = [
+  'America/Indiana/',
+  'America/Kentucky/',
+  'America/North_Dakota/',
+  'US/',
+];
 
 function resolveUnits(raw: Preferences['units']): 'metric' | 'imperial' {
   if (raw !== 'system') {
     return raw;
   }
 
-  const region = new Intl.Locale(navigator.language).maximize().region;
-  return region && IMPERIAL_REGIONS.has(region) ? 'imperial' : 'metric';
+  // Not the language tag: macOS reports `en-US` even on a machine set to
+  // Region: Germany, because the tag tracks the UI language rather than the
+  // location. The timezone follows the location setting.
+  const { timeZone } = new Intl.DateTimeFormat().resolvedOptions();
+  if (!timeZone) {
+    return 'metric';
+  }
+
+  const imperial =
+    IMPERIAL_ZONES.has(timeZone) ||
+    IMPERIAL_ZONE_PREFIXES.some((prefix) => timeZone.startsWith(prefix));
+  return imperial ? 'imperial' : 'metric';
 }
 
 function resolveVarioUnit(
