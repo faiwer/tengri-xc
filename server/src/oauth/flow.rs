@@ -142,9 +142,18 @@ pub async fn exchange_and_identify(
         .await
         .map_err(into_internal)?;
 
-    provider
+    let (subject, display_name) = provider
         .parse_userinfo(&body)
-        .ok_or_else(|| AppError::BadRequest("oauth userinfo missing subject id".into()))
+        .ok_or_else(|| AppError::BadRequest("oauth userinfo missing subject id".into()))?;
+    let email = provider
+        .resolve_email(&http, token.access_token().secret(), &body)
+        .await?;
+
+    Ok(OAuthIdentity {
+        subject,
+        email,
+        display_name,
+    })
 }
 
 /// `Set-Cookie` carrying the signed flow state. `SameSite=Lax` so the top-level

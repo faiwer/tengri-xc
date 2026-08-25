@@ -12,7 +12,7 @@ pub mod sex;
 pub mod source;
 
 pub use account::{
-    AccountUpdate, apply_account_update, blank_to_none, check_unique,
+    AccountUpdate, apply_account_update, blank_to_none, check_unique, find_user_id_by_email,
     should_clear_email_verification, validate_email, validate_name,
 };
 pub use create::{CreateUser, CreateUserPassword, CreatedUser, create_user, create_user_if_absent};

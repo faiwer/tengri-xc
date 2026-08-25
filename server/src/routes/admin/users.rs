@@ -281,8 +281,13 @@ async fn create(
     }
     errors.into_result()?;
 
+    let mut conn = state
+        .pool()
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.into()))?;
     let created = create_user(
-        state.pool(),
+        &mut conn,
         CreateUser {
             id: None,
             name: valid.name,

@@ -94,6 +94,7 @@ async fn add(args: AddArgs) -> anyhow::Result<()> {
     };
 
     let pool = connect_pool().await?;
+    let mut conn = pool.acquire().await?;
     let mut input = CreateUser::internal(args.name);
     input.id = args.id;
     input.login = args.login;
@@ -102,7 +103,7 @@ async fn add(args: AddArgs) -> anyhow::Result<()> {
     input.permissions = args.permissions;
 
     if args.if_absent {
-        let Some(user) = create_user_if_absent(&pool, input).await? else {
+        let Some(user) = create_user_if_absent(&mut conn, input).await? else {
             if args.json {
                 println!("null");
             } else {
@@ -114,7 +115,7 @@ async fn add(args: AddArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let user = create_user(&pool, input).await?;
+    let user = create_user(&mut conn, input).await?;
     print_user(&user, args.json)?;
     Ok(())
 }

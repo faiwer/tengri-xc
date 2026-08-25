@@ -17,7 +17,7 @@ pub use flow::{
 };
 pub use links::{
     LinkOutcome, LinkSnapshot, UnlinkOutcome, delete_link, find_user_by_link, list_links_for_user,
-    upsert_link,
+    register_oauth_user, upsert_link,
 };
 pub use provider::{OAuthIdentity, OAuthProvider};
 pub use store::{

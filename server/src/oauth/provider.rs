@@ -3,6 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::AppError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "oauth_provider", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -101,10 +103,12 @@ impl OAuthProvider {
         }
     }
 
-    /// Map a provider's userinfo JSON to an [`OAuthIdentity`]. Returns `None`
-    /// when the stable subject id is missing/blank — without it there's no
-    /// identity to link against.
-    pub fn parse_userinfo(self, body: &serde_json::Value) -> Option<OAuthIdentity> {
+    /// Map a provider's userinfo JSON to the subject + display name. Returns
+    /// `None` when the stable subject id is missing/blank — without it there's
+    /// no identity to link against. Email is resolved separately by
+    /// [`resolve_email`](Self::resolve_email), which is the only place trust is
+    /// judged.
+    pub fn parse_userinfo(self, body: &serde_json::Value) -> Option<(String, Option<String>)> {
         // X nests everything under `data`; everyone else is flat.
         let root = match self {
             OAuthProvider::X => body.get("data")?,
@@ -119,19 +123,85 @@ impl OAuthProvider {
         };
         let subject = subject.filter(|s| !s.is_empty())?;
 
-        let email = str_field(root, "email");
         let display_name = match self {
             OAuthProvider::Github => str_field(root, "name").or_else(|| str_field(root, "login")),
             OAuthProvider::X => str_field(root, "name").or_else(|| str_field(root, "username")),
             _ => str_field(root, "name"),
         };
 
-        Some(OAuthIdentity {
-            subject,
-            email,
-            display_name,
+        Some((subject, display_name))
+    }
+
+    /// Resolve a *trustworthy* email for this identity, or `None`. Auto-linking
+    /// an OAuth identity to an existing account by email is an account-takeover
+    /// vector when the address is unverified, so an untrusted email is dropped
+    /// here rather than carried downstream: a `Some` from this fn is always a
+    /// verified address.
+    ///
+    /// Only GitHub needs the network (its userinfo email is unverified; the
+    /// verified set lives behind `/user/emails`); the rest answer from `body`.
+    pub async fn resolve_email(
+        self,
+        http: &reqwest::Client,
+        access_token: &str,
+        body: &serde_json::Value,
+    ) -> Result<Option<String>, AppError> {
+        Ok(match self {
+            // OIDC: trust the email only when the provider asserts it. Microsoft
+            // omits `email_verified` on `oidc/userinfo` → `None` → safe.
+            OAuthProvider::Google | OAuthProvider::Microsoft => {
+                if body.get("email_verified").and_then(|v| v.as_bool()) == Some(true) {
+                    str_field(body, "email")
+                } else {
+                    None
+                }
+            }
+            // Graph only returns `email` once it's confirmed.
+            OAuthProvider::Facebook => str_field(body, "email"),
+            OAuthProvider::Github => github_verified_email(http, access_token).await?,
+            // We don't request an email scope for X.
+            OAuthProvider::X => None,
         })
     }
+}
+
+/// GitHub's primary email, but only when GitHub marks it verified. Reads
+/// `/user/emails` (covered by our `user:email` scope) rather than the
+/// unverified public email on `/user`.
+async fn github_verified_email(
+    http: &reqwest::Client,
+    access_token: &str,
+) -> Result<Option<String>, AppError> {
+    #[derive(Deserialize)]
+    struct GithubEmail {
+        email: String,
+        primary: bool,
+        verified: bool,
+    }
+
+    let emails: Vec<GithubEmail> = http
+        .get("https://api.github.com/user/emails")
+        .bearer_auth(access_token)
+        .header(reqwest::header::ACCEPT, "application/json")
+        // GitHub rejects requests without a User-Agent.
+        .header(reqwest::header::USER_AGENT, "tengri-xc")
+        .send()
+        .await
+        .map_err(into_internal)?
+        .error_for_status()
+        .map_err(into_internal)?
+        .json()
+        .await
+        .map_err(into_internal)?;
+
+    Ok(emails
+        .iter()
+        .find(|e| e.primary && e.verified)
+        .map(|e| e.email.clone()))
+}
+
+fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {
+    AppError::Internal(e.into())
 }
 
 /// A trimmed non-empty string field, or `None`.

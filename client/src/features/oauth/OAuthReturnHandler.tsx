@@ -1,6 +1,8 @@
 import { App } from 'antd';
-import { useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { useAsyncEffect } from '../../core/hooks';
 import { useIdentity } from '../../core/identity';
+import { routes } from '../../core/routes';
 
 /**
  * Reads the `?oauth` / `?oauth_error` status the OAuth callback appends when it
@@ -13,8 +15,9 @@ import { useIdentity } from '../../core/identity';
 export function OAuthReturnHandler() {
   const { notification } = App.useApp();
   const { retry } = useIdentity();
+  const navigate = useNavigate();
 
-  useEffect(() => {
+  useAsyncEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ok = params.get(OK_PARAM);
     const err = params.get(ERR_PARAM);
@@ -23,11 +26,21 @@ export function OAuthReturnHandler() {
     }
 
     if (ok) {
-      const message = SUCCESS[ok] ?? 'Done';
-      notification.success({ title: message, placement: 'bottomRight' });
-      // Login just set the session cookie; refetch who we are.
-      if (ok === 'logged_in') {
+      notification.success({
+        title: SUCCESS[ok] ?? 'Done',
+        placement: 'bottomRight',
+      });
+
+      // Login and registration both just set the session cookie; refetch who we are.
+      if (ok === 'logged_in' || ok === 'registered') {
         retry();
+      }
+
+      // A brand-new account lands on the profile page to fill in its details.
+      // The clean route drops the callback params, so skip the manual strip.
+      if (ok === 'registered') {
+        navigate(routes.settings.profile(), { replace: true });
+        return;
       }
     } else if (err) {
       notification.error({
@@ -43,10 +56,7 @@ export function OAuthReturnHandler() {
     const query = params.toString();
     const url = window.location.pathname + (query ? `?${query}` : '');
     window.history.replaceState(null, '', url);
-
-    // Run once on mount: the callback bounce is a full page load, so the params
-    // are present exactly once and consumed here.
-  }, [notification, retry]);
+  }, []);
 
   return null;
 }
@@ -57,11 +67,11 @@ const ERR_PARAM = 'oauth_error';
 const SUCCESS: Record<string, string> = {
   linked: 'Account linked',
   logged_in: 'Signed in',
+  registered: 'Welcome',
 };
 
 const ERRORS: Record<string, string> = {
-  no_account:
-    "Registration via social media is not available yet.",
+  registration_disabled: 'Registration is currently disabled.',
   link_taken: 'That account is already linked to a different Tengri user.',
   banned: 'This account is banned and cannot sign in.',
   denied: 'Authorization was cancelled.',

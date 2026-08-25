@@ -1,7 +1,7 @@
 use anyhow::{Context, ensure};
 
 pub async fn advance_identity_sequence(
-    pool: &sqlx::PgPool,
+    conn: &mut sqlx::PgConnection,
     table: &str,
     column: &str,
 ) -> anyhow::Result<()> {
@@ -18,7 +18,7 @@ pub async fn advance_identity_sequence(
     sqlx::query(&sql)
         .bind(table)
         .bind(column)
-        .execute(pool)
+        .execute(&mut *conn)
         .await
         .with_context(|| format!("advancing {table}.{column} sequence"))?;
     Ok(())

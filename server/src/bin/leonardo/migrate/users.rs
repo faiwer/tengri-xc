@@ -382,6 +382,10 @@ fn compose_name(p: &SourcePilot) -> String {
 /// which keeps the `users.id` identity sequence in sync.
 async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome> {
     let mut outcome = UpsertOutcome::default();
+    // One connection reused across rows; still autocommit (no `begin`), so a
+    // per-row failure errors that statement and leaves the connection usable
+    // for the next — the loop keeps going as before.
+    let mut conn = pg.acquire().await?;
 
     for u in users {
         let mut input = CreateUser::internal(u.name.clone());
@@ -395,7 +399,7 @@ async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome
         input.last_login_at = u.last_login_at;
         input.created_at = u.created_at;
 
-        let result = create_user_if_absent(pg, input).await;
+        let result = create_user_if_absent(&mut conn, input).await;
 
         match result {
             Ok(Some(_user)) => outcome.inserted += 1,

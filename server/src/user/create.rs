@@ -3,6 +3,7 @@
 use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use sqlx::PgConnection;
 
 use crate::{
     auth::password,
@@ -54,17 +55,30 @@ pub struct CreatedUser {
     pub permissions: i32,
 }
 
-pub async fn create_user(pool: &sqlx::PgPool, input: CreateUser) -> anyhow::Result<CreatedUser> {
-    create_user_inner(pool, input, Conflict::Error)
+/// Create a user, erroring on any conflict. Takes a `&mut PgConnection` so the
+/// caller controls transaction scope: pass `&mut *pool.acquire().await?` for a
+/// standalone insert, or `&mut *tx` to share a transaction with other writes
+/// (e.g. OAuth registration linking the new account atomically). Concrete
+/// rather than a generic `Acquire` target — threading the latter through this
+/// async path trips rustc's "implementation is not general enough" on the
+/// resulting `Send` future.
+pub async fn create_user(
+    conn: &mut PgConnection,
+    input: CreateUser,
+) -> anyhow::Result<CreatedUser> {
+    create_user_inner(conn, input, Conflict::Error)
         .await?
         .ok_or_else(|| anyhow!("user was not inserted"))
 }
 
+/// [`create_user`] with `ON CONFLICT (id) DO NOTHING`: `None` when the id was
+/// already present. Used by the CLI and the Leonardo migrator's idempotent
+/// per-row upsert.
 pub async fn create_user_if_absent(
-    pool: &sqlx::PgPool,
+    conn: &mut PgConnection,
     input: CreateUser,
 ) -> anyhow::Result<Option<CreatedUser>> {
-    create_user_inner(pool, input, Conflict::DoNothing).await
+    create_user_inner(conn, input, Conflict::DoNothing).await
 }
 
 enum Conflict {
@@ -73,7 +87,7 @@ enum Conflict {
 }
 
 async fn create_user_inner(
-    pool: &sqlx::PgPool,
+    conn: &mut PgConnection,
     input: CreateUser,
     conflict: Conflict,
 ) -> anyhow::Result<Option<CreatedUser>> {
@@ -87,7 +101,7 @@ async fn create_user_inner(
     let password_hash = password_hash(input.password, login.as_deref(), email.as_deref())?;
 
     let id = insert_user(
-        pool,
+        &mut *conn,
         InsertUser {
             id: input.id,
             name: &name,
@@ -107,7 +121,7 @@ async fn create_user_inner(
         return Ok(None);
     };
     if input.id.is_some() {
-        advance_identity_sequence(pool, "users", "id").await?;
+        advance_identity_sequence(&mut *conn, "users", "id").await?;
     }
 
     Ok(Some(CreatedUser {
@@ -133,7 +147,7 @@ struct InsertUser<'a> {
     conflict: Conflict,
 }
 
-async fn insert_user(pool: &sqlx::PgPool, user: InsertUser<'_>) -> anyhow::Result<Option<i32>> {
+async fn insert_user(conn: &mut PgConnection, user: InsertUser<'_>) -> anyhow::Result<Option<i32>> {
     let mut q = Insert::into("users");
     if let Some(id) = user.id {
         q.value("id", id);
@@ -159,8 +173,8 @@ async fn insert_user(pool: &sqlx::PgPool, user: InsertUser<'_>) -> anyhow::Resul
     q.returning("id");
 
     match user.conflict {
-        Conflict::Error => q.fetch_one_scalar(pool).await.map(Some),
-        Conflict::DoNothing => q.fetch_optional_scalar(pool).await,
+        Conflict::Error => q.fetch_one_scalar(conn).await.map(Some),
+        Conflict::DoNothing => q.fetch_optional_scalar(conn).await,
     }
     .context("inserting users row")
 }

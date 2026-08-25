@@ -1,7 +1,7 @@
 //! `INSERT INTO … VALUES … [RETURNING …]` builder. Use this for strict
 //! creates where a conflict should stay a database error.
 
-use sqlx::{Decode, Encode, Postgres, QueryBuilder, Type, postgres::PgPool};
+use sqlx::{Decode, Encode, PgConnection, Postgres, QueryBuilder, Type};
 
 use super::binds::BindOne;
 
@@ -52,20 +52,33 @@ impl<'a> Insert<'a> {
         self.into_query_builder().into_sql()
     }
 
-    pub async fn fetch_one_scalar<T>(self, pool: &PgPool) -> Result<T, sqlx::Error>
+    /// Run the INSERT and read back a single scalar (e.g. `RETURNING id`).
+    ///
+    /// Takes a `&mut PgConnection` rather than a pool so the caller can run it
+    /// inside a transaction (`&mut *tx`) or on a pooled connection alike —
+    /// same reasoning as [`Update::execute_tx`](super::Update::execute_tx),
+    /// where a generic executor can't satisfy the `QueryBuilder` bind lifetime.
+    pub async fn fetch_one_scalar<T>(self, conn: &mut PgConnection) -> Result<T, sqlx::Error>
     where
         T: Send + Unpin + for<'r> Decode<'r, Postgres> + Type<Postgres>,
     {
         let mut qb = self.into_query_builder();
-        qb.build_query_scalar::<T>().fetch_one(pool).await
+        qb.build_query_scalar::<T>().fetch_one(&mut *conn).await
     }
 
-    pub async fn fetch_optional_scalar<T>(self, pool: &PgPool) -> Result<Option<T>, sqlx::Error>
+    /// [`fetch_one_scalar`](Self::fetch_one_scalar) for a `DO NOTHING` insert:
+    /// `None` when the conflict clause suppressed the row.
+    pub async fn fetch_optional_scalar<T>(
+        self,
+        conn: &mut PgConnection,
+    ) -> Result<Option<T>, sqlx::Error>
     where
         T: Send + Unpin + for<'r> Decode<'r, Postgres> + Type<Postgres>,
     {
         let mut qb = self.into_query_builder();
-        qb.build_query_scalar::<T>().fetch_optional(pool).await
+        qb.build_query_scalar::<T>()
+            .fetch_optional(&mut *conn)
+            .await
     }
 
     fn into_query_builder(self) -> QueryBuilder<'a, Postgres> {

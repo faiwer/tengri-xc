@@ -3,9 +3,15 @@
 //! are display-only snapshots, refreshed each time the same account is
 //! (re)linked.
 
+use chrono::Utc;
+use rand::Rng;
 use serde::Serialize;
+use sqlx::{PgConnection, PgExecutor};
 
-use crate::AppError;
+use crate::{
+    AppError,
+    user::{CreateUser, Permissions, UserSource, create_user},
+};
 
 use super::provider::{OAuthIdentity, OAuthProvider};
 
@@ -49,12 +55,16 @@ pub async fn list_links_for_user(
 }
 
 /// Which user (if any) a provider identity resolves to — the login flow's
-/// lookup. Identity is `(provider, subject)`, never email.
-pub async fn find_user_by_link(
-    pool: &sqlx::PgPool,
+/// lookup. Identity is `(provider, subject)`, never email. Generic over the
+/// executor so it runs on a pool or inside [`upsert_link`]'s transaction.
+pub async fn find_user_by_link<'e, E>(
+    executor: E,
     provider: OAuthProvider,
     provider_user_id: &str,
-) -> Result<Option<i32>, AppError> {
+) -> Result<Option<i32>, AppError>
+where
+    E: PgExecutor<'e>,
+{
     sqlx::query_scalar::<_, i32>(
         "SELECT user_id \
          FROM user_oauth_links \
@@ -62,7 +72,7 @@ pub async fn find_user_by_link(
     )
     .bind(provider.pg_enum_value())
     .bind(provider_user_id)
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await
     .map_err(into_internal)
 }
@@ -77,12 +87,13 @@ pub async fn find_user_by_link(
 /// would silently steal another account's link. A read-then-write is correct
 /// here; the window is a user racing themselves, harmless either way.
 pub async fn upsert_link(
-    pool: &sqlx::PgPool,
+    conn: &mut PgConnection,
     user_id: i32,
     provider: OAuthProvider,
     identity: &OAuthIdentity,
 ) -> Result<LinkOutcome, AppError> {
-    let existing_owner: Option<i32> = find_user_by_link(pool, provider, &identity.subject).await?;
+    let existing_owner: Option<i32> =
+        find_user_by_link(&mut *conn, provider, &identity.subject).await?;
 
     match existing_owner {
         Some(owner) if owner != user_id => Ok(LinkOutcome::TakenByOther),
@@ -96,7 +107,7 @@ pub async fn upsert_link(
             .bind(identity.display_name.as_deref())
             .bind(provider.pg_enum_value())
             .bind(&identity.subject)
-            .execute(pool)
+            .execute(&mut *conn)
             .await
             .map_err(into_internal)?;
             Ok(LinkOutcome::Refreshed)
@@ -112,12 +123,115 @@ pub async fn upsert_link(
             .bind(&identity.subject)
             .bind(identity.email.as_deref())
             .bind(identity.display_name.as_deref())
-            .execute(pool)
+            .execute(&mut *conn)
             .await
             .map_err(into_internal)?;
             Ok(LinkOutcome::Created)
         }
     }
+}
+
+/// How many display-name candidates to try before giving up. `users.name` is
+/// case-insensitively unique, so a common OAuth display name ("John Smith")
+/// can collide; after the bare name we suffix a random number until one is
+/// free.
+const MAX_NAME_ATTEMPTS: usize = 10;
+
+/// Range for the random display-name suffix. Wide enough that even a very
+/// common base name almost never exhausts [`MAX_NAME_ATTEMPTS`].
+const NAME_SUFFIX_RANGE: std::ops::RangeInclusive<u32> = 2..=10_000;
+
+/// Create a fresh account for a provider identity that isn't linked to (or
+/// email-matched against) any existing user, then link it. The new user gets
+/// only [`Permissions::CAN_AUTHORIZE`] — no manage powers. The email (already
+/// verified by [`OAuthProvider::resolve_email`]) is stored and stamped
+/// confirmed; a missing email leaves the column `NULL`.
+///
+/// `users.name` is unique, so the display name is resolved against
+/// `users_name_lower_key` by suffixing a random number, retrying on the
+/// insert's unique-violation as the race backstop. After [`MAX_NAME_ATTEMPTS`]
+/// the registration fails rather than looping.
+///
+/// Each attempt runs in its own transaction: the `users` insert and the link
+/// insert commit together (no orphan user if the link fails), and a name
+/// collision aborts that transaction, so the next candidate starts clean.
+pub async fn register_oauth_user(
+    pool: &sqlx::PgPool,
+    provider: OAuthProvider,
+    identity: &OAuthIdentity,
+) -> Result<i32, AppError> {
+    let base = base_name(identity);
+    let email_verified_at = identity.email.as_ref().map(|_| Utc::now());
+
+    let mut last_conflict = None;
+    for attempt in 1..=MAX_NAME_ATTEMPTS {
+        let name = if attempt == 1 {
+            base.clone()
+        } else {
+            format!("{base} {}", rand::rng().random_range(NAME_SUFFIX_RANGE))
+        };
+        let input = CreateUser {
+            id: None,
+            name,
+            login: None,
+            email: identity.email.clone(),
+            password: None,
+            permissions: Permissions::default().bits(),
+            source: UserSource::Internal,
+            email_verified_at,
+            last_login_at: None,
+            created_at: None,
+        };
+
+        let mut tx = pool.begin().await.map_err(into_internal)?;
+        match create_user(&mut tx, input).await {
+            Ok(created) => {
+                upsert_link(&mut tx, created.id, provider, identity).await?;
+                tx.commit().await.map_err(into_internal)?;
+                return Ok(created.id);
+            }
+            // Unique-violation on `name` — the insert aborted `tx`; drop it and
+            // try the next candidate on a fresh transaction.
+            Err(err) if is_name_conflict(&err) => {
+                last_conflict = Some(err);
+            }
+            Err(err) => return Err(AppError::Internal(err)),
+        }
+    }
+
+    Err(AppError::Internal(last_conflict.unwrap_or_else(|| {
+        anyhow::anyhow!("no free display name after {MAX_NAME_ATTEMPTS} attempts")
+    })))
+}
+
+/// Display name to seed the uniqueness search: the provider's name, else the
+/// email's local part, else a generic fallback.
+fn base_name(identity: &OAuthIdentity) -> String {
+    identity
+        .display_name
+        .clone()
+        .or_else(|| {
+            identity
+                .email
+                .as_deref()
+                .and_then(|email| email.split('@').next())
+                .map(str::to_owned)
+        })
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "Pilot".to_owned())
+}
+
+/// Whether `err` is a `users_name_lower_key` unique violation — the signal to
+/// try the next name candidate. Any other error propagates.
+fn is_name_conflict(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        cause
+            .downcast_ref::<sqlx::Error>()
+            .and_then(|e| e.as_database_error())
+            .and_then(|db| db.constraint())
+            == Some("users_name_lower_key")
+    })
 }
 
 /// Result of a [`delete_link`] attempt.

@@ -34,10 +34,11 @@ use crate::{
         FLOW_COOKIE_NAME, FlowState, LinkOutcome, LinkSnapshot, OAuthIdentity, OAuthIntent,
         OAuthProvider, UnlinkOutcome, build_authorize_redirect, clear_flow_cookie,
         decode_flow_cookie, delete_link, exchange_and_identify, fetch_enabled_provider_credentials,
-        fetch_enabled_providers, find_user_by_link, list_links_for_user, resolve_return_to,
-        set_flow_cookie, upsert_link,
+        fetch_enabled_providers, find_user_by_link, list_links_for_user, register_oauth_user,
+        resolve_return_to, set_flow_cookie, upsert_link,
     },
-    user::Permissions,
+    site::fetch_site_public,
+    user::{Permissions, find_user_id_by_email},
 };
 
 /// The callback sets the session cookie inline, so it lives outside the slide
@@ -53,10 +54,7 @@ pub fn session_router() -> Router<AppState> {
     Router::new()
         .route("/oauth/providers", get(list_providers))
         .route("/oauth/links", get(list_links))
-        .route(
-            "/oauth/links/{provider}/{provider_user_id}",
-            delete(unlink),
-        )
+        .route("/oauth/links/{provider}/{provider_user_id}", delete(unlink))
         .route("/oauth/{provider}/start", get(start))
 }
 
@@ -238,6 +236,13 @@ impl CallbackOutcome {
             session: Some(session),
         }
     }
+    fn registered(session: String) -> Self {
+        Self {
+            param: OK,
+            value: "registered",
+            session: Some(session),
+        }
+    }
 }
 
 /// Act on a verified callback: link the identity to the flow's user, or log in
@@ -253,25 +258,69 @@ async fn resolve_intent(
             let Some(user_id) = flow.user_id else {
                 return Ok(CallbackOutcome::err("failed"));
             };
-            let outcome = match upsert_link(state.pool(), user_id, provider, identity).await? {
+            let mut conn = acquire(state).await?;
+            let outcome = match upsert_link(&mut conn, user_id, provider, identity).await? {
                 LinkOutcome::TakenByOther => CallbackOutcome::err("link_taken"),
                 LinkOutcome::Created | LinkOutcome::Refreshed => CallbackOutcome::ok("linked"),
             };
             Ok(outcome)
         }
-        OAuthIntent::Login => {
-            let Some(user_id) =
-                find_user_by_link(state.pool(), provider, &identity.subject).await?
-            else {
-                return Ok(CallbackOutcome::err("no_account"));
-            };
-            let outcome = match mint_session_for(state, user_id).await? {
-                SessionOutcome::Ok(session) => CallbackOutcome::logged_in(session),
-                SessionOutcome::Banned => CallbackOutcome::err("banned"),
-                SessionOutcome::Gone => CallbackOutcome::err("failed"),
-            };
-            Ok(outcome)
-        }
+        OAuthIntent::Login => resolve_login(state, provider, identity).await,
+    }
+}
+
+/// Login intent: sign in an already-linked identity; else attach a verified
+/// email to the existing account it matches and sign in; else register a fresh
+/// account, when the site allows it.
+async fn resolve_login(
+    state: &AppState,
+    provider: OAuthProvider,
+    identity: &OAuthIdentity,
+) -> Result<CallbackOutcome, AppError> {
+    // 1. Identity already linked → straight login.
+    if let Some(user_id) = find_user_by_link(state.pool(), provider, &identity.subject).await? {
+        return Ok(login_outcome(mint_session_for(state, user_id).await?));
+    }
+
+    // 2. Verified email matches an existing account → attach + login. The
+    // identity was unlinked at step 1, so `upsert_link` can't hit TakenByOther.
+    if let Some(email) = identity.email.as_deref()
+        && let Some(user_id) = find_user_id_by_email(state.pool(), email).await?
+    {
+        let mut conn = acquire(state).await?;
+        upsert_link(&mut conn, user_id, provider, identity).await?;
+        return Ok(login_outcome(mint_session_for(state, user_id).await?));
+    }
+
+    // 3. Unknown identity → register, gated by the site switch.
+    if !fetch_site_public(state.pool()).await?.can_register {
+        return Ok(CallbackOutcome::err("registration_disabled"));
+    }
+    let user_id = register_oauth_user(state.pool(), provider, identity).await?;
+    match mint_session_for(state, user_id).await? {
+        SessionOutcome::Ok(session) => Ok(CallbackOutcome::registered(session)),
+        // A just-created user has CAN_AUTHORIZE and exists; a miss here is not
+        // reachable in practice, so fall back to a generic failure.
+        SessionOutcome::Banned | SessionOutcome::Gone => Ok(CallbackOutcome::err("failed")),
+    }
+}
+
+/// A pooled connection for the link helpers, which take a `&mut PgConnection`
+/// (usable standalone or inside a transaction) rather than a pool.
+async fn acquire(state: &AppState) -> Result<sqlx::pool::PoolConnection<sqlx::Postgres>, AppError> {
+    state
+        .pool()
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.into()))
+}
+
+/// Map a session mint for an *existing* account to its callback outcome.
+fn login_outcome(outcome: SessionOutcome) -> CallbackOutcome {
+    match outcome {
+        SessionOutcome::Ok(session) => CallbackOutcome::logged_in(session),
+        SessionOutcome::Banned => CallbackOutcome::err("banned"),
+        SessionOutcome::Gone => CallbackOutcome::err("failed"),
     }
 }
 
