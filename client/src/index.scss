@@ -1,6 +1,6 @@
 // PageLayout chrome: header (~4.5rem) + content card padding (2rem) +
 // content card margin-bottom (1.5rem) + footer (~2rem). Consumers that
-// pin to `100vh` (scrollable sections, full-height panes) subtract this
+// pin to `100dvh` (scrollable sections, full-height panes) subtract this
 // to leave the chrome alone. Update when PageLayout's vertical metrics
 // change.
 :root {

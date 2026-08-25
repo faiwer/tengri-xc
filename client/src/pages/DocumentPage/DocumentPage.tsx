@@ -47,7 +47,7 @@ export function DocumentPage({ kind, title }: DocumentPageProps) {
 
   return (
     <PageLayout fit>
-      <article>
+      <article className={styles.page}>
         <h1 className={styles.title}>{title}</h1>
         <DocumentBody md={md} error={error} onRetry={retry} title={title} />
       </article>

@@ -1,6 +1,6 @@
 // The vertical metrics in this file (`.header` height, `.content`
 // padding/margin, `.footer` height) feed `--page-chrome` in `index.scss`. If
-// you change any of them, update the variable so `calc(100vh -
+// you change any of them, update the variable so `calc(100dvh -
 // var(--page-chrome))` consumers stay correct.
 
 // Centering column only. Background and borders moved to `.content`
@@ -9,7 +9,7 @@
 .page {
   max-width: 1000px;
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

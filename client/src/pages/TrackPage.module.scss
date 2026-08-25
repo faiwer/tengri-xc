@@ -1,7 +1,7 @@
 @use "../core/mixins";
 
 // Two-column flight view. PageLayout's `.content` is now a flex
-// column with `flex: 1` of `.page` (min-height: 100vh), so this
+// column with `flex: 1` of `.page` (min-height: 100dvh), so this
 // `flex: 1` pulls a real height that the right column can carve
 // up between the map (flex) and the chart (fixed).
 .layout {
@@ -111,7 +111,7 @@
   }
 
   @media (width < 1000px) and (orientation: landscape) {
-    width: min(400px, 50vw);
+    width: min(400px, 50dvw);
     height: var(--chart-height);
   }
 }
@@ -127,7 +127,7 @@
   }
 
   @media (width < 1000px) and (orientation: landscape) {
-    width: min(300px, 50vw);
+    width: min(300px, 50dvw);
   }
 }
 

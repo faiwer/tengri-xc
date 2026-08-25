@@ -15,7 +15,7 @@ interface SettingsSectionProps {
    * When true, the body is capped by viewport height and scrolls internally
    * instead of pushing the page taller. The header stays fixed at the top of
    * the section, body gets its own scrollbar. Use for long, page-shaped content
-   * (tables, trees) that would otherwise blow past 100vh.
+   * (tables, trees) that would otherwise blow past 100dvh.
    */
   scrollable?: boolean;
   children?: ReactNode;

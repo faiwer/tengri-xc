@@ -5,13 +5,13 @@
 
 // Opt-in via the `scrollable` prop. Anchors the section to the viewport so long
 // bodies (gliders tree, big tables) scroll internally instead of pushing the
-// whole page past 100vh. `--page-chrome` is the PageLayout offset (see
+// whole page past 100dvh. `--page-chrome` is the PageLayout offset (see
 // `index.scss`). `min-height` keeps short bodies from looking squished; on
 // viewports where `min` would exceed `max`, CSS picks `min` and the section
 // overflows the viewport gracefully (rare in practice).
 .scrollable {
-  min-height: 70vh;
-  max-height: calc(100vh - var(--page-chrome));
+  min-height: 70dvh;
+  max-height: calc(100dvh - var(--page-chrome));
 
   .header {
     flex-shrink: 0;
