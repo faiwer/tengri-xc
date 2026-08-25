@@ -1,5 +1,5 @@
 import type { OAuthProviderId } from './admin/oauthProviders.io';
-import { apiGet, type ApiRequestOptions } from './core';
+import { apiDelete, apiGet, type ApiRequestOptions } from './core';
 import {
   EnabledProvidersIo,
   OAuthLinkListIo,
@@ -20,6 +20,18 @@ export async function getMyLinks(
   options: ApiRequestOptions = {},
 ): Promise<OAuthLink[]> {
   return apiGet('/oauth/links', OAuthLinkListIo, options);
+}
+
+/** `DELETE /oauth/links/:provider/:providerUserId` — unlink a connected account. */
+export async function unlinkOAuth(
+  provider: OAuthProviderId,
+  providerUserId: string,
+  options: ApiRequestOptions = {},
+): Promise<void> {
+  return apiDelete(
+    `/oauth/links/${provider}/${encodeURIComponent(providerUserId)}`,
+    options,
+  );
 }
 
 /** Why we're starting a flow. `link` needs a session; `login` is anonymous. */

@@ -21,7 +21,7 @@ use axum::{
         header::{COOKIE, LOCATION, SET_COOKIE},
     },
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{delete, get},
 };
 use cookie::Cookie;
 use jsonwebtoken::DecodingKey;
@@ -32,9 +32,10 @@ use crate::{
     auth::{Identity, token::mint_session_cookie},
     oauth::{
         FLOW_COOKIE_NAME, FlowState, LinkOutcome, LinkSnapshot, OAuthIdentity, OAuthIntent,
-        OAuthProvider, build_authorize_redirect, clear_flow_cookie, decode_flow_cookie,
-        exchange_and_identify, fetch_enabled_provider_credentials, fetch_enabled_providers,
-        find_user_by_link, list_links_for_user, resolve_return_to, set_flow_cookie, upsert_link,
+        OAuthProvider, UnlinkOutcome, build_authorize_redirect, clear_flow_cookie,
+        decode_flow_cookie, delete_link, exchange_and_identify, fetch_enabled_provider_credentials,
+        fetch_enabled_providers, find_user_by_link, list_links_for_user, resolve_return_to,
+        set_flow_cookie, upsert_link,
     },
     user::Permissions,
 };
@@ -52,6 +53,10 @@ pub fn session_router() -> Router<AppState> {
     Router::new()
         .route("/oauth/providers", get(list_providers))
         .route("/oauth/links", get(list_links))
+        .route(
+            "/oauth/links/{provider}/{provider_user_id}",
+            delete(unlink),
+        )
         .route("/oauth/{provider}/start", get(start))
 }
 
@@ -68,6 +73,24 @@ async fn list_links(
     list_links_for_user(state.pool(), identity.user_id)
         .await
         .map(Json)
+}
+
+/// `DELETE /oauth/links/{provider}/{provider_user_id}` — unlink one of the
+/// caller's connected accounts. Idempotent (204 whether or not the row was
+/// there); refuses with 409 if it would leave a password-less account unable
+/// to sign in.
+async fn unlink(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path((provider, provider_user_id)): Path<(String, String)>,
+) -> Result<StatusCode, AppError> {
+    let provider = OAuthProvider::from_path(&provider).ok_or(AppError::NotFound)?;
+    match delete_link(state.pool(), identity.user_id, provider, &provider_user_id).await? {
+        UnlinkOutcome::Deleted | UnlinkOutcome::NotFound => Ok(StatusCode::NO_CONTENT),
+        UnlinkOutcome::WouldBrick => Err(AppError::Conflict(
+            "Set a password before unlinking your only sign-in method.".into(),
+        )),
+    }
 }
 
 #[derive(Debug, Deserialize)]

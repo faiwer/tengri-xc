@@ -15,7 +15,10 @@ pub use flow::{
     FLOW_COOKIE_NAME, FlowState, OAuthIntent, build_authorize_redirect, clear_flow_cookie,
     decode_flow_cookie, exchange_and_identify, resolve_return_to, set_flow_cookie,
 };
-pub use links::{LinkOutcome, LinkSnapshot, find_user_by_link, list_links_for_user, upsert_link};
+pub use links::{
+    LinkOutcome, LinkSnapshot, UnlinkOutcome, delete_link, find_user_by_link, list_links_for_user,
+    upsert_link,
+};
 pub use provider::{OAuthIdentity, OAuthProvider};
 pub use store::{
     ProviderCredentials, UpdateOAuthProviderRequest, apply_oauth_provider_update,

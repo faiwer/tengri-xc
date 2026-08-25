@@ -17,6 +17,7 @@ export const EnabledProvidersIo = z.array(OAuthProviderIdIo);
  */
 export const OAuthLinkIo = z.object({
   provider: OAuthProviderIdIo,
+  providerUserId: z.string(),
   email: z.string().nullable(),
   displayName: z.string().nullable(),
 });

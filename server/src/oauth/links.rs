@@ -9,11 +9,11 @@ use crate::AppError;
 
 use super::provider::{OAuthIdentity, OAuthProvider};
 
-/// One connected account, as listed in the user's settings. The provider
-/// subject id is the identity key and stays server-side — never serialized.
+/// One connected account, as listed in the user's settings.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct LinkSnapshot {
     pub provider: OAuthProvider,
+    pub provider_user_id: String,
     pub email: Option<String>,
     pub display_name: Option<String>,
 }
@@ -37,7 +37,7 @@ pub async fn list_links_for_user(
     user_id: i32,
 ) -> Result<Vec<LinkSnapshot>, AppError> {
     sqlx::query_as::<_, LinkSnapshot>(
-        "SELECT provider, email, display_name \
+        "SELECT provider, provider_user_id, email, display_name \
          FROM user_oauth_links \
          WHERE user_id = $1 \
          ORDER BY provider, created_at",
@@ -118,6 +118,71 @@ pub async fn upsert_link(
             Ok(LinkOutcome::Created)
         }
     }
+}
+
+/// Result of a [`delete_link`] attempt.
+pub enum UnlinkOutcome {
+    /// Row removed.
+    Deleted,
+    /// Removing it would leave a password-less account with no way to sign
+    /// in — refused, nothing written.
+    WouldBrick,
+    /// No such link for this user (already gone) — a no-op.
+    NotFound,
+}
+
+/// Remove one of `user_id`'s links, scoped by `user_id` so a caller can only
+/// unlink their own. Refuses the delete if it would strand a password-less
+/// account with zero links ([`UnlinkOutcome::WouldBrick`]). The check and the
+/// delete share a transaction so a user racing themselves can't slip past it.
+pub async fn delete_link(
+    pool: &sqlx::PgPool,
+    user_id: i32,
+    provider: OAuthProvider,
+    provider_user_id: &str,
+) -> Result<UnlinkOutcome, AppError> {
+    let mut tx = pool.begin().await.map_err(into_internal)?;
+
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM user_oauth_links \
+         WHERE user_id = $1 AND provider = $2::oauth_provider AND provider_user_id = $3)",
+    )
+    .bind(user_id)
+    .bind(provider.pg_enum_value())
+    .bind(provider_user_id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(into_internal)?;
+    if !exists {
+        return Ok(UnlinkOutcome::NotFound);
+    }
+
+    // Password-less account whose last link this is → bricking.
+    let would_brick: bool = sqlx::query_scalar(
+        "SELECT (SELECT password_hash FROM users WHERE id = $1) IS NULL \
+         AND (SELECT count(*) FROM user_oauth_links WHERE user_id = $1) = 1",
+    )
+    .bind(user_id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(into_internal)?;
+    if would_brick {
+        return Ok(UnlinkOutcome::WouldBrick);
+    }
+
+    sqlx::query(
+        "DELETE FROM user_oauth_links \
+         WHERE user_id = $1 AND provider = $2::oauth_provider AND provider_user_id = $3",
+    )
+    .bind(user_id)
+    .bind(provider.pg_enum_value())
+    .bind(provider_user_id)
+    .execute(&mut *tx)
+    .await
+    .map_err(into_internal)?;
+
+    tx.commit().await.map_err(into_internal)?;
+    Ok(UnlinkOutcome::Deleted)
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {
