@@ -1,7 +1,10 @@
-import { Button, Form, Input, Switch } from 'antd';
+import { Button, Form, Input, Select } from 'antd';
 import { useMemo, useState } from 'react';
 import { updateAdminOAuthProvider } from '../../../api/admin/oauthProviders';
-import type { AdminOAuthProvider } from '../../../api/admin/oauthProviders.io';
+import type {
+  AdminOAuthProvider,
+  OAuthVisibility,
+} from '../../../api/admin/oauthProviders.io';
 import { useFormSubmit } from '../../../core/hooks';
 import { shallowEqual } from '../../../utils/shallowEqual';
 import styles from './ProviderRow.module.scss';
@@ -32,7 +35,7 @@ export function ProviderRow({ provider, config }: ProviderRowProps) {
       updateAdminOAuthProvider(provider.id, {
         clientId: values.clientId.trim(),
         clientSecret: values.clientSecret,
-        enabled: values.enabled,
+        visibility: values.visibility,
       }),
     onSuccess: (list) => {
       const next = list.find((c) => c.provider === provider.id) ?? null;
@@ -88,12 +91,11 @@ export function ProviderRow({ provider, config }: ProviderRowProps) {
           <Input.Password autoComplete="off" maxLength={FIELD_MAX_LEN} />
         </Form.Item>
         <Form.Item
-          name="enabled"
-          label={<span>Enabled</span>}
-          tooltip="Off keeps the credentials stored but hides the provider from login."
-          valuePropName="checked"
+          name="visibility"
+          label={<span>Visibility</span>}
+          tooltip="Disabled keeps the credentials stored but hides the provider from login. Admins only offers it just to users who can manage users."
         >
-          <Switch />
+          <Select options={VISIBILITY_OPTIONS} />
         </Form.Item>
       </Form>
     </div>
@@ -105,13 +107,19 @@ const toFormValues = (
 ): ProviderFormValues => ({
   clientId: config?.clientId ?? '',
   clientSecret: config?.clientSecret ?? '',
-  enabled: config?.enabled ?? false,
+  visibility: config?.visibility ?? 'disabled',
 });
 
 type ProviderFormValues = {
   clientId: string;
   clientSecret: string;
-  enabled: boolean;
+  visibility: OAuthVisibility;
 };
+
+const VISIBILITY_OPTIONS: { value: OAuthVisibility; label: string }[] = [
+  { value: 'disabled', label: 'Disabled' },
+  { value: 'admins', label: 'Admins only' },
+  { value: 'public', label: 'Everyone' },
+];
 
 const FIELD_MAX_LEN = 512;

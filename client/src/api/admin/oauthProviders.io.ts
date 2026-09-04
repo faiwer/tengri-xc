@@ -7,11 +7,19 @@ import { z } from 'zod';
  * both credentials are set — so `clientId` / `clientSecret` are non-null. The
  * secret is included because the editor prefills its field from it.
  */
+/**
+ * Who a configured provider is offered to: `disabled` hides it, `admins` offers
+ * it only to callers with `MANAGE_USERS`, `public` offers it to everyone.
+ */
+export const OAuthVisibilityIo = z.enum(['disabled', 'admins', 'public']);
+
+export type OAuthVisibility = z.infer<typeof OAuthVisibilityIo>;
+
 export const AdminOAuthProviderIo = z.object({
   provider: z.enum(['google', 'facebook', 'x', 'microsoft', 'github']),
   clientId: z.string(),
   clientSecret: z.string(),
-  enabled: z.boolean(),
+  visibility: OAuthVisibilityIo,
 });
 
 export type AdminOAuthProvider = z.infer<typeof AdminOAuthProviderIo>;
@@ -29,5 +37,5 @@ export const AdminOAuthProviderListIo = z.array(AdminOAuthProviderIo);
 export interface UpdateOAuthProviderRequest {
   clientId?: string;
   clientSecret?: string;
-  enabled?: boolean;
+  visibility?: OAuthVisibility;
 }
