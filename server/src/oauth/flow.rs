@@ -127,7 +127,7 @@ pub async fn exchange_and_identify(
         .await
         .map_err(|e| AppError::BadRequest(format!("oauth token exchange failed: {e}")))?;
 
-    let body: serde_json::Value = http
+    let response = http
         .get(endpoints.userinfo_url)
         .bearer_auth(token.access_token().secret())
         .header(reqwest::header::ACCEPT, "application/json")
@@ -135,12 +135,19 @@ pub async fn exchange_and_identify(
         .header(reqwest::header::USER_AGENT, "tengri-xc")
         .send()
         .await
-        .map_err(into_internal)?
-        .error_for_status()
-        .map_err(into_internal)?
-        .json()
-        .await
         .map_err(into_internal)?;
+
+    // Keep the provider's error body — it carries the actionable reason (e.g.
+    // Microsoft's `AADSTS…`) that `error_for_status` would throw away.
+    let status = response.status();
+    let text = response.text().await.map_err(into_internal)?;
+    if !status.is_success() {
+        return Err(AppError::BadRequest(format!(
+            "oauth userinfo request failed ({status}): {text}"
+        )));
+    }
+
+    let body: serde_json::Value = serde_json::from_str(&text).map_err(into_internal)?;
 
     let (subject, display_name) = provider
         .parse_userinfo(&body)

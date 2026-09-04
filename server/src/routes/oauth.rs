@@ -182,6 +182,11 @@ async fn callback(
         match validate_callback(provider, &headers, query, state.jwt_decoding_key()) {
             Ok(valid) => valid,
             Err(reject) => {
+                tracing::warn!(
+                    provider = provider.pg_enum_value(),
+                    code = reject.code,
+                    "oauth callback rejected before token exchange"
+                );
                 return Ok(redirect(
                     &state,
                     &reject.return_to,
@@ -196,7 +201,14 @@ async fn callback(
     // here we only reject a provider that's since gone away or been disabled.
     let creds = match fetch_provider_credentials(state.pool(), provider).await? {
         Some((visibility, creds)) if visibility != OAuthVisibility::Disabled => creds,
-        _ => return Ok(redirect(&state, &flow.return_to, ERR, "failed", &[clear])),
+        other => {
+            tracing::warn!(
+                provider = provider.pg_enum_value(),
+                configured = other.is_some(),
+                "oauth callback: provider unavailable (missing credentials or disabled)"
+            );
+            return Ok(redirect(&state, &flow.return_to, ERR, "failed", &[clear]));
+        }
     };
     let redirect_uri = callback_uri(&state, provider);
     let identity = match exchange_and_identify(

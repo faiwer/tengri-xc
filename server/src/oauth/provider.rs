@@ -150,6 +150,12 @@ impl OAuthProvider {
         let display_name = match self {
             OAuthProvider::Github => str_field(root, "name").or_else(|| str_field(root, "login")),
             OAuthProvider::X => str_field(root, "name").or_else(|| str_field(root, "username")),
+            // Microsoft's `oidc/userinfo` omits the OIDC `name`; it exposes the
+            // parts as `givenname`/`familyname` (no underscores, unlike standard
+            // OIDC), so stitch them together.
+            OAuthProvider::Microsoft => {
+                str_field(root, "name").or_else(|| microsoft_full_name(root))
+            }
             _ => str_field(root, "name"),
         };
 
@@ -226,6 +232,18 @@ async fn github_verified_email(
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {
     AppError::Internal(e.into())
+}
+
+/// Microsoft's userinfo has no `name`; stitch one from the given/family parts.
+/// Accepts both the OIDC-standard underscored keys and Microsoft's substrate
+/// spelling (`givenname`/`familyname`).
+fn microsoft_full_name(root: &serde_json::Value) -> Option<String> {
+    let given = str_field(root, "given_name").or_else(|| str_field(root, "givenname"));
+    let family = str_field(root, "family_name").or_else(|| str_field(root, "familyname"));
+    match (given, family) {
+        (Some(given), Some(family)) => Some(format!("{given} {family}")),
+        (given, family) => given.or(family),
+    }
 }
 
 /// A trimmed non-empty string field, or `None`.
