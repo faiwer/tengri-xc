@@ -8,7 +8,10 @@ use serde::Deserialize;
 
 use crate::{AppError, db::Upsert, validation::FieldErrors};
 
-use super::{dto::AdminOAuthProviderDto, provider::OAuthProvider};
+use super::{
+    dto::AdminOAuthProviderDto,
+    provider::{OAuthProvider, OAuthVisibility},
+};
 
 /// Length cap on `client_id` / `client_secret`. Real values are well under
 /// this; the cap just stops a paste-bomb from landing in the row.
@@ -20,7 +23,7 @@ pub async fn fetch_oauth_providers_admin(
     pool: &sqlx::PgPool,
 ) -> Result<Vec<AdminOAuthProviderDto>, AppError> {
     sqlx::query_as::<_, AdminOAuthProviderDto>(
-        "SELECT provider, client_id, client_secret, enabled \
+        "SELECT provider, client_id, client_secret, visibility \
          FROM oauth_provider_settings \
          ORDER BY provider",
     )
@@ -29,34 +32,52 @@ pub async fn fetch_oauth_providers_admin(
     .map_err(into_internal)
 }
 
-/// Enabled providers, in display order — the set offered for login/link. Used
-/// by the public `/oauth/providers` endpoint and to gate `start`/`callback`.
-pub async fn fetch_enabled_providers(pool: &sqlx::PgPool) -> Result<Vec<OAuthProvider>, AppError> {
+/// Providers offered to the caller, in display order — the set surfaced by the
+/// public `/oauth/providers` endpoint. `public` rows go to everyone; `admins`
+/// rows only when `is_admin` (the caller holds `MANAGE_USERS`); `disabled` rows
+/// never.
+pub async fn fetch_visible_providers(
+    pool: &sqlx::PgPool,
+    is_admin: bool,
+) -> Result<Vec<OAuthProvider>, AppError> {
     let rows: Vec<(OAuthProvider,)> = sqlx::query_as(
-        "SELECT provider FROM oauth_provider_settings WHERE enabled = TRUE ORDER BY provider",
+        "SELECT provider FROM oauth_provider_settings \
+         WHERE visibility = 'public' OR ($1 AND visibility = 'admins') \
+         ORDER BY provider",
     )
+    .bind(is_admin)
     .fetch_all(pool)
     .await
     .map_err(into_internal)?;
     Ok(rows.into_iter().map(|(p,)| p).collect())
 }
 
-/// Credentials for an *enabled* provider, or `None` when it's absent/disabled.
-/// The flow requires enablement, so a disabled provider is indistinguishable
-/// from an unconfigured one here.
-pub async fn fetch_enabled_provider_credentials(
+/// A configured provider's visibility + credentials, or `None` when no row
+/// exists. Returns the row at any visibility (including `disabled`) so the
+/// `start`/`callback` flow can inspect visibility and gate itself.
+pub async fn fetch_provider_credentials(
     pool: &sqlx::PgPool,
     provider: OAuthProvider,
-) -> Result<Option<ProviderCredentials>, AppError> {
-    sqlx::query_as::<_, ProviderCredentials>(
-        "SELECT client_id, client_secret \
+) -> Result<Option<(OAuthVisibility, ProviderCredentials)>, AppError> {
+    let row: Option<(OAuthVisibility, String, String)> = sqlx::query_as(
+        "SELECT visibility, client_id, client_secret \
          FROM oauth_provider_settings \
-         WHERE provider = $1::oauth_provider AND enabled = TRUE",
+         WHERE provider = $1::oauth_provider",
     )
     .bind(provider.pg_enum_value())
     .fetch_optional(pool)
     .await
-    .map_err(into_internal)
+    .map_err(into_internal)?;
+
+    Ok(row.map(|(visibility, client_id, client_secret)| {
+        (
+            visibility,
+            ProviderCredentials {
+                client_id,
+                client_secret,
+            },
+        )
+    }))
 }
 
 /// `client_id` + `client_secret` for the authorization-code exchange.
@@ -68,7 +89,7 @@ pub struct ProviderCredentials {
 
 /// PATCH body. Every field is optional: an absent (or empty-string) credential
 /// means "leave unchanged", mirroring the password field in `admin/users.rs`,
-/// so saving `enabled` alone doesn't wipe the stored secret.
+/// so saving `visibility` alone doesn't wipe the stored secret.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateOAuthProviderRequest {
@@ -77,7 +98,7 @@ pub struct UpdateOAuthProviderRequest {
     #[serde(default)]
     pub client_secret: Option<String>,
     #[serde(default)]
-    pub enabled: Option<bool>,
+    pub visibility: Option<OAuthVisibility>,
 }
 
 /// Validated update. Credentials are resolved to their final values (incoming
@@ -87,8 +108,8 @@ pub struct UpdateOAuthProviderRequest {
 pub struct OAuthProviderUpdate {
     client_id: String,
     client_secret: String,
-    /// `None` = leave `enabled` as-is (or default FALSE on create).
-    enabled: Option<bool>,
+    /// `None` = leave `visibility` as-is (or default `disabled` on create).
+    visibility: Option<OAuthVisibility>,
 }
 
 /// Validate a PATCH against the current row.
@@ -107,9 +128,9 @@ pub async fn validate_oauth_provider_update(
 ) -> Result<OAuthProviderUpdate, AppError> {
     let client_id = normalise(input.client_id);
     let client_secret = normalise(input.client_secret);
-    let enabled = input.enabled;
+    let visibility = input.visibility;
 
-    if client_id.is_none() && client_secret.is_none() && enabled.is_none() {
+    if client_id.is_none() && client_secret.is_none() && visibility.is_none() {
         return Err(AppError::BadRequest(
             "PATCH body must include at least one settable field".into(),
         ));
@@ -149,7 +170,7 @@ pub async fn validate_oauth_provider_update(
     Ok(OAuthProviderUpdate {
         client_id: final_client_id.expect("presence checked above"),
         client_secret: final_client_secret.expect("presence checked above"),
-        enabled,
+        visibility,
     })
 }
 
@@ -166,14 +187,14 @@ pub async fn apply_oauth_provider_update(
     q.value_cast("provider", provider.pg_enum_value(), "oauth_provider");
     q.value("client_id", update.client_id.as_str());
     q.value("client_secret", update.client_secret.as_str());
-    if let Some(enabled) = update.enabled {
-        q.value("enabled", enabled);
+    if let Some(visibility) = update.visibility {
+        q.value_cast("visibility", visibility.pg_enum_value(), "oauth_visibility");
     }
     q.on_conflict("provider");
     q.update_excluded("client_id");
     q.update_excluded("client_secret");
-    if update.enabled.is_some() {
-        q.update_excluded("enabled");
+    if update.visibility.is_some() {
+        q.update_excluded("visibility");
     }
 
     q.execute(pool).await.map_err(into_internal)?;

@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use super::provider::OAuthProvider;
+use super::provider::{OAuthProvider, OAuthVisibility};
 
 /// One configured provider, as returned to the admin editor. Only providers
 /// that have a row appear; a row exists only when both credentials are set, so
@@ -16,5 +16,5 @@ pub struct AdminOAuthProviderDto {
     pub provider: OAuthProvider,
     pub client_id: String,
     pub client_secret: String,
-    pub enabled: bool,
+    pub visibility: OAuthVisibility,
 }

@@ -19,9 +19,9 @@ pub use links::{
     LinkOutcome, LinkSnapshot, UnlinkOutcome, delete_link, find_user_by_link, list_links_for_user,
     register_oauth_user, upsert_link,
 };
-pub use provider::{OAuthIdentity, OAuthProvider};
+pub use provider::{OAuthIdentity, OAuthProvider, OAuthVisibility};
 pub use store::{
     ProviderCredentials, UpdateOAuthProviderRequest, apply_oauth_provider_update,
-    fetch_enabled_provider_credentials, fetch_enabled_providers, fetch_oauth_providers_admin,
+    fetch_oauth_providers_admin, fetch_provider_credentials, fetch_visible_providers,
     validate_oauth_provider_update,
 };

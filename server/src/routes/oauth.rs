@@ -32,9 +32,9 @@ use crate::{
     auth::{Identity, token::mint_session_cookie},
     oauth::{
         FLOW_COOKIE_NAME, FlowState, LinkOutcome, LinkSnapshot, OAuthIdentity, OAuthIntent,
-        OAuthProvider, UnlinkOutcome, build_authorize_redirect, clear_flow_cookie,
-        decode_flow_cookie, delete_link, exchange_and_identify, fetch_enabled_provider_credentials,
-        fetch_enabled_providers, find_user_by_link, list_links_for_user, register_oauth_user,
+        OAuthProvider, OAuthVisibility, UnlinkOutcome, build_authorize_redirect, clear_flow_cookie,
+        decode_flow_cookie, delete_link, exchange_and_identify, fetch_provider_credentials,
+        fetch_visible_providers, find_user_by_link, list_links_for_user, register_oauth_user,
         resolve_return_to, set_flow_cookie, upsert_link,
     },
     site::fetch_site_public,
@@ -60,8 +60,17 @@ pub fn session_router() -> Router<AppState> {
 
 async fn list_providers(
     State(state): State<AppState>,
+    identity: Option<Identity>,
 ) -> Result<Json<Vec<OAuthProvider>>, AppError> {
-    fetch_enabled_providers(state.pool()).await.map(Json)
+    fetch_visible_providers(state.pool(), is_admin(identity.as_ref()))
+        .await
+        .map(Json)
+}
+
+/// Whether the caller may see `admins`-visibility providers: a session holding
+/// `MANAGE_USERS`. Anonymous callers (and non-admins) get only `public` ones.
+fn is_admin(identity: Option<&Identity>) -> bool {
+    identity.is_some_and(|i| i.permissions.contains(Permissions::MANAGE_USERS))
 }
 
 async fn list_links(
@@ -112,6 +121,7 @@ async fn start(
         Some("login") | None => OAuthIntent::Login,
         Some(other) => return Err(AppError::BadRequest(format!("unknown intent {other:?}"))),
     };
+    let caller_is_admin = is_admin(identity.as_ref());
     // Link attaches to the current user; login is (and must be able to be)
     // anonymous. A logged-in user may still start a login flow (e.g. from the
     // modal); we simply don't capture their id for it.
@@ -120,9 +130,20 @@ async fn start(
         OAuthIntent::Login => None,
     };
 
-    let creds = fetch_enabled_provider_credentials(state.pool(), provider)
+    let (visibility, creds) = fetch_provider_credentials(state.pool(), provider)
         .await?
         .ok_or_else(|| AppError::BadRequest("provider is not enabled".into()))?;
+    // `admins` providers are only reachable by admins; treat a non-admin hitting
+    // this URL directly the same as a disabled/unconfigured provider.
+    match visibility {
+        OAuthVisibility::Disabled => {
+            return Err(AppError::BadRequest("provider is not enabled".into()));
+        }
+        OAuthVisibility::Admins if !caller_is_admin => {
+            return Err(AppError::BadRequest("provider is not enabled".into()));
+        }
+        OAuthVisibility::Admins | OAuthVisibility::Public => {}
+    }
 
     let return_to = resolve_return_to(query.return_to.as_deref().unwrap_or("/"));
     let redirect_uri = callback_uri(&state, provider);
@@ -171,9 +192,11 @@ async fn callback(
             }
         };
 
-    let creds = match fetch_enabled_provider_credentials(state.pool(), provider).await? {
-        Some(creds) => creds,
-        None => return Ok(redirect(&state, &flow.return_to, ERR, "failed", &[clear])),
+    // The signed flow cookie proves `start` already gated on visibility, so
+    // here we only reject a provider that's since gone away or been disabled.
+    let creds = match fetch_provider_credentials(state.pool(), provider).await? {
+        Some((visibility, creds)) if visibility != OAuthVisibility::Disabled => creds,
+        _ => return Ok(redirect(&state, &flow.return_to, ERR, "failed", &[clear])),
     };
     let redirect_uri = callback_uri(&state, provider);
     let identity = match exchange_and_identify(

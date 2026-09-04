@@ -16,6 +16,30 @@ pub enum OAuthProvider {
     Github,
 }
 
+/// Who a configured provider is offered to (`oauth_visibility` enum,
+/// `0026_oauth_provider_visibility.sql`). `Admins` gates the provider behind
+/// `MANAGE_USERS`; `Public` offers it to everyone; `Disabled` hides it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "oauth_visibility", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum OAuthVisibility {
+    Disabled,
+    Admins,
+    Public,
+}
+
+impl OAuthVisibility {
+    /// String accepted by the `oauth_visibility` Postgres enum, for binding a
+    /// `&str` + `::oauth_visibility` cast. Mirrors [`OAuthProvider::pg_enum_value`].
+    pub fn pg_enum_value(self) -> &'static str {
+        match self {
+            OAuthVisibility::Disabled => "disabled",
+            OAuthVisibility::Admins => "admins",
+            OAuthVisibility::Public => "public",
+        }
+    }
+}
+
 /// Fixed OAuth 2.0 endpoints + scopes for a provider. Static because these are
 /// public, well-known URLs — only `client_id`/`client_secret` are per-install
 /// (those live in `oauth_provider_settings`).
