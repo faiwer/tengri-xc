@@ -7,9 +7,11 @@ use std::time::Duration;
 
 use axum::{
     Json, Router,
+    body::Body,
     extract::{DefaultBodyLimit, Multipart, Path, State, multipart::MultipartRejection},
-    http::StatusCode,
-    routing::{delete, post},
+    http::{HeaderValue, StatusCode, header},
+    response::Response,
+    routing::{delete, get, post},
 };
 use serde::{Deserialize, Serialize};
 use tengri_formats::{detect_format, tengri::VERSION};
@@ -24,8 +26,8 @@ use crate::{
             Prepared, gunzip_bounded, has_gzip_magic, prepare_bytes_for_storage,
         },
         store::{
-            FlightMetaUpdate, FlightRow, TransferOutcome, insert_flight, insert_source,
-            insert_track, model_exists, transfer_flight_owner, update_flight_meta,
+            FlightMetaUpdate, FlightRow, TransferOutcome, fetch_source_download, insert_flight,
+            insert_source, insert_track, model_exists, transfer_flight_owner, update_flight_meta,
         },
     },
     glider::{CATALOG_KINDS, LAUNCH_METHODS, PROPULSIONS},
@@ -45,6 +47,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/me/flights/{id}", delete(remove).patch(edit))
         .route("/me/flights/{id}/owner", post(transfer))
+        .route("/me/flights/{id}/source", get(download_source))
 }
 
 #[derive(Serialize)]
@@ -226,6 +229,50 @@ async fn transfer(
             body.user_id
         ))),
     }
+}
+
+/// `GET /me/flights/{id}/source` — the original upload, byte for byte as it was
+/// stored at ingest. Same access rule as `remove` (owner or `MANAGE_TRACKS`).
+/// Served as an attachment named `<takeoff date>_<flight id>.<format>`; a KMZ
+/// upload comes back as `.kml` because ingest unwraps it before storing.
+async fn download_source(
+    State(state): State<AppState>,
+    identity: Identity,
+    Path(id): Path<String>,
+) -> Result<Response, AppError> {
+    require_permission(&identity, Permissions::CAN_AUTHORIZE)?;
+    require_flight_access(&state, &identity, &id).await?;
+
+    let source = fetch_source_download(state.pool(), &id)
+        .await
+        .map_err(AppError::Internal)?
+        .ok_or(AppError::NotFound)?;
+
+    // Nothing user-supplied reaches the header: the date comes from `to_char`,
+    // the extension from the `flight_source_format` enum, and `id` matched an
+    // existing row, so it's a NanoID or `LEO-<n>`.
+    let disposition = format!(
+        "attachment; filename=\"{}_{}.{}\"",
+        source.takeoff_date,
+        id,
+        source.format.pg_enum_value()
+    );
+
+    let mut resp = Response::new(Body::from(source.bytes));
+    let headers = resp.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&disposition).map_err(|e| AppError::Internal(e.into()))?,
+    );
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-store"),
+    );
+    Ok(resp)
 }
 
 /// Ensure the flight exists and `identity` may mutate it: its owner, or an
