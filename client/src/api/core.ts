@@ -2,7 +2,13 @@ import camelcaseKeys from 'camelcase-keys';
 import snakecaseKeys from 'snakecase-keys';
 import type { z } from 'zod';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL;
+/**
+ * Origin (or path prefix) every API path is resolved against. Exported for the
+ * handful of places that need a URL rather than a request — plain `<a>` links
+ * and top-level navigations, which can't go through `fetchOk`.
+ */
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL;
+
 const DEV_DELAY_MAX_MS = 400;
 
 /** Base class so callers can `catch (e) { if (e instanceof ApiError) ... }`. */

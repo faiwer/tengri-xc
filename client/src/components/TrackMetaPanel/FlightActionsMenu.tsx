@@ -2,10 +2,12 @@ import { Button, ConfigProvider, Dropdown, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EllipsisOutlined,
   UserSwitchOutlined,
 } from '@ant-design/icons';
+import { SERVER_URL } from '../../api/core';
 import { transferFlight } from '../../api/me/flights';
 import { useRemoveFlight } from './useRemoveFlight';
 
@@ -34,6 +36,19 @@ export function FlightActionsMenu({
 
   const items: MenuProps['items'] = [
     { key: 'edit', label: 'Edit flight', icon: <EditOutlined /> },
+    {
+      key: 'download',
+      icon: <DownloadOutlined />,
+      label: (
+        <a
+          href={`${SERVER_URL}/me/flights/${flightId}/source`}
+          target="_blank"
+          rel="noopener"
+        >
+          Download original track
+        </a>
+      ),
+    },
     canTransfer && {
       key: 'transfer',
       label: 'Transfer flight',

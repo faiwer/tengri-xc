@@ -1,12 +1,10 @@
 import type { OAuthProviderId } from './admin/oauthProviders.io';
-import { apiDelete, apiGet, type ApiRequestOptions } from './core';
+import { apiDelete, apiGet, SERVER_URL, type ApiRequestOptions } from './core';
 import {
   EnabledProvidersIo,
   OAuthLinkListIo,
   type OAuthLink,
 } from './oauth.io';
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 
 /** `GET /oauth/providers` — enabled providers, for the login picker + link UI. */
 export async function getEnabledProviders(
