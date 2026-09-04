@@ -33,7 +33,9 @@ export const buildCursorReadout = (
     ground: groundMeters != null ? formatAltitude(groundMeters, prefs) : null,
     pathSpeed: formatSpeed(metrics.pathSpeed[idx] / MPS_TO_KMH, prefs),
     tas: metrics.tas ? formatSpeed(metrics.tas[idx] / MPS_TO_KMH, prefs) : null,
-    vario: hasAltitudeData ? formatVario(metrics.vario[idx], prefs) : null,
+    vario: analysis.hasVarioData
+      ? formatVario(metrics.vario[idx], prefs)
+      : null,
     speed: formatSpeed(metrics.speed[idx] / MPS_TO_KMH, prefs),
   };
 };
@@ -86,7 +88,7 @@ export const buildCursorReadoutWidths = (
           formatAltitude(groundRange.max, prefs).length,
         )
       : undefined,
-    vario: analysis.hasAltitudeData
+    vario: analysis.hasVarioData
       ? Math.max(
           formatVario(vario.peakSink, prefs).length,
           formatVario(vario.peakClimb, prefs).length,

@@ -32,6 +32,11 @@ interface TrackMetaPanelProps {
   /** `undefined` until track analysis has loaded. */
   hasAltitudeData?: boolean;
   /**
+   * Whether the fixes are dense enough to measure vertical speed.
+   * `undefined` until track analysis has loaded.
+   */
+  hasVarioData?: boolean;
+  /**
    * Smoothed-vario extremes over the flight window. Computed client-side
    * from the decoded track; absent until the track has loaded, so the
    * cells render `—` placeholders in the meantime.
@@ -50,6 +55,7 @@ export function TrackMetaPanel({
   selectedRoute,
   onRouteSelect,
   hasAltitudeData,
+  hasVarioData,
   peaks,
   altitudes,
 }: TrackMetaPanelProps) {
@@ -57,6 +63,7 @@ export function TrackMetaPanel({
   const { me } = useIdentity();
   const [isEditing, setIsEditing] = useState(false);
   const showAltitudeFields = hasAltitudeData !== false;
+  const showVarioField = hasVarioData !== false;
   const canManage =
     me != null &&
     (hasPermission(me, Permissions.MANAGE_TRACKS) || me.id === data.pilot.id);
@@ -123,19 +130,19 @@ export function TrackMetaPanel({
           />
         </span>
       </Cell>
+      {showVarioField && (
+        <Cell label="Best sink & climb">
+          {peaks
+            ? `${formatVario(peaks.peakSink, prefs)} ↔ ${formatVario(peaks.peakClimb, prefs)}`
+            : '—'}
+        </Cell>
+      )}
       {showAltitudeFields && (
-        <>
-          <Cell label="Best sink & climb">
-            {peaks
-              ? `${formatVario(peaks.peakSink, prefs)} ↔ ${formatVario(peaks.peakClimb, prefs)}`
-              : '—'}
-          </Cell>
-          <Cell label="Min & max alt">
-            {altitudes
-              ? `${formatAltitude(altitudes.minAlt, prefs)} ↔ ${formatAltitude(altitudes.maxAlt, prefs)}`
-              : '—'}
-          </Cell>
-        </>
+        <Cell label="Min & max alt">
+          {altitudes
+            ? `${formatAltitude(altitudes.minAlt, prefs)} ↔ ${formatAltitude(altitudes.maxAlt, prefs)}`
+            : '—'}
+        </Cell>
       )}
     </section>
   );

@@ -34,7 +34,7 @@ export function MobileTrackInfo({
   className,
 }: Props) {
   const prefs = usePreferences();
-  const { vario, altitudes, hasAltitudeData } = analysis;
+  const { vario, altitudes, hasAltitudeData, hasVarioData } = analysis;
   const date = formatShortDate(
     metadata.takeoffAt,
     prefs,
@@ -78,31 +78,29 @@ export function MobileTrackInfo({
           value={formatDistance(selectedRoute.distance, prefs)}
         />
       )}
-      {hasAltitudeData && (
-        <>
-          <Row
-            icon={<VarioIcon className={styles.icon} />}
-            value={
-              <>
-                {formatVario(vario.peakSink, prefs)}{' '}
-                <span className={styles.sep}>↔</span>{' '}
-                {formatVario(vario.peakClimb, prefs)}
-              </>
-            }
-          />
-          {altitudes && (
-            <Row
-              icon={<AltitudeIcon className={styles.icon} />}
-              value={
-                <>
-                  {formatAltitude(altitudes.minAlt, prefs)}{' '}
-                  <span className={styles.sep}>↔</span>{' '}
-                  {formatAltitude(altitudes.maxAlt, prefs)}
-                </>
-              }
-            />
-          )}
-        </>
+      {hasVarioData && (
+        <Row
+          icon={<VarioIcon className={styles.icon} />}
+          value={
+            <>
+              {formatVario(vario.peakSink, prefs)}{' '}
+              <span className={styles.sep}>↔</span>{' '}
+              {formatVario(vario.peakClimb, prefs)}
+            </>
+          }
+        />
+      )}
+      {hasAltitudeData && altitudes && (
+        <Row
+          icon={<AltitudeIcon className={styles.icon} />}
+          value={
+            <>
+              {formatAltitude(altitudes.minAlt, prefs)}{' '}
+              <span className={styles.sep}>↔</span>{' '}
+              {formatAltitude(altitudes.maxAlt, prefs)}
+            </>
+          }
+        />
       )}
     </div>
   );

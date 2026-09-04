@@ -17,6 +17,10 @@ import {
   type TrackWindow,
 } from './toPaths';
 import { classifyBuckets } from './varioSegments/classify';
+import {
+  averageFixInterval,
+  MAX_VARIO_FIX_INTERVAL_SECONDS,
+} from './varioSegments/fixInterval';
 import { peakVario, type VarioPeaks } from './varioSegments/peakVario';
 import { buildVarioSegments } from './varioSegments/segments';
 import { computeVario } from './varioSegments/vario';
@@ -34,6 +38,12 @@ export interface FlightAnalysis {
   vario: FlightVarioAnalysis;
   /** Whether the flight window carries usable altitude samples. */
   hasAltitudeData: boolean;
+  /**
+   * Whether the vario series is trustworthy. False when the track has no
+   * altitude, or when fixes are spaced too far apart for the centred ±5 s
+   * slope to see a neighbour — such a track reads as a flat zero everywhere.
+   */
+  hasVarioData: boolean;
   /** GPS altitude min/max over the flight window, in metres. */
   altitudes: AltitudeRange | null;
   /** Map polylines for pre-flight, flight, and post-flight runs. */
@@ -84,6 +94,9 @@ export const buildFlightAnalysis = (
     vario: computeVario(track),
   };
   const hasAltitudeData = trackHasAltitudeData(track, window);
+  const hasVarioData =
+    hasAltitudeData &&
+    averageFixInterval(track, window) <= MAX_VARIO_FIX_INTERVAL_SECONDS;
   const vario: FlightVarioAnalysis = buildFlightVarioAnalysis(
     track,
     metrics.vario,
@@ -92,7 +105,7 @@ export const buildFlightAnalysis = (
   const paths: TrackPath[] = trackToPaths(
     track,
     window,
-    hasAltitudeData
+    hasVarioData
       ? { segments: vario.segments }
       : { flightColor: COLOR_MISSING_ALTITUDE },
   );
@@ -104,6 +117,7 @@ export const buildFlightAnalysis = (
     metrics,
     vario,
     hasAltitudeData,
+    hasVarioData,
     altitudes: hasAltitudeData
       ? altitudeRange(track, window.takeoffIdx, toIdx)
       : null,

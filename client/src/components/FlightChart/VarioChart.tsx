@@ -5,7 +5,7 @@ import 'uplot/dist/uPlot.min.css';
 import { usePreferences } from '../../core/preferences';
 import type { FlightAnalysis } from '../../track/flightAnalysis';
 import { varioLabel } from '../../utils/formatUnits';
-import { MissingAltitudeChart } from './ChartEmptyState';
+import { MissingAltitudeChart, SparseFixesChart } from './ChartEmptyState';
 import styles from './AltitudeChart.module.scss';
 import { CHART_COLORS } from './chartColors';
 import { formatHourMinute } from './formatHourMinute';
@@ -56,6 +56,10 @@ export function VarioChart({
 
   if (!analysis.hasAltitudeData) {
     return <MissingAltitudeChart />;
+  }
+
+  if (!analysis.hasVarioData) {
+    return <SparseFixesChart />;
   }
 
   return <div ref={ref} className={styles.chart} />;

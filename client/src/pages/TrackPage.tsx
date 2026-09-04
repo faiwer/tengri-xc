@@ -63,6 +63,7 @@ export function TrackPage() {
               selectedRoute={selectedRoute}
               onRouteSelect={onRouteSelect}
               hasAltitudeData={analysis?.hasAltitudeData}
+              hasVarioData={analysis?.hasVarioData}
               peaks={analysis?.vario}
               altitudes={analysis?.altitudes}
             />

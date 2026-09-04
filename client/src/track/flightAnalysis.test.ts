@@ -106,4 +106,40 @@ describe('buildFlightAnalysis', () => {
       COLOR_GROUND,
     ]);
   });
+
+  it('keeps vario on a densely sampled track', () => {
+    const track = buildTrack({
+      times: Array.from({ length: 21 }, (_, idx) => idx * 5),
+      lat: Array.from({ length: 21 }, (_, idx) => 45 + idx * 0.01),
+      lng: Array.from({ length: 21 }, () => 7),
+      altMetres: Array.from({ length: 21 }, (_, idx) => 1000 + idx * 10),
+    });
+
+    const analysis = buildFlightAnalysis(track, metadata(25, 75));
+
+    expect(analysis.hasVarioData).toBe(true);
+    expect(analysis.vario.peakClimb).toBeGreaterThan(0);
+  });
+
+  it('drops vario when fixes are spaced wider than the smoothing window', () => {
+    const track = buildTrack({
+      times: Array.from({ length: 21 }, (_, idx) => idx * 11),
+      lat: Array.from({ length: 21 }, (_, idx) => 45 + idx * 0.01),
+      lng: Array.from({ length: 21 }, () => 7),
+      altMetres: Array.from({ length: 21 }, (_, idx) => 1000 + idx * 10),
+    });
+
+    const analysis = buildFlightAnalysis(track, metadata(55, 165));
+
+    expect(analysis.hasAltitudeData).toBe(true);
+    expect(analysis.hasVarioData).toBe(false);
+    // The ±5 s window finds no neighbour at 11 s spacing, so every sample
+    // collapses to zero — hence the flag and the solid map colour.
+    expect(analysis.vario.peakClimb).toBe(0);
+    expect(analysis.paths.map((path) => path.color)).toEqual([
+      COLOR_GROUND,
+      COLOR_MISSING_ALTITUDE,
+      COLOR_GROUND,
+    ]);
+  });
 });
