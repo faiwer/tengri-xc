@@ -15,6 +15,7 @@ export const routes = {
     myFlights: () => '/settings/my-flights',
     myGliders: () => '/settings/my-gliders',
     system: () => '/settings/system',
+    email: () => '/settings/email',
     oauthProviders: () => '/settings/oauth-providers',
     users: () => '/settings/users',
     gliders: () => '/settings/gliders',
