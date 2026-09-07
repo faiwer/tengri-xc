@@ -401,8 +401,26 @@ pub fn json_patch_with_cookie(
     body: serde_json::Value,
     cookie: &str,
 ) -> Request<Body> {
+    json_with_cookie("PATCH", uri, body, cookie)
+}
+
+/// JSON `POST` request with a `Cookie:` header.
+pub fn json_post_with_cookie(
+    uri: impl AsRef<str>,
+    body: serde_json::Value,
+    cookie: &str,
+) -> Request<Body> {
+    json_with_cookie("POST", uri, body, cookie)
+}
+
+fn json_with_cookie(
+    method: &str,
+    uri: impl AsRef<str>,
+    body: serde_json::Value,
+    cookie: &str,
+) -> Request<Body> {
     Request::builder()
-        .method("PATCH")
+        .method(method)
         .uri(uri.as_ref())
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::COOKIE, cookie)

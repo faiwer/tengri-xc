@@ -543,3 +543,178 @@ async fn patch_admin_site_rejects_malformed_from_address() {
     let body = body_json(resp).await;
     assert!(body["fields"]["from_address"].is_string());
 }
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_sanitizes_the_body_template() {
+    // The body is HTML, so it's sanitized on the way in — the operator sees the
+    // stored result rather than discovering at send time that markup was
+    // dropped. The response drives the editor's `setFieldsValue`, so what it
+    // returns is what the operator ends up looking at.
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({
+                "body_template": "<p style=\"color: red; position: fixed\">%body%</p>\
+                                  <script>alert(1)</script>\
+                                  <a href=\"javascript:alert(1)\">x</a>",
+            }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let stored = body_json(resp).await["body_template"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(stored.contains("%body%"));
+    assert!(!stored.contains("script"));
+    assert!(!stored.contains("javascript"));
+    // Inline styles survive because mail clients ignore stylesheets, but only
+    // the allowlisted properties.
+    assert!(stored.contains("color"));
+    assert!(!stored.contains("position"));
+
+    let column: String = sqlx::query("SELECT body_template FROM site_settings WHERE id = TRUE")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get("body_template");
+    assert_eq!(column, stored);
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_leaves_the_title_template_verbatim() {
+    // The subject is a plain header, not markup: sanitizing it would mangle an
+    // innocent `<` into an entity.
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "title_template": "[Tengri] %title% (3 < 5)" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        body_json(resp).await["title_template"],
+        "[Tengri] %title% (3 < 5)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// POST /admin/site/test-email
+// ---------------------------------------------------------------------------
+
+/// A complete editor payload — the route takes unsaved values, so every field
+/// is present rather than partial like `PATCH`.
+fn test_email_payload(to: &str, smtp_host: &str) -> Value {
+    json!({
+        "to": to,
+        "smtp_host": smtp_host,
+        "smtp_port": 587,
+        "smtp_tls": "starttls",
+        "smtp_username": "",
+        "smtp_password": "",
+        "from_address": "noreply@example.com",
+        "title_template": "%title%",
+        "body_template": "<p>%body%</p>",
+    })
+}
+
+#[tokio::test]
+#[serial]
+async fn post_test_email_without_session_returns_401() {
+    let (app, _pool) = common::test_app().await;
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/site/test-email")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    test_email_payload("pilot@example.com", "mail.example.com").to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn post_test_email_without_permission_returns_403() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Pilot").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_post_with_cookie(
+            "/admin/site/test-email",
+            test_email_payload("pilot@example.com", "mail.example.com"),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[serial]
+async fn post_test_email_rejects_a_malformed_recipient() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_post_with_cookie(
+            "/admin/site/test-email",
+            test_email_payload("not-an-email", "mail.example.com"),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Keyed to `to` so the modal's own input shows the message.
+    let body = body_json(resp).await;
+    assert!(body["fields"]["to"].is_string());
+}
+
+#[tokio::test]
+#[serial]
+async fn post_test_email_without_a_host_returns_400() {
+    // Not a 422: the modal has no `smtp_host` field for the error to land on,
+    // so it has to arrive as a message the FE can toast.
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_post_with_cookie(
+            "/admin/site/test-email",
+            test_email_payload("pilot@example.com", "   "),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert!(
+        body_json(resp).await["message"]
+            .as_str()
+            .unwrap()
+            .contains("SMTP host")
+    );
+}

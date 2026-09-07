@@ -8,6 +8,7 @@ use sqlx::Row;
 use crate::{
     AppError,
     db::Update,
+    mail::sanitize_email_html,
     site::dto::{AdminSiteDto, DocKind, SiteDto, SmtpTls},
     validation::{FieldErrors, looks_like_email},
 };
@@ -200,8 +201,7 @@ pub fn validate_site_update(input: UpdateSiteRequest) -> Result<SiteUpdate, Fiel
         "%title%",
         input.title_template,
     );
-    let body_template =
-        validate_template(&mut errors, "body_template", "%body%", input.body_template);
+    let body_template = validate_body_template(&mut errors, input.body_template);
 
     if errors.is_empty() {
         Ok(SiteUpdate {
@@ -337,6 +337,27 @@ fn validate_port(
         }
         Some(Some(port)) => Some(Some(port)),
     }
+}
+
+/// The body is HTML, so it's sanitized before storage rather than on the way
+/// out: `PATCH` returns the stored value and the editor mirrors it back, so the
+/// operator sees what will actually be sent instead of discovering at delivery
+/// time that markup was dropped. The subject template is a plain header and is
+/// deliberately left alone — running an HTML sanitizer over it would mangle an
+/// innocent subject like `3 < 5`.
+fn validate_body_template(errors: &mut FieldErrors, value: Option<String>) -> Option<String> {
+    let validated = validate_template(errors, "body_template", "%body%", value)?;
+    let sanitized = sanitize_email_html(&validated);
+    if !sanitized.contains("%body%") {
+        // Reachable when the placeholder sits inside markup that's removed
+        // wholesale, e.g. `<style>%body%</style>`.
+        errors.add(
+            "body_template",
+            "Must contain %body% outside of markup that email doesn't allow",
+        );
+        return None;
+    }
+    Some(sanitized)
 }
 
 fn validate_template(
