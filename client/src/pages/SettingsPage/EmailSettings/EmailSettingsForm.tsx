@@ -7,6 +7,8 @@ import { shallowEqual } from '../../../utils/shallowEqual';
 import { SettingsSection } from '../SettingsSection';
 import { ConnectionFields } from './ConnectionFields';
 import { TemplateFields } from './TemplateFields';
+import { TestEmailModal } from './TestEmailModal';
+import styles from './EmailSettingsForm.module.scss';
 import {
   type EmailSettingsFormValues,
   fromFormValues,
@@ -20,6 +22,7 @@ interface EmailSettingsFormProps {
 export function EmailSettingsForm({ initial }: EmailSettingsFormProps) {
   const [form] = Form.useForm<EmailSettingsFormValues>();
   const [current, setCurrent] = useState(initial);
+  const [isTesting, setIsTesting] = useState(false);
 
   const formInitial = useMemo<EmailSettingsFormValues>(
     () => toFormValues(current),
@@ -53,15 +56,18 @@ export function EmailSettingsForm({ initial }: EmailSettingsFormProps) {
       subtitle="Outgoing mail — password resets, verification links, notifications."
       scrollable
       action={
-        isDirty && (
-          <Button
-            type="primary"
-            loading={isSubmitting}
-            onClick={() => form.submit()}
-          >
-            Save
-          </Button>
-        )
+        <div className={styles.actions}>
+          <Button onClick={() => setIsTesting(true)}>Send a test email</Button>
+          {isDirty && (
+            <Button
+              type="primary"
+              loading={isSubmitting}
+              onClick={() => form.submit()}
+            >
+              Save
+            </Button>
+          )}
+        </div>
       }
     >
       <Form<EmailSettingsFormValues>
@@ -73,6 +79,12 @@ export function EmailSettingsForm({ initial }: EmailSettingsFormProps) {
         <ConnectionFields hasPassword={current.smtpPassword !== null} />
         <TemplateFields />
       </Form>
+      <TestEmailModal
+        open={isTesting}
+        // `useWatch` hasn't reported yet on the first render.
+        values={values ?? formInitial}
+        onClose={() => setIsTesting(false)}
+      />
     </SettingsSection>
   );
 }
