@@ -9,7 +9,10 @@ pub enum TiffReadError {
     Io(std::io::Error),
     Decode(TiffError),
     ImageTooLarge,
-    UnexpectedPixelCount { expected: usize, actual: usize },
+    UnexpectedPixelCount {
+        expected: usize,
+        actual: usize,
+    },
     InvalidBounds(&'static str),
     RegionOutOfBounds,
     UnsupportedColorType(ColorType),

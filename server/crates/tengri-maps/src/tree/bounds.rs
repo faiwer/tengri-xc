@@ -117,10 +117,7 @@ impl XYZBounds {
         let Ok(bounds) = self.level_bounds(z) else {
             return false;
         };
-        bounds.min_x <= lng
-            && lng <= bounds.max_x
-            && bounds.min_y <= lat
-            && lat <= bounds.max_y
+        bounds.min_x <= lng && lng <= bounds.max_x && bounds.min_y <= lat && lat <= bounds.max_y
     }
 
     /// Returns Vec of { x, y, z } tiles at the given zoom level.
@@ -160,5 +157,4 @@ mod tests {
             XYZBounds::new(3, 4, 2, 6, 3).unwrap(),
         );
     }
-
 }

@@ -13,9 +13,7 @@ use crate::tree::TileTreeError;
 /// satellite/orthophoto tile sources this code is built for.
 pub(crate) fn decode_png_bytes(bytes: &[u8]) -> Result<Raster, TileTreeError> {
     let mut decoder = PngDecoder::new(Cursor::new(bytes));
-    decoder.set_transformations(
-        Transformations::EXPAND | Transformations::STRIP_16,
-    );
+    decoder.set_transformations(Transformations::EXPAND | Transformations::STRIP_16);
     let mut reader = decoder.read_info()?;
     let info = reader.info().clone();
     let (width, height) = (info.width, info.height);

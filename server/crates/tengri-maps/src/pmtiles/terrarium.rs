@@ -2,8 +2,8 @@ use std::io::{BufReader, Cursor};
 
 use image_webp::WebPDecoder;
 
-use crate::{dem::DemChunk, tree::TileTreeError};
 use super::constants::MAX_SOURCE_TILE_SIDE;
+use crate::{dem::DemChunk, tree::TileTreeError};
 
 pub fn decode_terrarium_webp(bytes: &[u8]) -> Result<DemChunk, TileTreeError> {
     let mut decoder = WebPDecoder::new(BufReader::new(Cursor::new(bytes)))?;

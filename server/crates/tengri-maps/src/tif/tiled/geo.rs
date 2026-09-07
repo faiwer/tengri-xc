@@ -127,14 +127,12 @@ pub(super) fn source_bounds(
             let min_x_m = origin_x;
             let max_x_m = origin_x + f64::from(width) * pixel_width;
 
-            let max_lat = mercator_y_m_to_lat(max_y_m.clamp(
-                -WEB_MERCATOR_HALF_EQUATOR_M,
-                WEB_MERCATOR_HALF_EQUATOR_M,
-            ));
-            let min_lat = mercator_y_m_to_lat(min_y_m.clamp(
-                -WEB_MERCATOR_HALF_EQUATOR_M,
-                WEB_MERCATOR_HALF_EQUATOR_M,
-            ));
+            let max_lat = mercator_y_m_to_lat(
+                max_y_m.clamp(-WEB_MERCATOR_HALF_EQUATOR_M, WEB_MERCATOR_HALF_EQUATOR_M),
+            );
+            let min_lat = mercator_y_m_to_lat(
+                min_y_m.clamp(-WEB_MERCATOR_HALF_EQUATOR_M, WEB_MERCATOR_HALF_EQUATOR_M),
+            );
             Bounds {
                 min_lat: min_lat.max(-WEB_MERCATOR_MAX_LAT),
                 min_lon: mercator_x_m_to_lon(min_x_m),
@@ -314,9 +312,6 @@ mod tests {
     }
 
     fn assert_close(actual: f64, expected: f64) {
-        assert!(
-            (actual - expected).abs() < 1e-6,
-            "{actual} != {expected}",
-        );
+        assert!((actual - expected).abs() < 1e-6, "{actual} != {expected}",);
     }
 }

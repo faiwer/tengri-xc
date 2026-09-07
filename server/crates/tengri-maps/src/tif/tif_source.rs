@@ -82,7 +82,10 @@ mod tests {
     /// 16384 / 256 = 64 = 2^6 DEM tiles across — z=6 is the leaf.
     #[test]
     fn wgs84_source_picks_zoom_from_pixel_width() {
-        assert_eq!(source_backed_leaf_zoom(TifProjection::Wgs84, 360.0 / 16384.0), 6);
+        assert_eq!(
+            source_backed_leaf_zoom(TifProjection::Wgs84, 360.0 / 16384.0),
+            6
+        );
     }
 
     /// A 32768 px Web-Mercator world raster has 32768 / 256 = 128 = 2^7
@@ -90,7 +93,10 @@ mod tests {
     #[test]
     fn web_mercator_source_picks_zoom_from_metric_pixel_width() {
         let pixel = (2.0 * WEB_MERCATOR_HALF_EQUATOR_M) / 32768.0;
-        assert_eq!(source_backed_leaf_zoom(TifProjection::WebMercator, pixel), 7);
+        assert_eq!(
+            source_backed_leaf_zoom(TifProjection::WebMercator, pixel),
+            7
+        );
     }
 
     /// A coarser Mercator raster (16384 px world ≈ 2.4 km/px) hosts only
@@ -99,7 +105,10 @@ mod tests {
     #[test]
     fn web_mercator_z6_world_round_trips_to_zoom_six() {
         let pixel = (2.0 * WEB_MERCATOR_HALF_EQUATOR_M) / 16384.0;
-        assert_eq!(source_backed_leaf_zoom(TifProjection::WebMercator, pixel), 6);
+        assert_eq!(
+            source_backed_leaf_zoom(TifProjection::WebMercator, pixel),
+            6
+        );
     }
 
     /// Sub-DEM-tile rasters can't host any XYZ tile and degrade to z=0.

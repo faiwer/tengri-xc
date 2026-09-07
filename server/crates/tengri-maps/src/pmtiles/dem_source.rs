@@ -1,12 +1,14 @@
 use std::path::{Path, PathBuf};
 
+use super::dem_source_reader::PmtilesDemSourceReader;
 use ::pmtiles::{AsyncPmTilesReader, HashMapCache, MmapBackend, TileType};
 use tokio::runtime::{Builder, Runtime};
-use super::dem_source_reader::PmtilesDemSourceReader;
 
 use crate::dem::DemChunk;
 use crate::geo::{Bounds, xyz_tiles_for_bounds};
-use crate::tree::{MAX_WEB_MERCATOR_TREE_ZOOM, TileSource, TileSourceReader, TileTreeError, XYZBounds};
+use crate::tree::{
+    MAX_WEB_MERCATOR_TREE_ZOOM, TileSource, TileSourceReader, TileTreeError, XYZBounds,
+};
 
 pub struct PmtilesDemSource {
     path: PathBuf,

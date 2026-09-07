@@ -81,11 +81,10 @@ pub(super) fn parse_geo_key_directory(
     match (model_type, projected_cs_type, geographic_type) {
         (Some(MODEL_TYPE_PROJECTED), Some(EPSG_WEB_MERCATOR), _)
         | (None, Some(EPSG_WEB_MERCATOR), _) => Ok(Some(TifProjection::WebMercator)),
-        (Some(MODEL_TYPE_GEOGRAPHIC), _, Some(EPSG_WGS84))
-        | (None, None, Some(EPSG_WGS84)) => Ok(Some(TifProjection::Wgs84)),
-        (_, Some(epsg), _) | (_, _, Some(epsg)) => {
-            Err(TiffReadError::UnsupportedProjection(epsg))
+        (Some(MODEL_TYPE_GEOGRAPHIC), _, Some(EPSG_WGS84)) | (None, None, Some(EPSG_WGS84)) => {
+            Ok(Some(TifProjection::Wgs84))
         }
+        (_, Some(epsg), _) | (_, _, Some(epsg)) => Err(TiffReadError::UnsupportedProjection(epsg)),
         _ => Ok(None),
     }
 }
@@ -123,7 +122,10 @@ mod tests {
     #[test]
     fn detects_wgs84_via_geographic_type_alone() {
         let dir = directory(&[entry(KEY_GEOGRAPHIC_TYPE, 0, 1, EPSG_WGS84)]);
-        assert_eq!(parse_geo_key_directory(&dir).unwrap(), Some(TifProjection::Wgs84));
+        assert_eq!(
+            parse_geo_key_directory(&dir).unwrap(),
+            Some(TifProjection::Wgs84)
+        );
     }
 
     #[test]
@@ -132,7 +134,10 @@ mod tests {
             entry(KEY_GT_MODEL_TYPE, 0, 1, MODEL_TYPE_GEOGRAPHIC),
             entry(KEY_GEOGRAPHIC_TYPE, 0, 1, EPSG_WGS84),
         ]);
-        assert_eq!(parse_geo_key_directory(&dir).unwrap(), Some(TifProjection::Wgs84));
+        assert_eq!(
+            parse_geo_key_directory(&dir).unwrap(),
+            Some(TifProjection::Wgs84)
+        );
     }
 
     #[test]
@@ -170,10 +175,18 @@ mod tests {
         // KEY_PROJECTED_CS_TYPE with tag_location != 0 means the value
         // would live in another tag — we don't follow that pointer.
         let dir = directory(&[
-            entry(KEY_PROJECTED_CS_TYPE, 34736 /* GeoDoubleParams */, 1, 0),
+            entry(
+                KEY_PROJECTED_CS_TYPE,
+                34736, /* GeoDoubleParams */
+                1,
+                0,
+            ),
             entry(KEY_GEOGRAPHIC_TYPE, 0, 1, EPSG_WGS84),
         ]);
-        assert_eq!(parse_geo_key_directory(&dir).unwrap(), Some(TifProjection::Wgs84));
+        assert_eq!(
+            parse_geo_key_directory(&dir).unwrap(),
+            Some(TifProjection::Wgs84)
+        );
     }
 
     #[test]

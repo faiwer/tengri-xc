@@ -1,8 +1,8 @@
-mod dem_source;
-mod terrarium;
-mod dem_source_reader;
 mod constants;
+mod dem_source;
+mod dem_source_reader;
 mod imagery_source;
+mod terrarium;
 
 pub use dem_source::PmtilesDemSource;
 pub use imagery_source::PmtilesImagerySource;

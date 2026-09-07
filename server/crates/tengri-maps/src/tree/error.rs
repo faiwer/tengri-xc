@@ -7,9 +7,21 @@ type ExternalError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug)]
 pub enum TileTreeError {
     InvalidBounds(&'static str),
-    TileOutOfBounds { z: u8, x: u16, y: u16 },
-    DuplicateTile { z: u8, x: u16, y: u16 },
-    MissingTile { z: u8, x: u16, y: u16 },
+    TileOutOfBounds {
+        z: u8,
+        x: u16,
+        y: u16,
+    },
+    DuplicateTile {
+        z: u8,
+        x: u16,
+        y: u16,
+    },
+    MissingTile {
+        z: u8,
+        x: u16,
+        y: u16,
+    },
     MissingBuilderField(&'static str),
     TileTooLarge(u64),
     CorruptFile(&'static str),

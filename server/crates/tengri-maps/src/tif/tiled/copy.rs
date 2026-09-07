@@ -1,9 +1,9 @@
 use crate::tif::error::TiffReadError;
 use crate::tif::types::TifPixelMatrix;
 
-use super::types::{PixelRegion, TiledTifChunk, TiledTifInfo};
 #[cfg(test)]
 use super::projection::TifProjection;
+use super::types::{PixelRegion, TiledTifChunk, TiledTifInfo};
 
 pub(super) fn copy_chunk_slice(
     chunk: &TiledTifChunk,
