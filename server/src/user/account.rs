@@ -6,7 +6,12 @@
 use chrono::{DateTime, Utc};
 use sqlx::{Postgres, Transaction};
 
-use crate::{AppError, db::Update, user::Permissions, validation::FieldErrors};
+use crate::{
+    AppError,
+    db::Update,
+    user::Permissions,
+    validation::{FieldErrors, looks_like_email},
+};
 
 /// Trim `raw`; record a `name` error when it's blank or contains a character
 /// outside [`is_name_char`]. Returns the trimmed value regardless (used
@@ -193,19 +198,6 @@ pub async fn apply_account_update(
         .await
         .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
     Ok(())
-}
-
-/// Deliberately loose: exactly one `@`, non-empty local + domain, no
-/// whitespace. Real validity is confirmed by a verification mail, not a regex —
-/// this only catches obvious typos.
-fn looks_like_email(value: &str) -> bool {
-    let mut parts = value.split('@');
-    match (parts.next(), parts.next(), parts.next()) {
-        (Some(local), Some(domain), None) => {
-            !local.is_empty() && !domain.is_empty() && !value.contains(char::is_whitespace)
-        }
-        _ => false,
-    }
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

@@ -39,6 +39,12 @@ async fn get_site_returns_defaults_on_a_fresh_db() {
     // Default install: no docs published yet.
     assert_eq!(body["has_tos"], false);
     assert_eq!(body["has_privacy"], false);
+    // SMTP lives on the admin payload only.
+    assert!(body.get("smtp_host").is_none());
+    assert!(body.get("smtp_password").is_none());
+    assert!(body.get("from_address").is_none());
+    assert!(body.get("title_template").is_none());
+    assert!(body.get("body_template").is_none());
 }
 
 #[tokio::test]
@@ -171,6 +177,14 @@ async fn get_admin_site_returns_full_state_for_admin() {
     // a fresh install.
     assert!(body["tos_md"].is_null());
     assert!(body["privacy_md"].is_null());
+    assert!(body["smtp_host"].is_null());
+    assert!(body["smtp_port"].is_null());
+    assert!(body["smtp_tls"].is_null());
+    assert!(body["smtp_username"].is_null());
+    assert!(body["smtp_password"].is_null());
+    assert!(body["from_address"].is_null());
+    assert_eq!(body["title_template"], "%title%");
+    assert_eq!(body["body_template"], "%body%");
 }
 
 // ---------------------------------------------------------------------------
@@ -364,4 +378,168 @@ async fn patch_admin_site_empty_body_returns_400() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_writes_and_round_trips_smtp() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({
+                "smtp_host": "mail.faiwer.dev",
+                "smtp_port": 465,
+                "smtp_tls": "implicit",
+                "smtp_username": "noreply@faiwer.dev",
+                "smtp_password": "s3cret",
+                "from_address": "noreply@faiwer.dev",
+                "title_template": "[Tengri] %title%",
+                "body_template": "<p>%body%</p>",
+            }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let body = body_json(resp).await;
+    assert_eq!(body["smtp_host"], "mail.faiwer.dev");
+    assert_eq!(body["smtp_port"], 465);
+    assert_eq!(body["smtp_tls"], "implicit");
+    assert_eq!(body["smtp_username"], "noreply@faiwer.dev");
+    assert_eq!(body["smtp_password"], "s3cret");
+    assert_eq!(body["from_address"], "noreply@faiwer.dev");
+    assert_eq!(body["title_template"], "[Tengri] %title%");
+    assert_eq!(body["body_template"], "<p>%body%</p>");
+
+    let row = sqlx::query(
+        "SELECT smtp_host, smtp_port, smtp_password FROM site_settings WHERE id = TRUE",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        row.try_get::<String, _>("smtp_host").unwrap(),
+        "mail.faiwer.dev"
+    );
+    assert_eq!(row.try_get::<i32, _>("smtp_port").unwrap(), 465);
+    assert_eq!(row.try_get::<String, _>("smtp_password").unwrap(), "s3cret");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_omitted_password_leaves_stored_secret() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    sqlx::query("UPDATE site_settings SET smtp_password = 'keep-me' WHERE id = TRUE")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let cookie = admin_cookie();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "smtp_host": "mail.example" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["smtp_host"], "mail.example");
+    assert_eq!(body["smtp_password"], "keep-me");
+
+    // Empty string is the form's "unchanged" signal, same as OAuth secrets.
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "smtp_username": "noreply", "smtp_password": "" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(body["smtp_username"], "noreply");
+    assert_eq!(body["smtp_password"], "keep-me");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_rejects_smtp_port_out_of_range() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "smtp_port": 70000 }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert!(body["fields"]["smtp_port"].is_string());
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_rejects_templates_missing_placeholders() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "title_template": "hello" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert!(body["fields"]["title_template"].is_string());
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "body_template": "<p>no token</p>" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert!(body["fields"]["body_template"].is_string());
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_rejects_malformed_from_address() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "from_address": "not-an-email" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert!(body["fields"]["from_address"].is_string());
 }

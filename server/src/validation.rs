@@ -61,3 +61,16 @@ impl FieldErrors {
         }
     }
 }
+
+/// Deliberately loose: exactly one `@`, non-empty local + domain, no
+/// whitespace. Real validity is confirmed by a verification mail, not a regex —
+/// this only catches obvious typos.
+pub(crate) fn looks_like_email(value: &str) -> bool {
+    let mut parts = value.split('@');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some(local), Some(domain), None) => {
+            !local.is_empty() && !domain.is_empty() && !value.contains(char::is_whitespace)
+        }
+        _ => false,
+    }
+}
