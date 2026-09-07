@@ -1,5 +1,6 @@
 export { AppOAuthSettings } from './AppOAuthSettings';
 export { AuthorizationSettings } from './AuthorizationSettings';
+export { EmailSettings } from './EmailSettings';
 export { GlidersSettings } from './GlidersSettings';
 export { MyGlidersSettings } from './MyGlidersSettings';
 export { PreferencesSettings } from './PreferencesSettings';

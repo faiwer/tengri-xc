@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import {
   AppOAuthSettings,
   AuthorizationSettings,
+  EmailSettings,
   GlidersSettings,
   MyFlightsSettings,
   MyGlidersSettings,
@@ -68,6 +69,7 @@ export function App() {
                 <Route path="my-flights" element={<MyFlightsSettings />} />
                 <Route path="my-gliders" element={<MyGlidersSettings />} />
                 <Route path="system" element={<SystemSettings />} />
+                <Route path="email" element={<EmailSettings />} />
                 <Route path="oauth-providers" element={<AppOAuthSettings />} />
                 <Route path="users" element={<UsersSettings />} />
                 <Route path="gliders" element={<GlidersSettings />} />

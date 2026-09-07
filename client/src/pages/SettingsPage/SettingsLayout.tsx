@@ -4,6 +4,7 @@ import {
   ControlOutlined,
   EnvironmentOutlined,
   LockOutlined,
+  MailOutlined,
   RiseOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -93,6 +94,12 @@ export function SettingsLayout() {
           label: 'Settings',
           to: routes.settings.system(),
           icon: <SettingOutlined />,
+          permission: Permissions.MANAGE_SETTINGS,
+        },
+        {
+          label: 'Email',
+          to: routes.settings.email(),
+          icon: <MailOutlined />,
           permission: Permissions.MANAGE_SETTINGS,
         },
         {
