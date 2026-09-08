@@ -99,9 +99,6 @@ export function PageLayout({ children, fit = false }: PageLayoutProps) {
             >
               Sign in
             </Button>
-            <Button icon={<PlusOutlined />} aria-label="Login" disabled>
-              Sign up
-            </Button>
           </span>
         )}
       </header>
