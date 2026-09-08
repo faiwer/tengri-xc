@@ -48,13 +48,14 @@ export const UserIo = z.object({
   id: z.number().int(),
   name: z.string(),
   login: z.string().nullable(),
+  /** Always an address the owner proved, which is what makes it an OAuth join key. */
   email: z.string().nullable(),
+  /** Address waiting on a confirmation click; {@link UserIo.email} keeps working until then. */
+  pendingEmail: z.string().nullable(),
   source: UserSourceIo,
   /** Raw bits — `permissions & N` checks; mirrors `Permissions` on the server. */
   permissions: z.number().int(),
   /** Unix epoch seconds (UTC). Convert with `new Date(value * 1000)`. */
-  emailVerifiedAt: z.number().int().nullable(),
-  /** Unix epoch seconds (UTC). */
   lastLoginAt: z.number().int().nullable(),
   /** Unix epoch seconds (UTC). */
   createdAt: z.number().int(),
@@ -85,12 +86,16 @@ export type Me = z.infer<typeof MeIo>;
 export const MeResponseIo = MeIo.nullable();
 
 /**
- * `PATCH /users/me` response: the refreshed {@link Me} plus a transient
- * `emailVerificationReset` flag — `true` when a self-service email change
- * dropped the server-side confirmation, so the UI can prompt a re-verify.
+ * `PATCH /users/me` response: the refreshed {@link Me} plus where *this* request
+ * mailed a confirmation link, or `null` when the email didn't change.
+ *
+ * Distinct from {@link UserIo.pendingEmail}, which is any change still in
+ * flight. Only a request that started one should raise the "check your inbox"
+ * toast; an unrelated save that happens to have an older change pending
+ * shouldn't.
  */
 export const UpdateMeResponseIo = MeIo.extend({
-  emailVerificationReset: z.boolean(),
+  confirmationSentTo: z.string().nullable(),
 });
 
 export type UpdateMeResponse = z.infer<typeof UpdateMeResponseIo>;
@@ -129,4 +134,16 @@ export interface ChangePasswordRequest {
   login?: string;
   currentPassword?: string;
   newPassword: string;
+}
+
+/**
+ * Body for `POST /users/register`. Every field is required — unlike the admin
+ * create form, self-registration has no way to reach an account that carries no
+ * address, since confirming one is what unlocks the login.
+ */
+export interface RegisterRequest {
+  name: string;
+  login: string;
+  email: string;
+  password: string;
 }

@@ -60,13 +60,12 @@ function ProfileForm({ initial, onSaved }: ProfileFormProps) {
   const { onFinish, isSubmitting } = useFormSubmit({
     form,
     submit: (values) => updateMe({ profile: normalizeProfile(values) }),
-    onSuccess: ({ emailVerificationReset, ...me }) => {
+    onSuccess: ({ confirmationSentTo, ...me }) => {
       onSaved(me);
-      if (emailVerificationReset) {
+      if (confirmationSentTo) {
         notification.warning({
-          title: 'Verify your new email',
-          description:
-            'Your email address changed, so it needs to be verified again.',
+          title: 'Confirm your new email',
+          description: `We've sent a link to ${confirmationSentTo}. Your current address keeps working until you open it.`,
           placement: 'bottomRight',
         });
       }

@@ -11,6 +11,7 @@ import {
   UpdateMeResponseIo,
   type ChangePasswordRequest,
   type Me,
+  type RegisterRequest,
   type UpdateMeRequest,
   type UpdateMeResponse,
 } from './users.io';
@@ -31,6 +32,20 @@ export async function login(params: LoginParams): Promise<Me> {
   return apiPost('/users/login', params, MeIo);
 }
 
+/**
+ * `POST /users/register` — 204, and no session: the account can't sign in until
+ * the confirmation link in its inbox has been followed. Following that link is
+ * what logs the user in.
+ *
+ * On 422, throws [`ValidationError`] with per-field messages keyed `name` /
+ * `login` / `email` / `password`. 403 means registration is switched off
+ * site-wide, 409 that the server can't send the confirmation mail.
+ */
+export const register = async (
+  body: RegisterRequest,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiPostVoid('/users/register', body, options);
+
 /** `POST /users/logout` — clears the cookie. Always 204. */
 export async function logout(): Promise<void> {
   return apiPostVoid('/users/logout');
@@ -48,13 +63,14 @@ export async function getMe(
 
 /**
  * `PATCH /users/me` — owner-self update for any subset of editable sections
- * (currently `profile` and `preferences`). Returns the full updated [`Me`] (so
- * the caller can swap it into the identity context wholesale) plus an
- * `emailVerificationReset` flag that's `true` when the change dropped the email
- * confirmation.
+ * (currently `profile` and `preferences`). Returns the full updated {@link Me}
+ * (so the caller can swap it into the identity context wholesale) plus
+ * `confirmationSentTo`, set when the request mailed a confirmation link instead
+ * of writing the new address.
  *
- * On 422, throws [`ValidationError`] (from `core`) carrying the per-field
- * messages.
+ * On 422, throws {@link ValidationError} (from `core`) carrying the per-field
+ * messages. On 409, outgoing mail isn't configured, so an email change can't be
+ * confirmed and the whole save is refused.
  */
 export const updateMe = async (
   body: UpdateMeRequest,

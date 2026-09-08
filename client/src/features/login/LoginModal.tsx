@@ -1,19 +1,16 @@
-import { Button, Form, Input, Modal } from 'antd';
-import { HttpError } from '../../api/core';
-import { login } from '../../api/users';
-import { useAsync, useErrorToast } from '../../core/hooks';
-import { useIdentity } from '../../core/identity';
-import { OAuthLoginButtons } from '../oauth/OAuthLoginButtons';
+import { Divider, Modal, Typography } from 'antd';
+import { useAsyncData } from '../../core/hooks';
+import { useSite } from '../../core/site';
 import styles from './LoginModal.module.scss';
+import { getEnabledProviders } from '../../api/oauth';
+import { OAuthRow } from '../oauth/OAuthRow';
+import { SignInForm } from './SignInForm';
+import { useLayoutEffect, useState } from 'react';
+import { RegisterForm } from './RegisterForm';
 
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
-}
-
-interface LoginFormValues {
-  identifier: string;
-  password: string;
 }
 
 /**
@@ -22,63 +19,80 @@ interface LoginFormValues {
  * with the new identity; the session cookie is set by the server (HttpOnly).
  */
 export function LoginModal({ open, onClose }: LoginModalProps) {
-  const { setMe } = useIdentity();
-
-  const [submit, isLoading, error] = useAsync(
-    async (values: LoginFormValues) => {
-      setMe(await login(values));
-      onClose();
-    },
+  const [form, setForm] = useState<'login' | 'reset' | 'register'>('login');
+  const providers = useAsyncData(
+    (signal) => getEnabledProviders({ signal }),
+    [],
   );
+  const [formKey, setFormKey] = useState(0);
 
-  useErrorToast(loginErrorMessage(error) ?? error, {
-    title: "Couldn't sign in",
-  });
+  useLayoutEffect(() => {
+    if (open) {
+      setForm('login');
+      setFormKey((k) => k + 1); // Re-mount the form component.
+    }
+  }, [open]);
 
   return (
     <Modal
-      title="Sign in"
+      title={
+        form === 'login'
+          ? 'Sign in'
+          : form === 'register'
+            ? 'New account'
+            : 'Reset password'
+      }
       open={open}
       footer={null}
       width={400}
-      onCancel={isLoading ? undefined : onClose}
+      onCancel={onClose}
       className={styles.modal}
     >
-      <Form<LoginFormValues>
-        layout="vertical"
-        onFinish={submit}
-        requiredMark={false}
-        disabled={isLoading}
-      >
-        <Form.Item
-          label="Login or email"
-          name="identifier"
-          rules={[{ required: true, message: 'Required' }]}
-        >
-          <Input autoComplete="username" autoFocus />
-        </Form.Item>
+      {form === 'login' && (
+        <>
+          <SignInForm key={formKey} onClose={onClose} />
+          <SignInFooter setForm={setForm} />
+          {providers.data && (
+            <>
+              <Divider plain>or</Divider>
+              <OAuthRow
+                providerIds={providers.data}
+                intent="login"
+                align="center"
+              />
+            </>
+          )}
+        </>
+      )}
 
-        <Form.Item
-          label="Password"
-          name="password"
-          rules={[{ required: true, message: 'Required' }]}
-        >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
-
-        <Button type="primary" htmlType="submit" loading={isLoading} block>
-          Sign in
-        </Button>
-      </Form>
-
-      <OAuthLoginButtons />
+      {form === 'register' && <RegisterForm onClose={onClose} />}
     </Modal>
   );
 }
 
-const loginErrorMessage = (error: unknown): string | null => {
-  if (error instanceof HttpError && error.status === 401) {
-    return 'Wrong login or password';
-  }
-  return null;
-};
+function SignInFooter({
+  setForm,
+}: {
+  setForm: (form: 'reset' | 'register') => void;
+}) {
+  const { canRegister } = useSite().site;
+
+  return (
+    <ul className={styles.footer}>
+      {canRegister && (
+        <li>
+          No account?{' '}
+          <Typography.Link onClick={() => setForm('register')}>
+            Register
+          </Typography.Link>
+        </li>
+      )}
+      <li>
+        Forgot your password?{' '}
+        <Typography.Link onClick={() => setForm('reset')}>
+          Reset
+        </Typography.Link>
+      </li>
+    </ul>
+  );
+}

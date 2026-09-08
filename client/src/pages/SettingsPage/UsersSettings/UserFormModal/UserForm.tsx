@@ -62,13 +62,14 @@ export function UserForm({ user, onSaved, onCancel }: UserFormProps) {
         />
       </Form.Item>
 
-      <Form.Item
-        name="emailVerified"
-        label="Email verified"
-        valuePropName="checked"
-      >
-        <Checkbox>Address is verified</Checkbox>
-      </Form.Item>
+      {!!user?.pendingEmail && (
+        <Form.Item
+          label="Pending"
+          help="Waiting on the user's confirmation link. Saving an email above replaces the address on file directly."
+        >
+          <Input value={user.pendingEmail} disabled />
+        </Form.Item>
+      )}
 
       <Form.Item name="permissions" label="Permissions">
         <Checkbox.Group
@@ -121,7 +122,6 @@ interface UserFormValues extends Record<string, unknown> {
   name: string;
   login: string;
   email: string;
-  emailVerified: boolean;
   /** Selected permission flags; folded into a bitfield on submit. */
   permissions: number[];
   password: string;
@@ -153,7 +153,6 @@ const formInitial = (user: User | null): UserFormValues => ({
   name: user?.name ?? '',
   login: user?.login ?? '',
   email: user?.email ?? '',
-  emailVerified: !!user?.emailVerifiedAt,
   permissions: bitsToFlags(user?.permissions ?? Permissions.CAN_AUTHORIZE),
   password: '',
   profile: {
@@ -172,7 +171,6 @@ const normalize = (values: UserFormValues): UserInput => ({
   name: values.name.trim(),
   login: emptyToNull(values.login),
   email: emptyToNull(values.email),
-  emailVerified: !!values.emailVerified,
   permissions: flagsToBits(values.permissions ?? []),
   // Empty field means "no change" (edit) / "no password yet" (create).
   password: values.password || null,

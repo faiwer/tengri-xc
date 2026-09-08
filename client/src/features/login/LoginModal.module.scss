@@ -3,3 +3,8 @@
 .modal {
   @include mixins.fullscreen-modal-on-mobile;
 }
+
+.footer {
+  margin: 1rem 0;
+  padding-inline-start: 1rem;
+}

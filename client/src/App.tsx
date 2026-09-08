@@ -5,6 +5,7 @@ import { IdentityProvider } from './core/identity';
 import { PreferencesProvider } from './core/preferences';
 import { SiteProvider } from './core/site';
 import { LoginProvider } from './features/login';
+import { EmailConfirmHandler } from './features/login/EmailConfirmHandler';
 import { OAuthReturnHandler } from './features/oauth/OAuthReturnHandler';
 import { UploadFlightProvider } from './features/uploadFlight';
 import { PrivacyPage, TermsPage } from './pages/DocumentPage';
@@ -45,6 +46,7 @@ export function App() {
         <BrowserRouter>
           <Providers>
             <OAuthReturnHandler />
+            <EmailConfirmHandler />
             <Routes>
               <Route path="/" element={<TracksPage />} />
               <Route path="/flights" element={<TracksPage />} />

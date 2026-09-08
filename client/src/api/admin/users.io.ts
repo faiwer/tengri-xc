@@ -51,9 +51,8 @@ export type User = z.infer<typeof UserIo>;
 export interface UserInput {
   name: string;
   login: string | null;
+  /** Written straight to the proven address — an admin typing it here is the proof. */
   email: string | null;
-  /** Marks/clears `emailVerifiedAt`; an already-verified edit keeps its timestamp. */
-  emailVerified: boolean;
   /** Raw `Permissions` bitfield; see `core/identity/permissions.ts`. */
   permissions: number;
   /** Plaintext password to (re)set. `null` keeps the current one unchanged. */

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router';
 import { changeMyPassword } from '../../../api/users';
 import type { Me } from '../../../api/users.io';
 import { LoadError } from '../../../components/LoadError';
+import { LOGIN_RULES, PASSWORD_RULES } from '../../../core/credentials';
 import { useFormSubmit } from '../../../core/hooks';
 import { useIdentity } from '../../../core/identity';
 import { routes } from '../../../core/routes';
@@ -97,7 +98,7 @@ function PasswordForm({ me, onSaved }: PasswordFormProps) {
           label="Login"
           rules={
             loginEditable
-              ? [{ required: true, message: 'Choose a login' }]
+              ? [{ required: true, message: 'Choose a login' }, ...LOGIN_RULES]
               : undefined
           }
         >
@@ -123,11 +124,7 @@ function PasswordForm({ me, onSaved }: PasswordFormProps) {
           label="New password"
           rules={[
             { required: true, message: 'Enter a new password' },
-            { min: 8, message: 'At least 8 characters' },
-            {
-              pattern: PASSWORD_PATTERN,
-              message: 'Must include a letter and a digit',
-            },
+            ...PASSWORD_RULES,
           ]}
         >
           <Input.Password autoComplete="new-password" />
@@ -155,7 +152,3 @@ function PasswordForm({ me, onSaved }: PasswordFormProps) {
     </SettingsSection>
   );
 }
-
-// At least one letter and one digit anywhere; length is enforced by a separate
-// `min` rule. Mirrors the server's `weak_password` check.
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).+$/;

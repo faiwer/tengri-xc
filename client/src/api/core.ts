@@ -26,9 +26,18 @@ export class NetworkError extends ApiError {}
 export class HttpError extends ApiError {
   readonly status: number;
 
-  constructor(status: number, message?: string) {
+  /**
+   * The server's machine-readable `error` code (`'forbidden'`,
+   * `'email_unconfirmed'`, …). Prefer it over `status` whenever one status
+   * covers several outcomes the UI has to word differently. `undefined` when
+   * the body was missing or unparseable.
+   */
+  readonly code?: string;
+
+  constructor(status: number, message?: string, code?: string) {
     super(message ?? `HTTP ${status}`);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -162,12 +171,12 @@ function buildPath(path: string, query: ApiQuery | undefined): string {
 
 /**
  * Build the right `ApiError` subclass for a non-OK response. The server shape
- * is `{ error, message, fields? }` for every error path; we read `message` so
- * the FE can surface the human text without re-deriving it from the status. 422
- * with a `fields` map promotes to [`ValidationError`]; everything else stays an
- * [`HttpError`] carrying just the message. Body parsing failures fall back to a
- * status-only `HttpError` (the request did fail; the failure shape is just
- * opaque to the caller).
+ * is `{ error, message, fields? }` for every error path; we keep `message` so
+ * the FE can surface the human text without re-deriving it from the status, and
+ * `error` so it can branch on the reason where one status has several. 422 with
+ * a `fields` map promotes to [`ValidationError`]; everything else stays an
+ * [`HttpError`]. Body parsing failures fall back to a status-only `HttpError`
+ * (the request did fail; the failure shape is just opaque to the caller).
  */
 async function readErrorBody(response: Response): Promise<HttpError> {
   let raw: unknown;
@@ -179,18 +188,22 @@ async function readErrorBody(response: Response): Promise<HttpError> {
 
   const body =
     raw !== null && typeof raw === 'object'
-      ? (raw as { message?: string; fields?: Record<string, string> })
+      ? (raw as {
+          error?: string;
+          message?: string;
+          fields?: Record<string, string>;
+        })
       : null;
 
   if (response.status === 422) {
     const fields = body?.fields;
     if (!fields || typeof fields !== 'object') {
-      return new HttpError(422, body?.message);
+      return new HttpError(422, body?.message, body?.error);
     }
     return new ValidationError(camelizeFieldKeys(fields), body?.message);
   }
 
-  return new HttpError(response.status, body?.message);
+  return new HttpError(response.status, body?.message, body?.error);
 }
 
 /**
