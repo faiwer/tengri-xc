@@ -14,8 +14,9 @@ export function SignInForm({ onClose }: { onClose: () => void }) {
     },
   );
 
-  useErrorToast(loginErrorMessage(error) ?? error, {
+  useErrorToast(error, {
     title: "Couldn't sign in",
+    description: loginErrorMessage(error) ?? undefined,
   });
 
   return (
@@ -58,14 +59,20 @@ const loginErrorMessage = (error: unknown): string | null => {
     return null;
   }
 
-  if (error.status === 401) {
-    return 'Wrong login or password';
+  // Both codes below mean the password was right and something else refused,
+  // so each gets copy that says what to do about it. A 401 can't be told apart
+  // from any other bad credentials, by design.
+  if (error.code === 'account_disabled') {
+    return `This account is disabled. Contact the site administrator if you think that's a mistake.`;
   }
 
-  // The password was right; the address on the account just isn't proven yet.
-  // The server spells the reason out, so `message` is already the copy we want.
+  // The address on the account just isn't proven yet.
   if (error.code === 'email_unconfirmed') {
-    return `Please check your email for a confirmation link to complete your registration.`;
+    return 'Please check your email for a confirmation link to complete your registration.';
+  }
+
+  if (error.status === 401) {
+    return 'Wrong login or password';
   }
 
   return null;

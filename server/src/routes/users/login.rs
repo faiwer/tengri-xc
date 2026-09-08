@@ -21,6 +21,10 @@ use crate::{
 /// your inbox" copy off this string, so the two have to move together.
 const EMAIL_UNCONFIRMED: &str = "email_unconfirmed";
 
+/// `error` code on login's cleared-`CAN_AUTHORIZE` 403. Same contract with the
+/// SPA as [`EMAIL_UNCONFIRMED`].
+const ACCOUNT_DISABLED: &str = "account_disabled";
+
 #[derive(Debug, Deserialize)]
 pub(super) struct LoginRequest {
     /// Matched against `users.login` (case-insensitive, via the
@@ -117,9 +121,16 @@ fn authenticate(creds: &Credentials, password: &str) -> Result<Verified, AppErro
         }
     };
 
-    // Banned/soft-disabled. Same 401 as wrong password.
+    // Banned/soft-disabled. Named rather than folded into the 401s above for
+    // the same reason as the confirmation gate below: the password checked out,
+    // so "your account is disabled" tells the caller nothing they couldn't
+    // already confirm, and leaving them to guess at "wrong login or password"
+    // sends them round the password-reset loop forever.
     if !Permissions::from_bits_retain(creds.permissions).contains(Permissions::CAN_AUTHORIZE) {
-        return Err(AppError::Unauthorized);
+        return Err(AppError::ForbiddenReason {
+            code: ACCOUNT_DISABLED,
+            message: "This account is disabled — contact the site administrator".into(),
+        });
     }
 
     // Registered but never clicked the confirmation link. 403 with a reason,

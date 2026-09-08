@@ -21,9 +21,13 @@ const DEFAULT_TITLE = 'Oops. Something went wrong';
  *
  * Accepts whatever `useAsync` / a `catch` block hands you (`unknown`):
  * `Error` instances render as their `.message`, primitives string-coerce,
- * `null` / `undefined` are no-ops. Domain-specific rewrites (e.g. mapping
- * a 401 to "Wrong password") still belong at the call site — pass the
- * mapped string in directly.
+ * `null` / `undefined` are no-ops.
+ *
+ * Domain-specific rewrites (e.g. mapping a 401 to "Wrong password") go in
+ * `description`, with the error itself still passed as `error`. Handing the
+ * mapped string in as `error` instead costs you the retry toast: repeated
+ * failures usually map to one sentence, and an unchanged value doesn't
+ * re-fire.
  */
 export function useErrorToast(
   error: unknown,

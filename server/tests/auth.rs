@@ -710,7 +710,9 @@ async fn me_with_stale_cookie_for_missing_user_clears_cookie_and_returns_null() 
 
 #[tokio::test]
 #[serial]
-async fn login_with_cleared_can_authorize_bit_returns_401() {
+async fn login_with_cleared_can_authorize_bit_says_the_account_is_disabled() {
+    // Not folded into the wrong-password 401: the caller proved the password,
+    // so naming the reason costs nothing and spares them the reset loop.
     let (app, pool) = common::test_app().await;
 
     let stored = phpass_hash("hunter2", b"abcdefgh", 8);
@@ -724,6 +726,7 @@ async fn login_with_cleared_can_authorize_bit_returns_401() {
     .unwrap();
 
     let resp = app
+        .clone()
         .oneshot(json_post(
             "/users/login",
             json!({ "identifier": "banned", "password": "hunter2" }),
@@ -731,5 +734,18 @@ async fn login_with_cleared_can_authorize_bit_returns_401() {
         .await
         .unwrap();
 
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    let body = body_json(resp).await;
+    assert_eq!(body["error"], "account_disabled");
+
+    // A wrong password on the same account stays indistinguishable from any
+    // other bad credentials — the reason is only for someone who got in.
+    let resp = app
+        .oneshot(json_post(
+            "/users/login",
+            json!({ "identifier": "banned", "password": "wrong" }),
+        ))
+        .await
+        .unwrap();
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
