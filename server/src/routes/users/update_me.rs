@@ -59,14 +59,17 @@ struct MeProfileUpdate {
 }
 
 /// `PATCH /users/me` response: the refreshed [`MeDto`], flattened to the same
-/// shape `GET /users/me` returns, plus the address this request left awaiting
-/// confirmation (`null` when the email didn't change). `me.email` still holds
-/// the old address in that case, so the client needs both to explain the state.
+/// shape `GET /users/me` returns, plus where *this* request mailed a
+/// confirmation link (`null` when the email didn't change).
+///
+/// Not the same as the `pending_email` inside the user record: that one holds
+/// any change still in flight, including one started by an earlier request, and
+/// resending its toast on every unrelated save would be noise.
 #[derive(Debug, Serialize)]
 struct UpdateMeResponse {
     #[serde(flatten)]
     me: MeDto,
-    pending_email: Option<String>,
+    confirmation_sent_to: Option<String>,
 }
 
 pub(super) async fn update_me(
@@ -147,7 +150,7 @@ pub(super) async fn update_me(
 
     let response = UpdateMeResponse {
         me: body,
-        pending_email,
+        confirmation_sent_to: pending_email,
     };
     Ok((StatusCode::OK, headers, Json(response)).into_response())
 }

@@ -15,7 +15,6 @@
 //! | `password_hash`      | `users.user_password` (phpass `$H$...` hash, verbatim)   |
 //! | `source`             | constant `'leo'`                                         |
 //! | `permissions`        | bit `CAN_AUTHORIZE` set iff `user_active = 1`            |
-//! | `email_verified_at`  | `to_timestamp(user_regdate)` if email present and reg>0  |
 //! | `created_at`         | `to_timestamp(user_regdate)` if `>0`, else default now() |
 //! | `last_login_at`      | `to_timestamp(user_lastvisit)` if `>0`                   |
 //!
@@ -145,7 +144,6 @@ struct Resolved {
     active: bool,
     created_at: Option<DateTime<Utc>>,
     last_login_at: Option<DateTime<Utc>>,
-    email_verified_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Default)]
@@ -303,19 +301,6 @@ fn compose(pilots: &[SourcePilot]) -> Composed {
         };
         let created_at = unix_to_utc(p.user_regdate);
         let last_login_at = unix_to_utc(p.user_lastvisit);
-        // Leonardo doesn't carry an explicit "email verified"
-        // timestamp; it just doesn't let `user_active` flip until
-        // the activation key in the welcome email is used. So if
-        // the row is active *and* has an email *and* has a
-        // registration timestamp, treat that as verified-then.
-        // If we just dropped the email above, the verified flag
-        // would refer to an address we no longer store, so leave
-        // it NULL.
-        let email_verified_at = if p.user_active && email.is_some() {
-            created_at
-        } else {
-            None
-        };
 
         rows.push(Resolved {
             id,
@@ -328,7 +313,6 @@ fn compose(pilots: &[SourcePilot]) -> Composed {
             active: p.user_active,
             created_at,
             last_login_at,
-            email_verified_at,
         });
     }
     Composed {
@@ -395,7 +379,6 @@ async fn upsert(pg: &PgPool, users: &[Resolved]) -> anyhow::Result<UpsertOutcome
         input.password = Some(CreateUserPassword::Hash(u.password_hash.clone()));
         input.permissions = u.permissions.bits();
         input.source = UserSource::Leo;
-        input.email_verified_at = u.email_verified_at;
         input.last_login_at = u.last_login_at;
         input.created_at = u.created_at;
 

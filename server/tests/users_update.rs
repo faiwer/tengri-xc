@@ -383,21 +383,14 @@ async fn patch_me_blank_email_leaves_existing_untouched() {
     );
 }
 
-/// Seed `id=1` with a verified address, returning the cookie the test uses.
+/// Seed `id=1` with a proven address — `users.email` only ever holds those.
 async fn seed_verified_email(pool: &sqlx::PgPool, email: &str) {
     common::seed_user(pool, 1, "Pilot").await;
-    sqlx::query("UPDATE users SET email = $1, email_verified_at = now() WHERE id = 1")
+    sqlx::query("UPDATE users SET email = $1 WHERE id = 1")
         .bind(email)
         .execute(pool)
         .await
         .unwrap();
-}
-
-async fn email_unverified(pool: &sqlx::PgPool) -> bool {
-    sqlx::query_scalar("SELECT email_verified_at IS NULL FROM users WHERE id = 1")
-        .fetch_one(pool)
-        .await
-        .unwrap()
 }
 
 /// `(email, pending_email)` for `id=1`.
@@ -485,8 +478,8 @@ async fn patch_me_email_change_rolls_back_when_the_relay_rejects_the_mail() {
 #[serial]
 async fn patch_me_email_change_by_non_admin_never_touches_the_proven_address() {
     // The load-bearing property: a mistyped address must cost one retry, not
-    // the account. `email` and its confirmation stay put, so password login
-    // keeps working and the user can just save again.
+    // the account. `email` stays put, so password login keeps working and the
+    // user can just save again.
     let (app, pool) = common::test_app().await;
     seed_verified_email(&pool, "old@example.com").await;
     set_dead_smtp(&pool).await;
@@ -501,10 +494,10 @@ async fn patch_me_email_change_by_non_admin_never_touches_the_proven_address() {
         .await
         .unwrap();
 
-    assert_eq!(addresses(&pool).await.0, Some("old@example.com".to_owned()));
-    assert!(
-        !email_unverified(&pool).await,
-        "the proven address stays proven, so the account can still sign in"
+    assert_eq!(
+        addresses(&pool).await.0,
+        Some("old@example.com".to_owned()),
+        "the proven address stays put, so the account can still sign in"
     );
 }
 
@@ -536,8 +529,10 @@ async fn patch_me_same_email_leaves_a_pending_change_alone() {
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_json(resp).await;
-    // This request left nothing pending itself, so the response reports nothing.
-    assert!(body["pending_email"].is_null());
+    // This request mailed no link itself, so it reports none — even though the
+    // record it returns still carries the older pending address.
+    assert!(body["confirmation_sent_to"].is_null());
+    assert_eq!(body["pending_email"], "typo@example.com");
     assert_eq!(
         addresses(&pool).await,
         (
@@ -546,20 +541,16 @@ async fn patch_me_same_email_leaves_a_pending_change_alone() {
         ),
         "the in-flight change survives an edit that didn't touch the address"
     );
-    assert!(
-        !email_unverified(&pool).await,
-        "an unchanged address must not churn email_verified_at"
-    );
 }
 
 #[tokio::test]
 #[serial]
 async fn patch_me_email_change_by_admin_goes_pending_like_anyone_elses() {
-    // MANAGE_USERS buys no shortcut here. Writing an unproven address straight
-    // to `email` would leave `email_verified_at` asserting proof nobody gave,
-    // and `find_user_id_by_email` treats that claim as an OAuth join key. An
-    // admin who wants a no-proof write uses `/admin/users`, where the verified
-    // flag is spelled out. So this refuses for want of a relay, exactly as it
+    // MANAGE_USERS buys no shortcut here. `email` means "somebody proved this",
+    // and `find_user_id_by_email` hands OAuth sign-ins to whoever holds it, so
+    // an address the owner typed but never confirmed can't go there. An admin
+    // who wants a no-proof write uses `/admin/users`, where typing the address
+    // is itself the proof. So this refuses for want of a relay, exactly as it
     // would for a regular owner.
     let (app, pool) = common::test_app().await;
     seed_verified_email(&pool, "old@example.com").await;
@@ -584,5 +575,4 @@ async fn patch_me_email_change_by_admin_goes_pending_like_anyone_elses() {
         (Some("old@example.com".to_owned()), None),
         "no write-through, so `email` still holds the proven address"
     );
-    assert!(!email_unverified(&pool).await);
 }

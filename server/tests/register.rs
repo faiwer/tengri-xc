@@ -90,15 +90,7 @@ async fn register_requires_an_email() {
 async fn register_reports_a_taken_login_or_email() {
     let (app, pool) = common::test_app().await;
     set_can_register(&pool, true).await;
-    seed_password_user(
-        &pool,
-        20,
-        "Existing",
-        "newpilot",
-        Some("new@example.com"),
-        true,
-    )
-    .await;
+    seed_password_user(&pool, 20, "Existing", "newpilot", Some("new@example.com")).await;
 
     let resp = app
         .oneshot(json_post("/users/register", body()))
@@ -119,7 +111,7 @@ async fn register_is_not_blocked_by_an_address_pending_for_someone_else() {
     // Somebody started a signup for this address and never proved it. Letting
     // that reserve the address would hand anyone a way to take a stranger's
     // email out of circulation from the registration form.
-    seed_password_user(&pool, 21, "Squatter", "squatter", None, false).await;
+    seed_password_user(&pool, 21, "Squatter", "squatter", None).await;
     set_pending_email(&pool, 21, "new@example.com").await;
 
     let resp = app
@@ -203,7 +195,7 @@ async fn register_rolls_the_account_back_when_the_relay_rejects_the_mail() {
 #[serial]
 async fn confirming_twice_lands_the_same_way() {
     let (app, pool) = common::test_app().await;
-    seed_password_user(&pool, 21, "Fresh Pilot", "fresh", None, false).await;
+    seed_password_user(&pool, 21, "Fresh Pilot", "fresh", None).await;
     set_pending_email(&pool, 21, "fresh@example.com").await;
     let token = confirm_token(21, "fresh@example.com");
 
@@ -220,7 +212,8 @@ async fn confirming_twice_lands_the_same_way() {
         location(&resp)
     );
     assert!(session_cookie(&resp).is_some(), "expected a session cookie");
-    assert!(is_confirmed(&pool, 21).await);
+    let promoted = (Some("fresh@example.com".to_owned()), None);
+    assert_eq!(addresses(&pool, 21).await, promoted);
 
     // A mail scanner that prefetched the link, or a second click. The address
     // is already promoted by now, so the token matches `email` rather than
@@ -233,14 +226,14 @@ async fn confirming_twice_lands_the_same_way() {
     assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     assert!(location(&resp).contains("email=confirmed"));
     assert!(session_cookie(&resp).is_some());
-    assert!(is_confirmed(&pool, 21).await);
+    assert_eq!(addresses(&pool, 21).await, promoted, "and nothing moved");
 }
 
 #[tokio::test]
 #[serial]
 async fn confirming_a_banned_account_hands_out_no_session() {
     let (app, pool) = common::test_app().await;
-    seed_password_user(&pool, 22, "Banned Pilot", "banned", None, false).await;
+    seed_password_user(&pool, 22, "Banned Pilot", "banned", None).await;
     set_pending_email(&pool, 22, "banned@example.com").await;
     sqlx::query("UPDATE users SET permissions = 0 WHERE id = 22")
         .execute(&pool)
@@ -261,22 +254,19 @@ async fn confirming_a_banned_account_hands_out_no_session() {
         session_cookie(&resp).is_none(),
         "a banned account gets no session"
     );
-    assert!(is_confirmed(&pool, 22).await, "the address is still proven");
+    assert_eq!(
+        addresses(&pool, 22).await,
+        (Some("banned@example.com".to_owned()), None),
+        "the address is still promoted"
+    );
 }
 
 #[tokio::test]
 #[serial]
 async fn confirming_rejects_tokens_it_did_not_mint_for_this() {
     let (app, pool) = common::test_app().await;
-    seed_password_user(
-        &pool,
-        23,
-        "Token Pilot",
-        "tokens",
-        Some("tokens@example.com"),
-        false,
-    )
-    .await;
+    seed_password_user(&pool, 23, "Token Pilot", "tokens", None).await;
+    set_pending_email(&pool, 23, "tokens@example.com").await;
     let key = EncodingKey::from_secret(common::TEST_JWT_SECRET);
 
     let expired = raw_token(&RawConfirm {
@@ -324,7 +314,11 @@ async fn confirming_rejects_tokens_it_did_not_mint_for_this() {
             "{label}"
         );
         assert!(session_cookie(&resp).is_none(), "{label} must mint nothing");
-        assert!(!is_confirmed(&pool, 23).await, "{label} must not stamp");
+        assert_eq!(
+            addresses(&pool, 23).await,
+            (None, Some("tokens@example.com".to_owned())),
+            "{label} must not promote"
+        );
     }
 }
 
@@ -334,7 +328,7 @@ async fn confirming_a_registration_promotes_the_pending_address() {
     let (app, pool) = common::test_app().await;
     // Straight out of `POST /users/register`: a login and a pending address,
     // nothing in `email` yet.
-    seed_password_user(&pool, 29, "Fresh Pilot", "fresh", None, false).await;
+    seed_password_user(&pool, 29, "Fresh Pilot", "fresh", None).await;
     set_pending_email(&pool, 29, "fresh@example.com").await;
 
     let resp = app
@@ -359,22 +353,13 @@ async fn confirming_a_registration_promotes_the_pending_address() {
         (Some("fresh@example.com".to_owned()), None),
         "the pending address becomes the proven one"
     );
-    assert!(is_confirmed(&pool, 29).await);
 }
 
 #[tokio::test]
 #[serial]
 async fn confirming_a_pending_address_promotes_it_over_the_old_one() {
     let (app, pool) = common::test_app().await;
-    seed_password_user(
-        &pool,
-        26,
-        "Moving Pilot",
-        "moving",
-        Some("old@example.com"),
-        true,
-    )
-    .await;
+    seed_password_user(&pool, 26, "Moving Pilot", "moving", Some("old@example.com")).await;
     set_pending_email(&pool, 26, "new@example.com").await;
 
     let resp = app
@@ -397,22 +382,13 @@ async fn confirming_a_pending_address_promotes_it_over_the_old_one() {
         (Some("new@example.com".to_owned()), None),
         "the proven address replaces the old one and `pending_email` clears"
     );
-    assert!(is_confirmed(&pool, 26).await);
 }
 
 #[tokio::test]
 #[serial]
 async fn confirming_a_pending_address_yields_to_whoever_proved_it_first() {
     let (app, pool) = common::test_app().await;
-    seed_password_user(
-        &pool,
-        27,
-        "Slow Pilot",
-        "slow",
-        Some("mine@example.com"),
-        true,
-    )
-    .await;
+    seed_password_user(&pool, 27, "Slow Pilot", "slow", Some("mine@example.com")).await;
     set_pending_email(&pool, 27, "contested@example.com").await;
     // Someone else confirmed the same address in the meantime.
     seed_password_user(
@@ -421,7 +397,6 @@ async fn confirming_a_pending_address_yields_to_whoever_proved_it_first() {
         "Quick Pilot",
         "quick",
         Some("contested@example.com"),
-        true,
     )
     .await;
 
@@ -451,7 +426,7 @@ async fn confirming_a_pending_address_yields_to_whoever_proved_it_first() {
 async fn password_login_waits_for_the_address_to_be_confirmed() {
     let (app, pool) = common::test_app().await;
     // The shape registration leaves behind: nothing proven, one address pending.
-    seed_password_user(&pool, 24, "Waiting Pilot", "waiting", None, false).await;
+    seed_password_user(&pool, 24, "Waiting Pilot", "waiting", None).await;
     set_pending_email(&pool, 24, "wait@example.com").await;
 
     let resp = app
@@ -476,14 +451,10 @@ async fn password_login_waits_for_the_address_to_be_confirmed() {
     );
 
     // What the confirmation click does.
-    sqlx::query(
-        "UPDATE users \
-         SET email = pending_email, pending_email = NULL, email_verified_at = now() \
-         WHERE id = 24",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::query("UPDATE users SET email = pending_email, pending_email = NULL WHERE id = 24")
+        .execute(&pool)
+        .await
+        .unwrap();
 
     let resp = app
         .oneshot(json_post(
@@ -499,16 +470,15 @@ async fn password_login_waits_for_the_address_to_be_confirmed() {
 #[serial]
 async fn password_login_ignores_the_gate_for_an_admin_set_address() {
     let (app, pool) = common::test_app().await;
-    // An admin typed this address and left the verified box unticked. Nothing
-    // ever mails a link for it, so gating on "unproven" instead of "waiting on
-    // a pending address" would lock the account out for good.
+    // An admin typed this address straight into `email`, so nothing ever mails
+    // a link for it. The gate has to key on a *pending* address, not on the
+    // absence of a confirmation, or the account is locked out for good.
     seed_password_user(
         &pool,
         28,
         "Admin Made",
         "adminmade",
         Some("admin-made@example.com"),
-        false,
     )
     .await;
 
@@ -528,7 +498,7 @@ async fn password_login_ignores_the_gate_for_an_account_with_no_email() {
     let (app, pool) = common::test_app().await;
     // Admin-created, login-only accounts have nothing to confirm. Gating on
     // "unverified" rather than "has an unverified address" would lock them out.
-    seed_password_user(&pool, 25, "Login Only", "loginonly", None, false).await;
+    seed_password_user(&pool, 25, "Login Only", "loginonly", None).await;
 
     let resp = app
         .oneshot(json_post(
@@ -560,33 +530,27 @@ async fn set_can_register(pool: &PgPool, enabled: bool) {
         .expect("set can_register");
 }
 
-async fn seed_password_user(
-    pool: &PgPool,
-    id: i32,
-    name: &str,
-    login: &str,
-    email: Option<&str>,
-    email_verified: bool,
-) {
+/// `email` is the proven address, so passing `Some` seeds a confirmed account
+/// and `None` seeds one with nothing on file. Use [`set_pending_email`] on top
+/// for an address still waiting on its link.
+async fn seed_password_user(pool: &PgPool, id: i32, name: &str, login: &str, email: Option<&str>) {
     let hash = hash_argon2(PASSWORD).expect("hash test password");
     sqlx::query(
         "INSERT INTO users \
-            (id, name, login, email, password_hash, source, permissions, email_verified_at) \
-         VALUES ($1, $2, $3, $4, $5, 'internal', 1, CASE WHEN $6 THEN now() END) \
+            (id, name, login, email, password_hash, source, permissions) \
+         VALUES ($1, $2, $3, $4, $5, 'internal', 1) \
          ON CONFLICT (id) DO UPDATE SET \
-             name              = EXCLUDED.name, \
-             login             = EXCLUDED.login, \
-             email             = EXCLUDED.email, \
-             password_hash     = EXCLUDED.password_hash, \
-             permissions       = EXCLUDED.permissions, \
-             email_verified_at = EXCLUDED.email_verified_at",
+             name          = EXCLUDED.name, \
+             login         = EXCLUDED.login, \
+             email         = EXCLUDED.email, \
+             password_hash = EXCLUDED.password_hash, \
+             permissions   = EXCLUDED.permissions",
     )
     .bind(id)
     .bind(name)
     .bind(login)
     .bind(email)
     .bind(&hash)
-    .bind(email_verified)
     .execute(pool)
     .await
     .expect("seed password user");
@@ -617,14 +581,6 @@ async fn addresses(pool: &PgPool, id: i32) -> (Option<String>, Option<String>) {
         .fetch_one(pool)
         .await
         .expect("read addresses")
-}
-
-async fn is_confirmed(pool: &PgPool, id: i32) -> bool {
-    sqlx::query_scalar("SELECT email_verified_at IS NOT NULL FROM users WHERE id = $1")
-        .bind(id)
-        .fetch_one(pool)
-        .await
-        .expect("read email_verified_at")
 }
 
 fn confirm_token(user_id: i32, email: &str) -> String {

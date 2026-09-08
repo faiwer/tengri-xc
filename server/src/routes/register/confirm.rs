@@ -143,20 +143,20 @@ async fn prove_address(
 
     if account.email.as_deref() == Some(claimed) {
         // A second click on a link that already promoted — a prefetching mail
-        // scanner, a back button, a forwarded message. The promote stamped the
-        // address, so there's nothing left to write; say "confirmed" instead of
-        // sending someone whose address *is* confirmed to an error page.
+        // scanner, a back button, a forwarded message. The address is already
+        // in `email`, so there's nothing left to write; say "confirmed" instead
+        // of sending someone whose address *is* confirmed to an error page.
         return Ok(Outcome::Confirmed);
     }
 
     Ok(Outcome::Stale)
 }
 
-/// Move `pending_email` into `email` and stamp it proven.
+/// Move `pending_email` into `email`, which is what marks it proven.
 async fn promote(pool: &PgPool, user_id: i32) -> Result<(), sqlx::Error> {
     sqlx::query(
         "UPDATE users \
-         SET email = pending_email, pending_email = NULL, email_verified_at = now() \
+         SET email = pending_email, pending_email = NULL \
          WHERE id = $1",
     )
     .bind(user_id)

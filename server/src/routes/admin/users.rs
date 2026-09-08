@@ -30,7 +30,6 @@ use axum::{
     routing::get,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -212,13 +211,11 @@ struct UserInput {
     name: String,
     #[serde(default)]
     login: Option<String>,
+    /// Written straight to `users.email`, which means proven — an admin typing
+    /// an address here is the proof. Self-service edits go through
+    /// `pending_email` and a confirmation link instead.
     #[serde(default)]
     email: Option<String>,
-    /// Drives `email_verified_at`: `true` marks the address verified, `false`
-    /// clears the mark. See the handlers for how an existing timestamp is
-    /// preserved on edit.
-    #[serde(default)]
-    email_verified: bool,
     /// Raw `Permissions` bitfield. Unknown bits are rejected.
     permissions: i32,
     /// Plaintext password to (re)set. Empty string is treated as absent.
@@ -248,7 +245,6 @@ struct ValidUser {
     name: String,
     login: Option<String>,
     email: Option<String>,
-    email_verified: bool,
     permissions: i32,
     password: Option<String>,
     profile: ProfileUpdate,
@@ -292,16 +288,13 @@ async fn create(
             id: None,
             name: valid.name,
             login: valid.login.clone(),
-            // Admins write the address itself and say whether it's proven;
+            // Admins vouch for the address they type, so it lands proven;
             // `pending_email` is for self-service, which can't be trusted to.
             email: valid.email.clone(),
             pending_email: None,
             password: valid.password.map(CreateUserPassword::Plaintext),
             permissions: valid.permissions,
             source: UserSource::Internal,
-            // A brand-new account's address starts verified only if the admin
-            // ticked the box *and* actually set an email.
-            email_verified_at: (valid.email_verified && valid.email.is_some()).then(Utc::now),
             last_login_at: None,
             created_at: None,
         },
@@ -334,11 +327,10 @@ async fn update(
 
     let valid = validate_user(input)?;
 
-    // 404 before any write, and gives us the current `email_verified_at` so a
-    // re-save doesn't churn an already-verified timestamp.
-    let current = fetch_user(state.pool(), id)
-        .await?
-        .ok_or(AppError::NotFound)?;
+    // 404 before any write.
+    if fetch_user(state.pool(), id).await?.is_none() {
+        return Err(AppError::NotFound);
+    }
 
     let mut errors = FieldErrors::new();
     check_unique(
@@ -373,17 +365,6 @@ async fn update(
     q.set("permissions", valid.permissions);
     if let Some(hash) = password_hash {
         q.set("password_hash", hash);
-    }
-    // Only touch `email_verified_at` when the flag actually flips, so an
-    // unchanged "verified" checkbox preserves the original timestamp.
-    match (valid.email_verified, current.email_verified_at.is_some()) {
-        (true, false) => {
-            q.set("email_verified_at", Some(Utc::now()));
-        }
-        (false, true) => {
-            q.set("email_verified_at", None::<chrono::DateTime<Utc>>);
-        }
-        _ => {}
     }
     q.and_where("id = $", (id,));
     q.execute_tx(&mut tx).await.map_err(into_internal)?;
@@ -478,7 +459,6 @@ fn validate_user(input: UserInput) -> Result<ValidUser, AppError> {
         name,
         login,
         email,
-        email_verified: input.email_verified,
         permissions,
         password,
         profile,

@@ -26,14 +26,18 @@ pub struct UserDto {
     pub id: i32,
     pub name: String,
     pub login: Option<String>,
+    /// Always an address somebody proved they own; see
+    /// [`find_user_id_by_email`](crate::user::find_user_id_by_email).
     pub email: Option<String>,
+    /// Address waiting on a confirmation click. `email` keeps working until the
+    /// link promotes this one.
+    pub pending_email: Option<String>,
     pub source: UserSource,
     /// Raw bits. Frontend uses `bit & N` checks, no enum needed.
     pub permissions: i32,
     /// Unix epoch seconds (UTC). The DB stores `timestamptz`; we
     /// project it as `bigint` so the wire stays numeric and the
     /// client can do `new Date(seconds * 1000)` without parsing.
-    pub email_verified_at: Option<i64>,
     pub last_login_at: Option<i64>,
     pub created_at: i64,
     /// Whether the account has a password set.
@@ -54,8 +58,7 @@ pub struct UserProfileDto {
 pub async fn fetch_user(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<UserDto>, AppError> {
     let row = sqlx::query(
         "SELECT \
-            u.id, u.name, u.login, u.email, u.source, u.permissions, \
-            EXTRACT(EPOCH FROM u.email_verified_at)::bigint AS email_verified_at, \
+            u.id, u.name, u.login, u.email, u.pending_email, u.source, u.permissions, \
             EXTRACT(EPOCH FROM u.last_login_at)::bigint     AS last_login_at, \
             EXTRACT(EPOCH FROM u.created_at)::bigint        AS created_at, \
             (u.password_hash IS NOT NULL)                   AS has_password, \
@@ -92,9 +95,9 @@ pub async fn fetch_user(pool: &sqlx::PgPool, user_id: i32) -> Result<Option<User
         name: row.try_get("name").map_err(sqlx_to_internal)?,
         login: row.try_get("login").map_err(sqlx_to_internal)?,
         email: row.try_get("email").map_err(sqlx_to_internal)?,
+        pending_email: row.try_get("pending_email").map_err(sqlx_to_internal)?,
         source: row.try_get("source").map_err(sqlx_to_internal)?,
         permissions: row.try_get("permissions").map_err(sqlx_to_internal)?,
-        email_verified_at: row.try_get("email_verified_at").map_err(sqlx_to_internal)?,
         last_login_at: row.try_get("last_login_at").map_err(sqlx_to_internal)?,
         created_at: row.try_get("created_at").map_err(sqlx_to_internal)?,
         has_password: row.try_get("has_password").map_err(sqlx_to_internal)?,

@@ -77,7 +77,6 @@ async fn register(
             password: Some(CreateUserPassword::Plaintext(valid.password)),
             permissions: Permissions::default().bits(),
             source: UserSource::Internal,
-            email_verified_at: None,
             last_login_at: None,
             created_at: None,
         },

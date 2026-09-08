@@ -3,7 +3,6 @@
 //! are display-only snapshots, refreshed each time the same account is
 //! (re)linked.
 
-use chrono::Utc;
 use rand::Rng;
 use serde::Serialize;
 use sqlx::{PgConnection, PgExecutor};
@@ -161,7 +160,6 @@ pub async fn register_oauth_user(
     identity: &OAuthIdentity,
 ) -> Result<i32, AppError> {
     let base = base_name(identity);
-    let email_verified_at = identity.email.as_ref().map(|_| Utc::now());
 
     let mut last_conflict = None;
     for attempt in 1..=MAX_NAME_ATTEMPTS {
@@ -181,7 +179,6 @@ pub async fn register_oauth_user(
             password: None,
             permissions: Permissions::default().bits(),
             source: UserSource::Internal,
-            email_verified_at,
             last_login_at: None,
             created_at: None,
         };

@@ -111,26 +111,25 @@ pub fn blank_to_none(value: Option<String>) -> Option<String> {
     value.map(|v| v.trim().to_owned()).filter(|v| !v.is_empty())
 }
 
-/// The user whose *verified* stored email matches `email`, or `None`. Addresses
-/// are stored lowercased, so `LOWER($1)` case-folds the incoming value.
+/// The user whose stored email matches `email`, or `None`. Addresses are stored
+/// lowercased, so `LOWER($1)` case-folds the incoming value.
 ///
-/// The `email_verified_at IS NOT NULL` guard is load-bearing for security: the
-/// OAuth login flow uses this to attach a provider identity to an existing
-/// account by email. Matching an *unverified* stored address would let an
-/// attacker pre-register an account holding an unconfirmed copy of a victim's
-/// email, then have the victim's real OAuth sign-in land in the attacker's
-/// account. Only a proven-owned address is a safe join key.
+/// OAuth sign-in uses this to attach a provider identity to an existing
+/// account, which makes `users.email` a join key and its trustworthiness a
+/// security property: an address nobody proved would let someone pre-register
+/// a copy of a victim's email and collect the victim's real OAuth sign-in.
+/// Nothing writes an unproven address there — [`plan_email_edit`] routes
+/// self-service changes through `pending_email`, and the remaining writers
+/// (admin, OAuth, import) set an address they vouch for.
 pub async fn find_user_id_by_email(
     pool: &sqlx::PgPool,
     email: &str,
 ) -> Result<Option<i32>, AppError> {
-    sqlx::query_scalar::<_, i32>(
-        "SELECT id FROM users WHERE email = LOWER($1) AND email_verified_at IS NOT NULL LIMIT 1",
-    )
-    .bind(email)
-    .fetch_optional(pool)
-    .await
-    .map_err(into_internal)
+    sqlx::query_scalar::<_, i32>("SELECT id FROM users WHERE email = LOWER($1) LIMIT 1")
+        .bind(email)
+        .fetch_optional(pool)
+        .await
+        .map_err(into_internal)
 }
 
 /// Add a `name` / `login` / `email` field error for any value already taken by

@@ -25,7 +25,6 @@ pub struct CreateUser {
     pub password: Option<CreateUserPassword>,
     pub permissions: i32,
     pub source: UserSource,
-    pub email_verified_at: Option<DateTime<Utc>>,
     pub last_login_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
 }
@@ -46,7 +45,6 @@ impl CreateUser {
             password: None,
             permissions: 1,
             source: UserSource::Internal,
-            email_verified_at: None,
             last_login_at: None,
             created_at: None,
         }
@@ -120,7 +118,6 @@ async fn create_user_inner(
             password_hash: password_hash.as_deref(),
             permissions: input.permissions,
             source: input.source,
-            email_verified_at: input.email_verified_at,
             last_login_at: input.last_login_at,
             created_at: input.created_at,
             conflict,
@@ -152,7 +149,6 @@ struct InsertUser<'a> {
     password_hash: Option<&'a str>,
     permissions: i32,
     source: UserSource,
-    email_verified_at: Option<DateTime<Utc>>,
     last_login_at: Option<DateTime<Utc>>,
     created_at: Option<DateTime<Utc>>,
     conflict: Conflict,
@@ -170,9 +166,6 @@ async fn insert_user(conn: &mut PgConnection, user: InsertUser<'_>) -> anyhow::R
     q.value("password_hash", user.password_hash);
     q.value("permissions", user.permissions);
     q.value("source", user.source);
-    if let Some(email_verified_at) = user.email_verified_at {
-        q.value("email_verified_at", email_verified_at);
-    }
     if let Some(last_login_at) = user.last_login_at {
         q.value("last_login_at", last_login_at);
     }
