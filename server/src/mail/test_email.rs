@@ -3,7 +3,7 @@
 //!
 //! The request carries the operator's *unsaved* editor values so a config can
 //! be verified before it's committed. That's also why the template is sanitized
-//! here rather than relying on the write path: on this route it never passed
+//! on this route rather than relying on the write path: here it never passed
 //! through storage.
 
 use serde::Deserialize;
@@ -11,8 +11,9 @@ use serde::Deserialize;
 use crate::{
     AppError,
     mail::{
-        sanitize::{escape_email_text, sanitize_email_html},
-        send::{OutgoingMail, SmtpConfig, send_mail},
+        compose::{Message, compose},
+        sanitize::escape_email_text,
+        send::{SmtpConfig, resolve_transport, send_mail},
     },
     site::{AdminSiteDto, dto::SmtpTls},
     user::blank_to_none,
@@ -48,7 +49,22 @@ pub async fn send_test_email(
     stored: &AdminSiteDto,
 ) -> Result<(), AppError> {
     let to = validate_recipient(&request.to)?;
-    let mail = compose(&request, stored, to)?;
+    let subject = format!("Test message from {}", stored.site_name);
+    let body = format!(
+        "<p>This is a test message from <strong>{site}</strong>.</p>\
+         <p>If you are reading it, outgoing mail is configured correctly.</p>",
+        site = escape_email_text(&stored.site_name),
+    );
+
+    let mail = compose(
+        &request.title_template,
+        &request.body_template,
+        Message {
+            to,
+            subject: &subject,
+            body_html: &body,
+        },
+    )?;
     let smtp = resolve_smtp(request, stored)?;
     send_mail(&smtp, mail).await
 }
@@ -65,72 +81,13 @@ fn validate_recipient(raw: &str) -> Result<String, AppError> {
     Err(AppError::Validation(errors))
 }
 
-fn compose(
-    request: &TestEmailRequest,
-    stored: &AdminSiteDto,
-    to: String,
-) -> Result<OutgoingMail, AppError> {
-    if !request.title_template.contains(TITLE_PLACEHOLDER) {
-        return Err(AppError::BadRequest(format!(
-            "Subject template must contain {TITLE_PLACEHOLDER}"
-        )));
-    }
-    if !request.body_template.contains(BODY_PLACEHOLDER) {
-        return Err(AppError::BadRequest(format!(
-            "Body template must contain {BODY_PLACEHOLDER}"
-        )));
-    }
-
-    // A subject is a plain header, so the site name needs no HTML escaping —
-    // but it must not smuggle in a newline, which is header injection.
-    let site_name: String = stored
-        .site_name
-        .chars()
-        .filter(|c| !c.is_control())
-        .collect();
-    let subject = request
-        .title_template
-        .replace(TITLE_PLACEHOLDER, &format!("Test message from {site_name}"));
-
-    let body = format!(
-        "<p>This is a test message from <strong>{site}</strong>.</p>\
-         <p>If you are reading it, outgoing mail is configured correctly.</p>",
-        site = escape_email_text(&site_name),
-    );
-    // Sanitize the template, then substitute — the same order as the write
-    // path, so both routes apply identical rules to identical input.
-    let body_html = sanitize_email_html(&request.body_template).replace(BODY_PLACEHOLDER, &body);
-
-    Ok(OutgoingMail {
-        to,
-        subject,
-        body_html,
-    })
-}
-
 fn resolve_smtp(request: TestEmailRequest, stored: &AdminSiteDto) -> Result<SmtpConfig, AppError> {
     let host = blank_to_none(Some(request.smtp_host))
         .ok_or_else(|| AppError::BadRequest("SMTP host is not set".into()))?;
     let from = blank_to_none(Some(request.from_address))
         .ok_or_else(|| AppError::BadRequest("From address is not set".into()))?
         .to_ascii_lowercase();
-
-    // An unset encryption mode is inferred from the port, so an operator who
-    // typed 465 and left the dropdown alone doesn't get STARTTLS on an
-    // implicit-TLS port.
-    let tls = match (request.smtp_tls, request.smtp_port) {
-        (Some(tls), _) => tls,
-        (None, Some(port)) if port == i32::from(PORT_IMPLICIT) => SmtpTls::Implicit,
-        (None, _) => SmtpTls::Starttls,
-    };
-
-    let port = match request.smtp_port {
-        None => default_port(tls),
-        Some(port) => u16::try_from(port)
-            .ok()
-            .filter(|port| *port > 0)
-            .ok_or_else(|| AppError::BadRequest(format!("Invalid SMTP port: {port}")))?,
-    };
+    let (tls, port) = resolve_transport(request.smtp_tls, request.smtp_port)?;
 
     Ok(SmtpConfig {
         host,
@@ -144,18 +101,3 @@ fn resolve_smtp(request: TestEmailRequest, stored: &AdminSiteDto) -> Result<Smtp
         from,
     })
 }
-
-fn default_port(tls: SmtpTls) -> u16 {
-    match tls {
-        SmtpTls::Implicit => PORT_IMPLICIT,
-        SmtpTls::Starttls => PORT_STARTTLS,
-        SmtpTls::None => PORT_PLAIN,
-    }
-}
-
-const TITLE_PLACEHOLDER: &str = "%title%";
-const BODY_PLACEHOLDER: &str = "%body%";
-
-const PORT_IMPLICIT: u16 = 465;
-const PORT_STARTTLS: u16 = 587;
-const PORT_PLAIN: u16 = 25;

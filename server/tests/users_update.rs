@@ -246,7 +246,9 @@ async fn patch_me_validation_failure_does_not_partially_apply() {
 
 #[tokio::test]
 #[serial]
-async fn patch_me_writes_name_and_email_to_users() {
+async fn patch_me_writes_name_to_users() {
+    // Name only: a self-service `email` never lands on `users.email` directly,
+    // it goes through the pending-address flow above.
     let (app, pool) = common::test_app().await;
     common::seed_user(&pool, 1, "Pilot").await;
     let cookie = common::auth_cookie(1, "Pilot");
@@ -254,8 +256,7 @@ async fn patch_me_writes_name_and_email_to_users() {
     let resp = app
         .oneshot(common::json_patch_with_cookie(
             "/users/me",
-            // Email is mixed-case on the wire — the server lowercases it.
-            json!({ "profile": { "name": "Renamed Pilot", "email": "Renamed@Example.com" } }),
+            json!({ "profile": { "name": "Renamed Pilot" } }),
             &cookie,
         ))
         .await
@@ -264,17 +265,12 @@ async fn patch_me_writes_name_and_email_to_users() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_json(resp).await;
     assert_eq!(body["name"], "Renamed Pilot");
-    assert_eq!(body["email"], "renamed@example.com");
 
-    let row = sqlx::query("SELECT name, email FROM users WHERE id = 1")
+    let name: String = sqlx::query_scalar("SELECT name FROM users WHERE id = 1")
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(row.try_get::<String, _>("name").unwrap(), "Renamed Pilot");
-    assert_eq!(
-        row.try_get::<String, _>("email").unwrap(),
-        "renamed@example.com"
-    );
+    assert_eq!(name, "Renamed Pilot");
 }
 
 #[tokio::test]
@@ -404,13 +400,68 @@ async fn email_unverified(pool: &sqlx::PgPool) -> bool {
         .unwrap()
 }
 
+/// `(email, pending_email)` for `id=1`.
+async fn addresses(pool: &sqlx::PgPool) -> (Option<String>, Option<String>) {
+    let row = sqlx::query("SELECT email, pending_email FROM users WHERE id = 1")
+        .fetch_one(pool)
+        .await
+        .unwrap();
+    (
+        row.try_get("email").unwrap(),
+        row.try_get("pending_email").unwrap(),
+    )
+}
+
+/// Point the SMTP settings at a dead port so a send fails at connect time —
+/// enough to prove the handler *tried*, and that the failure rolls back.
+async fn set_dead_smtp(pool: &sqlx::PgPool) {
+    sqlx::query(
+        "UPDATE site_settings SET \
+            smtp_host = '127.0.0.1', smtp_port = 1, smtp_tls = 'none', \
+            from_address = 'noreply@example.com'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
 #[tokio::test]
 #[serial]
-async fn patch_me_email_change_by_non_admin_resets_verification() {
-    // A regular owner swapping their address hasn't proven the new one —
-    // the confirmation must drop so no stale "verified" badge carries over.
+async fn patch_me_email_change_is_refused_when_outgoing_mail_is_unconfigured() {
+    // Storing an address we can't mail a link to would strand the change with
+    // no way to finish it, so the refusal comes before any write.
     let (app, pool) = common::test_app().await;
     seed_verified_email(&pool, "old@example.com").await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Renamed", "email": "new@example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        addresses(&pool).await,
+        (Some("old@example.com".to_owned()), None),
+        "neither column may move"
+    );
+    let name: String = sqlx::query_scalar("SELECT name FROM users WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(name, "Pilot", "the rest of the save goes back too");
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_email_change_rolls_back_when_the_relay_rejects_the_mail() {
+    let (app, pool) = common::test_app().await;
+    seed_verified_email(&pool, "old@example.com").await;
+    set_dead_smtp(&pool).await;
     let cookie = common::auth_cookie(1, "Pilot");
 
     let resp = app
@@ -422,25 +473,56 @@ async fn patch_me_email_change_by_non_admin_resets_verification() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = body_json(resp).await;
+    assert!(resp.status().is_client_error() || resp.status().is_server_error());
     assert_eq!(
-        body["email_verification_reset"], true,
-        "response must flag the reset so the client can toast"
-    );
-    assert!(
-        email_unverified(&pool).await,
-        "changing the address as a non-admin must clear email_verified_at"
+        addresses(&pool).await,
+        (Some("old@example.com".to_owned()), None),
+        "a pending address the user was never told about is worse than no change"
     );
 }
 
 #[tokio::test]
 #[serial]
-async fn patch_me_same_email_keeps_verification() {
-    // Re-saving the *same* address (here only case differs, and the server
-    // lowercases both) isn't a change, so the confirmation must survive.
+async fn patch_me_email_change_by_non_admin_never_touches_the_proven_address() {
+    // The load-bearing property: a mistyped address must cost one retry, not
+    // the account. `email` and its confirmation stay put, so password login
+    // keeps working and the user can just save again.
+    let (app, pool) = common::test_app().await;
+    seed_verified_email(&pool, "old@example.com").await;
+    set_dead_smtp(&pool).await;
+    let cookie = common::auth_cookie(1, "Pilot");
+
+    let _ = app
+        .oneshot(common::json_patch_with_cookie(
+            "/users/me",
+            json!({ "profile": { "name": "Pilot", "email": "typo@example.com" } }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(addresses(&pool).await.0, Some("old@example.com".to_owned()));
+    assert!(
+        !email_unverified(&pool).await,
+        "the proven address stays proven, so the account can still sign in"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_me_same_email_leaves_a_pending_change_alone() {
+    // Re-saving the address on file (here only case differs, and the server
+    // lowercases both) isn't a change, so it writes nothing. It must not double
+    // as "cancel my pending change" either: the form is pre-filled with the
+    // proven address, so every name-only edit resubmits it, and cancelling on
+    // that would silently drop an address change the user is mid-way through.
+    // Clearing the slot belongs to the promote in `GET /users/confirm-email`.
     let (app, pool) = common::test_app().await;
     seed_verified_email(&pool, "keep@example.com").await;
+    sqlx::query("UPDATE users SET pending_email = 'typo@example.com' WHERE id = 1")
+        .execute(&pool)
+        .await
+        .unwrap();
     let cookie = common::auth_cookie(1, "Pilot");
 
     let resp = app
@@ -454,7 +536,16 @@ async fn patch_me_same_email_keeps_verification() {
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_json(resp).await;
-    assert_eq!(body["email_verification_reset"], false);
+    // This request left nothing pending itself, so the response reports nothing.
+    assert!(body["pending_email"].is_null());
+    assert_eq!(
+        addresses(&pool).await,
+        (
+            Some("keep@example.com".to_owned()),
+            Some("typo@example.com".to_owned())
+        ),
+        "the in-flight change survives an edit that didn't touch the address"
+    );
     assert!(
         !email_unverified(&pool).await,
         "an unchanged address must not churn email_verified_at"
@@ -463,9 +554,13 @@ async fn patch_me_same_email_keeps_verification() {
 
 #[tokio::test]
 #[serial]
-async fn patch_me_email_change_by_admin_keeps_verification() {
-    // A MANAGE_USERS owner is trusted to manage verification explicitly, so
-    // even a self-edit that swaps the address leaves the timestamp intact.
+async fn patch_me_email_change_by_admin_goes_pending_like_anyone_elses() {
+    // MANAGE_USERS buys no shortcut here. Writing an unproven address straight
+    // to `email` would leave `email_verified_at` asserting proof nobody gave,
+    // and `find_user_id_by_email` treats that claim as an OAuth join key. An
+    // admin who wants a no-proof write uses `/admin/users`, where the verified
+    // flag is spelled out. So this refuses for want of a relay, exactly as it
+    // would for a regular owner.
     let (app, pool) = common::test_app().await;
     seed_verified_email(&pool, "old@example.com").await;
     let cookie = common::auth_cookie_with_permissions(
@@ -483,11 +578,11 @@ async fn patch_me_email_change_by_admin_keeps_verification() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK);
-    let body = body_json(resp).await;
-    assert_eq!(body["email_verification_reset"], false);
-    assert!(
-        !email_unverified(&pool).await,
-        "an admin's self-edit must not clear email_verified_at"
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        addresses(&pool).await,
+        (Some("old@example.com".to_owned()), None),
+        "no write-through, so `email` still holds the proven address"
     );
+    assert!(!email_unverified(&pool).await);
 }

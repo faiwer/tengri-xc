@@ -41,6 +41,26 @@ export type AdminSite = z.infer<typeof AdminSiteIo>;
  * string as "leave the stored password alone", so clearing it takes an explicit
  * `null`.
  */
+/**
+ * Body of `POST /admin/site/test-email`. Unlike {@link UpdateAdminSiteRequest}
+ * this is not a partial: the editor submits its whole current state so an
+ * unsaved connection can be tried before it's committed. `smtpPort` and
+ * `smtpTls` are nullable because the form's controls are clearable.
+ */
+export interface SendTestEmailRequest {
+  /** Where to deliver the probe. */
+  to: string;
+  smtpHost: string;
+  smtpPort: number | null;
+  smtpTls: SmtpTls | null;
+  smtpUsername: string;
+  /** Blank keeps the stored secret, same as on a save. */
+  smtpPassword: string;
+  fromAddress: string;
+  titleTemplate: string;
+  bodyTemplate: string;
+}
+
 export interface UpdateAdminSiteRequest {
   siteName?: string;
   canRegister?: boolean;

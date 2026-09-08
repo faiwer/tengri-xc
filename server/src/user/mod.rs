@@ -13,14 +13,14 @@ pub mod source;
 
 pub use account::{
     AccountUpdate, apply_account_update, blank_to_none, check_unique, find_user_id_by_email,
-    should_clear_email_verification, validate_email, validate_name,
+    plan_email_edit, validate_email, validate_login, validate_name, weak_password,
 };
 pub use create::{CreateUser, CreateUserPassword, CreatedUser, create_user, create_user_if_absent};
 pub use dto::{MeDto, UserDto, UserProfileDto, fetch_me, fetch_user};
 pub use permissions::Permissions;
 pub use preferences::{
-    PreferencesDto, UpdatePreferencesRequest, apply_preferences_update, fetch_preferences,
-    validate_preferences_update,
+    PreferencesDto, PreferencesUpdate, UpdatePreferencesRequest, apply_preferences_update,
+    fetch_preferences, validate_preferences_update,
 };
 pub use profile::{
     ProfileUpdate, UpdateProfileRequest, apply_profile_update, validate_profile_update,

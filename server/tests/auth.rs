@@ -89,16 +89,23 @@ async fn seed_login_user(
     // The shared fixture pre-seeds `id=1` (the owner of the default glider) so
     // this raw INSERT collides on the same id. UPSERT to make the seed
     // idempotent — the same shape `seed_user` uses.
+    //
+    // Any seeded address is marked confirmed, matching what the Leonardo import
+    // writes: password login refuses an account whose email is unconfirmed, so
+    // an unstamped fixture would 403 out of every test here. The gate itself is
+    // covered in `tests/register.rs`.
     sqlx::query(
-        "INSERT INTO users (id, name, login, email, password_hash, source, permissions) \
-         VALUES ($1, $2, $3, $4, $5, 'leo', 1) \
+        "INSERT INTO users \
+            (id, name, login, email, password_hash, source, permissions, email_verified_at) \
+         VALUES ($1, $2, $3, $4, $5, 'leo', 1, CASE WHEN $4::text IS NULL THEN NULL ELSE now() END) \
          ON CONFLICT (id) DO UPDATE SET \
-             name          = EXCLUDED.name, \
-             login         = EXCLUDED.login, \
-             email         = EXCLUDED.email, \
-             password_hash = EXCLUDED.password_hash, \
-             source        = EXCLUDED.source, \
-             permissions   = EXCLUDED.permissions",
+             name              = EXCLUDED.name, \
+             login             = EXCLUDED.login, \
+             email             = EXCLUDED.email, \
+             password_hash     = EXCLUDED.password_hash, \
+             source            = EXCLUDED.source, \
+             permissions       = EXCLUDED.permissions, \
+             email_verified_at = EXCLUDED.email_verified_at",
     )
     .bind(id)
     .bind(name)

@@ -15,7 +15,13 @@ pub struct CreateUser {
     pub id: Option<i32>,
     pub name: String,
     pub login: Option<String>,
+    /// A *proven* address. Self-service registration leaves this `None` and
+    /// fills `pending_email` instead, so an unconfirmed signup can't reserve
+    /// somebody else's address.
     pub email: Option<String>,
+    /// Address awaiting a confirmation click, promoted to `email` by
+    /// `GET /users/confirm-email`.
+    pub pending_email: Option<String>,
     pub password: Option<CreateUserPassword>,
     pub permissions: i32,
     pub source: UserSource,
@@ -36,6 +42,7 @@ impl CreateUser {
             name,
             login: None,
             email: None,
+            pending_email: None,
             password: None,
             permissions: 1,
             source: UserSource::Internal,
@@ -94,6 +101,8 @@ async fn create_user_inner(
     let name = normalize_required("name", input.name)?;
     let login = normalize_optional("login", input.login)?;
     let email = normalize_optional("email", input.email)?.map(|email| email.to_ascii_lowercase());
+    let pending_email = normalize_optional("pending_email", input.pending_email)?
+        .map(|email| email.to_ascii_lowercase());
     if input.permissions < 0 {
         return Err(anyhow!("permissions must be non-negative"));
     }
@@ -107,6 +116,7 @@ async fn create_user_inner(
             name: &name,
             login: login.as_deref(),
             email: email.as_deref(),
+            pending_email: pending_email.as_deref(),
             password_hash: password_hash.as_deref(),
             permissions: input.permissions,
             source: input.source,
@@ -138,6 +148,7 @@ struct InsertUser<'a> {
     name: &'a str,
     login: Option<&'a str>,
     email: Option<&'a str>,
+    pending_email: Option<&'a str>,
     password_hash: Option<&'a str>,
     permissions: i32,
     source: UserSource,
@@ -155,6 +166,7 @@ async fn insert_user(conn: &mut PgConnection, user: InsertUser<'_>) -> anyhow::R
     q.value("name", user.name);
     q.value("login", user.login);
     q.value("email", user.email);
+    q.value("pending_email", user.pending_email);
     q.value("password_hash", user.password_hash);
     q.value("permissions", user.permissions);
     q.value("source", user.source);

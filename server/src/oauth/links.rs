@@ -174,7 +174,10 @@ pub async fn register_oauth_user(
             id: None,
             name,
             login: None,
+            // The provider vouched for the address, so it lands proven —
+            // nothing left pending.
             email: identity.email.clone(),
+            pending_email: None,
             password: None,
             permissions: Permissions::default().bits(),
             source: UserSource::Internal,

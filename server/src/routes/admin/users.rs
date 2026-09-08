@@ -292,7 +292,10 @@ async fn create(
             id: None,
             name: valid.name,
             login: valid.login.clone(),
+            // Admins write the address itself and say whether it's proven;
+            // `pending_email` is for self-service, which can't be trusted to.
             email: valid.email.clone(),
+            pending_email: None,
             password: valid.password.map(CreateUserPassword::Plaintext),
             permissions: valid.permissions,
             source: UserSource::Internal,

@@ -31,6 +31,13 @@ pub enum AppError {
     #[error("forbidden")]
     Forbidden,
 
+    /// Refused for a reason the caller has to act on, carrying a stable `code`
+    /// to branch off. Use it when the UI's copy depends on *why*: a bare
+    /// [`Forbidden`](AppError::Forbidden) tells the user only that they can't,
+    /// not what to do about it.
+    #[error("{message}")]
+    ForbiddenReason { code: &'static str, message: String },
+
     /// Request can't be satisfied in the current resource state — e.g. deleting
     /// a row that other rows still reference. Distinct from `BadRequest` (which
     /// is "your input is malformed") so the FE can distinguish "you sent
@@ -65,7 +72,7 @@ impl AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
-            AppError::Forbidden => StatusCode::FORBIDDEN,
+            AppError::Forbidden | AppError::ForbiddenReason { .. } => StatusCode::FORBIDDEN,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -78,6 +85,7 @@ impl AppError {
             AppError::NotFound => "not_found",
             AppError::Unauthorized => "unauthorized",
             AppError::Forbidden => "forbidden",
+            AppError::ForbiddenReason { code, .. } => code,
             AppError::Conflict(_) => "conflict",
             AppError::Validation(_) => "validation",
             AppError::Internal(_) => "internal_error",

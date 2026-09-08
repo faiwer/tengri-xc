@@ -6,6 +6,7 @@ mod admin;
 mod health;
 mod me;
 mod oauth;
+mod register;
 mod site;
 mod tracks;
 mod tracks_list;
@@ -13,10 +14,10 @@ mod tracks_md;
 mod tracks_peek;
 mod users;
 
-/// `users::public_router()` (login/logout) bypasses the slide
-/// middleware; everything else sits behind it. `site::public_router()`
-/// also rides the session-aware tree — anonymous calls are allowed
-/// but the handler doesn't extract `Identity`, so the slide layer
+/// `users::public_router()` (login/logout) and `register::public_router()`
+/// bypass the slide middleware; everything else sits behind it.
+/// `site::public_router()` also rides the session-aware tree — anonymous calls
+/// are allowed but the handler doesn't extract `Identity`, so the slide layer
 /// is a harmless no-op for them.
 pub fn router(state: AppState) -> Router<AppState> {
     let session_aware = Router::new()
@@ -34,6 +35,7 @@ pub fn router(state: AppState) -> Router<AppState> {
 
     Router::new()
         .merge(users::public_router())
+        .merge(register::public_router())
         .merge(oauth::public_router())
         .merge(session_aware)
 }

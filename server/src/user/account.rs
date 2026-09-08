@@ -3,13 +3,11 @@
 //! the admin user editor (`/admin/users`) and the owner-self profile form
 //! (`PATCH /users/me`) so the name/email rules live in exactly one place.
 
-use chrono::{DateTime, Utc};
 use sqlx::{Postgres, Transaction};
 
 use crate::{
     AppError,
     db::Update,
-    user::Permissions,
     validation::{FieldErrors, looks_like_email},
 };
 
@@ -38,6 +36,43 @@ fn is_name_char(c: char) -> bool {
     c.is_alphabetic() || matches!(c, ' ' | '-' | '_' | '.' | '\'' | '\u{2019}')
 }
 
+/// Trim `raw`; record a `login` error when it's the wrong length or holds a
+/// character outside [`is_login_char`]. Returns the trimmed value regardless.
+///
+/// Excluding `@` from the charset is the load-bearing part. `POST /users/login`
+/// resolves its identifier with `LOWER(login) = LOWER($1) OR email = LOWER($1)`,
+/// so a login shaped like somebody else's address makes the row that query
+/// returns ambiguous — enough to stop the address's real owner signing in by
+/// email.
+pub fn validate_login(raw: &str, errors: &mut FieldErrors) -> String {
+    let trimmed = raw.trim();
+    let length = trimmed.chars().count();
+    if trimmed.is_empty() {
+        errors.add("login", "Cannot be empty");
+    } else if !(LOGIN_MIN_LEN..=LOGIN_MAX_LEN).contains(&length) {
+        errors.add(
+            "login",
+            format!("Use {LOGIN_MIN_LEN} to {LOGIN_MAX_LEN} characters"),
+        );
+    } else if !trimmed.chars().all(is_login_char) {
+        errors.add(
+            "login",
+            "Use only letters, digits, periods, hyphens, or underscores",
+        );
+    }
+    trimmed.to_owned()
+}
+
+/// Characters allowed in a login. ASCII only: the column is folded with
+/// `LOWER()` for uniqueness, and how to case-fold other scripts isn't a call
+/// this needs to make.
+fn is_login_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')
+}
+
+const LOGIN_MIN_LEN: usize = 3;
+const LOGIN_MAX_LEN: usize = 32;
+
 /// Normalise an optional email: blank/absent → `None`, otherwise trim +
 /// lowercase and reject anything that doesn't [`looks_like_email`]
 /// (recording an `email` error and returning `None`).
@@ -54,6 +89,21 @@ pub fn validate_email(raw: Option<String>, errors: &mut FieldErrors) -> Option<S
             }
         }
     }
+}
+
+/// `None` when `password` meets the policy (>= 8 chars, at least one letter and
+/// one digit), otherwise the message to surface on the field. Mirrored
+/// client-side in the Authorization and Register forms.
+pub fn weak_password(password: &str) -> Option<&'static str> {
+    if password.chars().count() < 8 {
+        return Some("At least 8 characters");
+    }
+    let has_letter = password.chars().any(|c| c.is_ascii_alphabetic());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+    if !has_letter || !has_digit {
+        return Some("Must include a letter and a digit");
+    }
+    None
 }
 
 /// Trim, then collapse an empty / all-whitespace string to `None`.
@@ -125,55 +175,60 @@ pub async fn check_unique(
     Ok(())
 }
 
-/// Whether a self-service email edit must drop the stored confirmation. True
-/// only when the editor lacks [`MANAGE_USERS`](Permissions::MANAGE_USERS) *and*
-/// `new_email` differs from the address on file — re-saving the same address,
-/// or an admin editing, leaves `email_verified_at` alone. The one extra
-/// `SELECT` is what lets an unchanged re-save keep a verified badge.
-pub async fn should_clear_email_verification(
+/// What to write to `pending_email` when a user edits the address in their own
+/// profile form: the new address, or `None` when there's nothing to do — the
+/// request carried no address, or it's the one they already have.
+///
+/// It never returns an address to write to `email`. That column only holds
+/// addresses someone proved by clicking a confirmation link, and a typo in the
+/// profile form must not overwrite it: login refuses an unproven address, and
+/// the mail that would prove it goes to the typo, so the user is locked out
+/// with no way to fix the field. [`find_user_id_by_email`] matches OAuth
+/// sign-ins against `email` on the same assumption.
+///
+/// Admins who need to set an address nobody proved use `/admin/users`, which
+/// has an explicit "verified" flag.
+pub async fn plan_email_edit(
     pool: &sqlx::PgPool,
     user_id: i32,
-    permissions: Permissions,
     new_email: Option<&str>,
-) -> Result<bool, AppError> {
+) -> Result<Option<String>, AppError> {
     let Some(new_email) = new_email else {
-        return Ok(false);
+        return Ok(None);
     };
-    if permissions.contains(Permissions::MANAGE_USERS) {
-        return Ok(false);
-    }
     let current: Option<String> = sqlx::query_scalar("SELECT email FROM users WHERE id = $1")
         .bind(user_id)
         .fetch_one(pool)
         .await
         .map_err(into_internal)?;
-    Ok(current.as_deref() != Some(new_email))
+    if current.as_deref() == Some(new_email) {
+        return Ok(None);
+    }
+    Ok(Some(new_email.to_owned()))
 }
 
-/// Validated projection of the owner-editable `users` identity columns. `None`
-/// on a field means "leave the column alone" — self-service never clears `name`
-/// (`NOT NULL`) nor `email` (clearing an address has no practical meaning),
-/// which is why both are a plain `Option`.
-#[derive(Debug, Default)]
+/// Validated projection of the owner-editable `users` identity columns. There
+/// is no `email` field on purpose: a self-service change only ever reaches
+/// `pending_email`, see [`plan_email_edit`].
+#[derive(Debug)]
 pub struct AccountUpdate {
+    /// `None` leaves the column alone.
     pub name: Option<String>,
-    pub email: Option<String>,
-    /// When set alongside a written `email`, also null `email_verified_at` so
-    /// the new address starts unverified. The self-service path sets it for
-    /// non-admin editors who changed their address; admins manage verification
-    /// explicitly, so they leave it `false`.
-    pub clear_email_verification: bool,
+    /// `None` leaves the column alone. Neither column is ever *cleared* here —
+    /// emptying `pending_email` is part of the promote in
+    /// `GET /users/confirm-email`, which is the only thing that finishes an
+    /// address change.
+    pub pending_email: Option<String>,
 }
 
 impl AccountUpdate {
-    pub fn is_noop(&self) -> bool {
-        self.name.is_none() && self.email.is_none()
+    fn is_noop(&self) -> bool {
+        self.name.is_none() && self.pending_email.is_none()
     }
 }
 
 /// Apply the owner-editable `users` columns inside a transaction. Only the
-/// `Some` fields are written, so a blank email leaves the stored address
-/// untouched. No-op (and no SQL) when nothing is set.
+/// `Some` fields are written. No-op (and no SQL) when nothing is set.
 pub async fn apply_account_update(
     tx: &mut Transaction<'_, Postgres>,
     user_id: i32,
@@ -187,11 +242,8 @@ pub async fn apply_account_update(
     if let Some(name) = update.name.clone() {
         q.set("name", name);
     }
-    if let Some(email) = update.email.clone() {
-        q.set("email", email);
-        if update.clear_email_verification {
-            q.set("email_verified_at", None::<DateTime<Utc>>);
-        }
+    if let Some(pending_email) = update.pending_email.clone() {
+        q.set("pending_email", pending_email);
     }
     q.and_where("id = $", (user_id,));
     q.execute_tx(tx)
@@ -237,5 +289,36 @@ mod tests {
         assert!(name_error("Agent007").is_some());
         assert!(name_error("a@b").is_some());
         assert!(name_error("na!me").is_some());
+    }
+
+    fn login_error(raw: &str) -> Option<String> {
+        let mut errors = FieldErrors::new();
+        validate_login(raw, &mut errors);
+        errors.fields.get("login").cloned()
+    }
+
+    #[test]
+    fn accepts_handle_shaped_logins() {
+        for login in ["alice", "Agent007", "jean.luc", "o-brien", "snake_case"] {
+            assert!(
+                login_error(login).is_none(),
+                "expected {login:?} to be valid"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_logins_that_could_be_mistaken_for_an_email() {
+        assert!(login_error("victim@example.com").is_some());
+        assert!(login_error("a@b").is_some());
+    }
+
+    #[test]
+    fn rejects_blank_wrong_length_and_stray_symbols() {
+        assert_eq!(login_error("   ").as_deref(), Some("Cannot be empty"));
+        assert!(login_error("ab").is_some());
+        assert!(login_error(&"a".repeat(33)).is_some());
+        assert!(login_error("has space").is_some());
+        assert!(login_error("renée").is_some());
     }
 }

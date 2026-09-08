@@ -8,7 +8,11 @@ use lettre::{
     transport::smtp::authentication::Credentials,
 };
 
-use crate::{AppError, site::dto::SmtpTls};
+use crate::{
+    AppError,
+    site::{AdminSiteDto, dto::SmtpTls},
+    user::blank_to_none,
+};
 
 /// Give up rather than hold the request open for lettre's 60 s default — a
 /// misconfigured host is the expected failure here, not an unlucky one.
@@ -76,3 +80,69 @@ pub(super) async fn send_mail(smtp: &SmtpConfig, mail: OutgoingMail) -> Result<(
 
     Ok(())
 }
+
+/// Whether the saved settings can actually produce a send. Defined as "the
+/// config builds", so a caller's pre-flight check can't drift out of step with
+/// what [`SmtpConfig::from_stored`] demands — host, from-address, and a usable
+/// port are all required, and a blank string counts as absent.
+pub fn is_smtp_configured(stored: &AdminSiteDto) -> bool {
+    SmtpConfig::from_stored(stored).is_ok()
+}
+
+impl SmtpConfig {
+    /// Build from the saved settings. Every send except the operator's
+    /// test-send goes through here.
+    pub(super) fn from_stored(stored: &AdminSiteDto) -> Result<Self, AppError> {
+        let host = blank_to_none(stored.smtp_host.clone())
+            .ok_or_else(|| AppError::Conflict("Outgoing mail is not configured".into()))?;
+        let from = blank_to_none(stored.from_address.clone())
+            .ok_or_else(|| AppError::Conflict("Outgoing mail has no from-address".into()))?
+            .to_ascii_lowercase();
+        let (tls, port) = resolve_transport(stored.smtp_tls, stored.smtp_port)?;
+
+        Ok(Self {
+            host,
+            port,
+            tls,
+            username: blank_to_none(stored.smtp_username.clone()),
+            password: blank_to_none(stored.smtp_password.clone()),
+            from,
+        })
+    }
+}
+
+/// Pick the encryption mode and port from whatever the operator filled in. An
+/// unset mode is inferred from the port, so someone who typed 465 and left the
+/// dropdown alone doesn't get STARTTLS on an implicit-TLS port.
+pub(super) fn resolve_transport(
+    tls: Option<SmtpTls>,
+    port: Option<i32>,
+) -> Result<(SmtpTls, u16), AppError> {
+    let tls = match (tls, port) {
+        (Some(tls), _) => tls,
+        (None, Some(port)) if port == i32::from(PORT_IMPLICIT) => SmtpTls::Implicit,
+        (None, _) => SmtpTls::Starttls,
+    };
+
+    let port = match port {
+        None => default_port(tls),
+        Some(port) => u16::try_from(port)
+            .ok()
+            .filter(|port| *port > 0)
+            .ok_or_else(|| AppError::BadRequest(format!("Invalid SMTP port: {port}")))?,
+    };
+
+    Ok((tls, port))
+}
+
+fn default_port(tls: SmtpTls) -> u16 {
+    match tls {
+        SmtpTls::Implicit => PORT_IMPLICIT,
+        SmtpTls::Starttls => PORT_STARTTLS,
+        SmtpTls::None => PORT_PLAIN,
+    }
+}
+
+const PORT_IMPLICIT: u16 = 465;
+const PORT_STARTTLS: u16 = 587;
+const PORT_PLAIN: u16 = 25;

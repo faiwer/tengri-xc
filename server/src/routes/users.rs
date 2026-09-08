@@ -1,9 +1,13 @@
 //! `/users/*` — auth and current-user.
 //!
 //! - `POST /users/login`  — `{ identifier, password }` → cookie + `/users/me`
-//!   body. Identifier matches `login` or `email`, case-insensitively.
+//!   body. Identifier matches `login` or `email`, case-insensitively. 403 when
+//!   the account holds an unconfirmed address; see `routes::register`.
 //! - `POST /users/logout` — clear the cookie. Always 204.
 //! - `GET  /users/me`     — current user, or `null` if anonymous. Always 200.
+//! - `PATCH /users/me`    — owner-self profile/preferences edit. A changed
+//!   email goes to `pending_email` and gets a confirmation link mailed to it
+//!   rather than being written straight through; see [`plan_email_edit`].
 //! - `POST /users/me/password` — owner-self change/set password. Sets an
 //!   initial `login` too when the account has none. Returns the refreshed
 //!   `/users/me` body.
@@ -16,7 +20,7 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{PgPool, Postgres, Row, Transaction};
 
 use crate::{
     AppError, AppState,
@@ -27,14 +31,21 @@ use crate::{
         token::mint_session_cookie,
     },
     db::Update,
+    mail::{ConfirmRecipient, is_smtp_configured, send_confirmation_email},
+    site::{AdminSiteDto, fetch_site_admin},
     user::{
-        AccountUpdate, MeDto, Permissions, UpdatePreferencesRequest, UpdateProfileRequest, UserSex,
-        apply_account_update, apply_preferences_update, apply_profile_update, check_unique,
-        fetch_me, should_clear_email_verification, validate_email, validate_name,
-        validate_preferences_update, validate_profile_update,
+        AccountUpdate, MeDto, Permissions, PreferencesUpdate, ProfileUpdate,
+        UpdatePreferencesRequest, UpdateProfileRequest, UserSex, apply_account_update,
+        apply_preferences_update, apply_profile_update, check_unique, fetch_me, plan_email_edit,
+        validate_email, validate_name, validate_preferences_update, validate_profile_update,
+        weak_password,
     },
     validation::FieldErrors,
 };
+
+/// `error` code on login's unconfirmed-address 403. The SPA keys its "check
+/// your inbox" copy off this string, so the two have to move together.
+const EMAIL_UNCONFIRMED: &str = "email_unconfirmed";
 
 /// Routes that set/clear the cookie inline; mounted *outside*
 /// the slide middleware.
@@ -79,7 +90,8 @@ async fn login(
     // Try login *and* email in one query. `users_login_key` is on
     // `LOWER(login)`; email is stored lowercased.
     let row = sqlx::query(
-        "SELECT id, name, permissions, password_hash \
+        "SELECT id, name, permissions, password_hash, \
+                email IS NULL AND pending_email IS NOT NULL AS needs_confirmation \
          FROM users \
          WHERE LOWER(login) = LOWER($1) \
             OR email        = LOWER($1) \
@@ -120,6 +132,20 @@ async fn login(
     // Banned/soft-disabled. Same 401 as wrong password.
     if !permissions.contains(Permissions::CAN_AUTHORIZE) {
         return Err(AppError::Unauthorized);
+    }
+
+    // Registered but never clicked the confirmation link. 403 with a reason,
+    // not the 401s above: the password was already correct, so telling them to
+    // check their inbox gives nothing away.
+    let needs_confirmation: bool = row
+        .try_get("needs_confirmation")
+        .map_err(sqlx_to_internal)?;
+    if needs_confirmation {
+        return Err(AppError::ForbiddenReason {
+            code: EMAIL_UNCONFIRMED,
+            message: "Confirm your email address before signing in — check your inbox for the link"
+                .into(),
+        });
     }
 
     // Persist the rehash *before* minting so a panic between
@@ -245,14 +271,14 @@ pub struct MeProfileUpdate {
 }
 
 /// `PATCH /users/me` response: the refreshed [`MeDto`], flattened to the same
-/// shape `GET /users/me` returns, plus a transient `email_verification_reset`
-/// flag. The flag is `true` when a self-service address change dropped the
-/// confirmation, so the client can toast a "re-verify your email" notice.
+/// shape `GET /users/me` returns, plus the address this request left awaiting
+/// confirmation (`null` when the email didn't change). `me.email` still holds
+/// the old address in that case, so the client needs both to explain the state.
 #[derive(Debug, Serialize)]
 struct UpdateMeResponse {
     #[serde(flatten)]
     me: MeDto,
-    email_verification_reset: bool,
+    pending_email: Option<String>,
 }
 
 async fn update_me(
@@ -266,105 +292,45 @@ async fn update_me(
         ));
     }
 
-    // Two-pass: validate everything first, accumulate per-field errors
-    // under namespaced keys, *then* apply. A single bad field shouldn't
-    // half-write the request.
-    let mut errors = FieldErrors::new();
-    let mut account_update = None;
-    let mut profile_update = None;
-    if let Some(input) = req.profile {
-        // Everything in the flat `profile` block is reported under the
-        // `profile.` namespace so the FE keeps a single `fieldPrefix`.
-        let mut section = FieldErrors::new();
-
-        let name = input.name.map(|raw| validate_name(&raw, &mut section));
-        let email = validate_email(input.email, &mut section);
-        match validate_profile_update(UpdateProfileRequest {
-            civl_id: input.civl_id,
-            country: input.country,
-            sex: input.sex,
-        }) {
-            Ok(u) => profile_update = Some(u),
-            Err(field_errors) => {
-                for (key, message) in field_errors.fields {
-                    section.add(key, message);
-                }
-            }
-        }
-
-        // Uniqueness (DB reads) — only the values we'd actually write. `login`
-        // isn't editable here. `validate_email` already errored on a malformed
-        // address, so a `None` email skips the check rather than
-        // double-reporting.
-        check_unique(
-            state.pool(),
-            name.as_deref(),
-            None,
-            email.as_deref(),
-            Some(identity.user_id),
-            &mut section,
-        )
-        .await?;
-
-        errors.merge_prefixed("profile", section);
-
-        // A non-admin who changes their own address must re-verify it, so null
-        // the confirmation — otherwise a stale "verified" badge would ride a
-        // fresh, unproven email. Admins manage verification explicitly.
-        let clear_email_verification = should_clear_email_verification(
-            state.pool(),
-            identity.user_id,
-            identity.permissions,
-            email.as_deref(),
-        )
-        .await?;
-
-        account_update = Some(AccountUpdate {
-            name,
-            email,
-            clear_email_verification,
-        });
-    }
-    let mut preferences_update = None;
-    if let Some(input) = req.preferences {
-        match validate_preferences_update(input) {
-            Ok(u) => preferences_update = Some(u),
-            Err(field_errors) => errors.merge_prefixed("preferences", field_errors),
-        }
-    }
-    errors.into_result()?;
+    let update = validate_me_update(&state, &identity, req).await?;
 
     // Reissue the session cookie only when the display name actually changes.
-    let name_changed = account_update
-        .as_ref()
-        .and_then(|a| a.name.as_deref())
-        .is_some_and(|new| new != identity.name);
+    let name_changed = update.name().is_some_and(|new| new != identity.name);
+    let pending_email = update.pending_email().map(str::to_owned);
 
-    // Single transaction so a profile-write that succeeds is rolled
-    // back if a later write trips on a constraint (or vice versa).
-    // Failures here are infra-level (DB went away mid-request);
-    // user-input failures already turned into 422 above.
-    let mut tx = state
-        .pool()
-        .begin()
-        .await
-        .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
-    if let Some(u) = &account_update {
-        apply_account_update(&mut tx, identity.user_id, u).await?;
-    }
-    if let Some(u) = profile_update {
-        apply_profile_update(&mut tx, identity.user_id, &u).await?;
-    }
-    if let Some(u) = preferences_update {
-        apply_preferences_update(&mut tx, identity.user_id, &u).await?;
-    }
-    tx.commit()
-        .await
-        .map_err(|e| AppError::Internal(anyhow::Error::new(e)))?;
+    // No mail server means no confirmation link, and without that link the new
+    // address can never be confirmed. Better to fail now than to save a change
+    // the user can't finish. `POST /users/register` bails for the same reason.
+    let mail_settings = if pending_email.is_some() {
+        Some(get_smtp_settings(state.pool()).await?)
+    } else {
+        None
+    };
 
-    let email_verification_reset = account_update
-        .as_ref()
-        .is_some_and(|a| a.clear_email_verification);
+    // Single transaction so a profile-write that succeeds is rolled back if a
+    // later write trips on a constraint (or vice versa). Failures here are
+    // infra-level (DB went away mid-request); user-input failures already
+    // turned into 422 above.
+    let mut tx = state.pool().begin().await.map_err(sqlx_to_internal)?;
+    apply_me_update(&mut tx, identity.user_id, &update).await?;
+
+    // Sent inside the transaction so a relay that rejects the message rolls the
+    // pending address back rather than leaving one the user can't act on.
+    if let (Some(stored), Some(address)) = (&mail_settings, &pending_email) {
+        send_confirmation_email(
+            stored,
+            state.api_public_url(),
+            state.jwt_encoding_key(),
+            ConfirmRecipient {
+                user_id: identity.user_id,
+                name: update.name().unwrap_or(&identity.name),
+                email: address,
+            },
+        )
+        .await?;
+    }
+
+    tx.commit().await.map_err(sqlx_to_internal)?;
 
     let body = fetch_me(state.pool(), identity.user_id)
         .await?
@@ -393,9 +359,130 @@ async fn update_me(
 
     let response = UpdateMeResponse {
         me: body,
-        email_verification_reset,
+        pending_email,
     };
     Ok((StatusCode::OK, headers, Json(response)).into_response())
+}
+
+/// A validated `PATCH /users/me`, split by the table each part writes.
+struct MeUpdate {
+    account: Option<AccountUpdate>,
+    profile: Option<ProfileUpdate>,
+    preferences: Option<PreferencesUpdate>,
+}
+
+impl MeUpdate {
+    /// The display name this request writes, if any.
+    fn name(&self) -> Option<&str> {
+        self.account.as_ref()?.name.as_deref()
+    }
+
+    /// The address this request leaves awaiting confirmation, if any.
+    fn pending_email(&self) -> Option<&str> {
+        self.account.as_ref()?.pending_email.as_deref()
+    }
+}
+
+/// Validate every block before any of it is written, so one bad field can't
+/// half-apply the request. Each block's errors are namespaced under its own
+/// key, which is what lets the FE keep a single `fieldPrefix` per block.
+async fn validate_me_update(
+    state: &AppState,
+    identity: &Identity,
+    req: UpdateMeRequest,
+) -> Result<MeUpdate, AppError> {
+    let mut errors = FieldErrors::new();
+    let mut account = None;
+    let mut profile = None;
+
+    if let Some(input) = req.profile {
+        let mut section = FieldErrors::new();
+
+        let name = input.name.map(|raw| validate_name(&raw, &mut section));
+        let email = validate_email(input.email, &mut section);
+        match validate_profile_update(UpdateProfileRequest {
+            civl_id: input.civl_id,
+            country: input.country,
+            sex: input.sex,
+        }) {
+            Ok(u) => profile = Some(u),
+            Err(field_errors) => {
+                for (key, message) in field_errors.fields {
+                    section.add(key, message);
+                }
+            }
+        }
+
+        // Uniqueness (DB reads) — only the values we'd actually write. `login`
+        // isn't editable here. `validate_email` already errored on a malformed
+        // address, so a `None` email skips the check rather than
+        // double-reporting.
+        check_unique(
+            state.pool(),
+            name.as_deref(),
+            None,
+            email.as_deref(),
+            Some(identity.user_id),
+            &mut section,
+        )
+        .await?;
+
+        errors.merge_prefixed("profile", section);
+
+        // A new address only goes pending, never straight to `email`: the
+        // confirmation link is what promotes it, so the address the user can
+        // still receive mail at stays the one on file until then.
+        let pending_email =
+            plan_email_edit(state.pool(), identity.user_id, email.as_deref()).await?;
+
+        account = Some(AccountUpdate {
+            name,
+            pending_email,
+        });
+    }
+
+    let mut preferences = None;
+    if let Some(input) = req.preferences {
+        match validate_preferences_update(input) {
+            Ok(u) => preferences = Some(u),
+            Err(field_errors) => errors.merge_prefixed("preferences", field_errors),
+        }
+    }
+
+    errors.into_result()?;
+    Ok(MeUpdate {
+        account,
+        profile,
+        preferences,
+    })
+}
+
+async fn apply_me_update(
+    tx: &mut Transaction<'_, Postgres>,
+    user_id: i32,
+    update: &MeUpdate,
+) -> Result<(), AppError> {
+    if let Some(u) = &update.account {
+        apply_account_update(tx, user_id, u).await?;
+    }
+    if let Some(u) = &update.profile {
+        apply_profile_update(tx, user_id, u).await?;
+    }
+    if let Some(u) = &update.preferences {
+        apply_preferences_update(tx, user_id, u).await?;
+    }
+    Ok(())
+}
+
+/// The stored mail settings, or a 409 saying the address change can't start.
+async fn get_smtp_settings(pool: &PgPool) -> Result<AdminSiteDto, AppError> {
+    let stored = fetch_site_admin(pool).await?;
+    if !is_smtp_configured(&stored) {
+        return Err(AppError::Conflict(
+            "Can't change your email address right now — outgoing mail isn't configured".into(),
+        ));
+    }
+    Ok(stored)
 }
 
 /// Change (or, for a password-less account, set) the caller's password. `login`
@@ -502,21 +589,6 @@ async fn change_password(
         ))
     })?;
     Ok(Json(body))
-}
-
-/// `None` when `password` meets the policy (>= 8 chars, at least one letter and
-/// one digit), otherwise the message to surface on the field. Mirrored
-/// client-side in the Authorization form.
-fn weak_password(password: &str) -> Option<&'static str> {
-    if password.chars().count() < 8 {
-        return Some("At least 8 characters");
-    }
-    let has_letter = password.chars().any(|c| c.is_ascii_alphabetic());
-    let has_digit = password.chars().any(|c| c.is_ascii_digit());
-    if !has_letter || !has_digit {
-        return Some("Must include a letter and a digit");
-    }
-    None
 }
 
 fn into_internal<E: Into<anyhow::Error>>(e: E) -> AppError {

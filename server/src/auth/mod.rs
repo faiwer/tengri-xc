@@ -8,6 +8,7 @@
 //! - Handlers read the resolved user via [`Identity`] (required,
 //!   401 on miss) or `Option<Identity>` (conditional auth).
 
+mod confirm_token;
 pub mod cookie;
 pub mod extractor;
 pub mod legacy_leonardo;
@@ -15,6 +16,7 @@ pub mod middleware;
 pub mod password;
 pub mod token;
 
+pub use confirm_token::{ConfirmClaims, mint_confirm_token, verify_confirm_token};
 pub use extractor::{Identity, require_permission};
 pub use middleware::session_layer;
 pub use token::{Claims, JWT_LIFETIME};
