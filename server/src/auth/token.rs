@@ -67,7 +67,29 @@ pub fn mint_session_cookie(
     encoding_key: &EncodingKey,
     https: bool,
 ) -> Result<String, jsonwebtoken::errors::Error> {
-    let claims = Claims::new(user_id, name, permissions, Utc::now().timestamp());
+    mint_session_cookie_at(
+        user_id,
+        name,
+        permissions,
+        Utc::now().timestamp(),
+        encoding_key,
+        https,
+    )
+}
+
+/// [`mint_session_cookie`] with an explicit `iat`. Password writes stamp
+/// `users.sessions_valid_from` and mint the replacement cookie from the *same*
+/// instant, so the middleware doesn't read the fresh cookie as predating the
+/// stamp and revoke it.
+pub fn mint_session_cookie_at(
+    user_id: i32,
+    name: String,
+    permissions: Permissions,
+    now: i64,
+    encoding_key: &EncodingKey,
+    https: bool,
+) -> Result<String, jsonwebtoken::errors::Error> {
+    let claims = Claims::new(user_id, name, permissions, now);
     let jwt = encode_jwt(&claims, encoding_key)?;
     Ok(set_session(&jwt, https))
 }

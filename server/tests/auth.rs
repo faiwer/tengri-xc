@@ -710,6 +710,147 @@ async fn me_with_stale_cookie_for_missing_user_clears_cookie_and_returns_null() 
 
 #[tokio::test]
 #[serial]
+async fn me_with_a_cookie_older_than_the_valid_from_stamp_is_revoked() {
+    // Anything that should end existing sessions stamps `sessions_valid_from`;
+    // the slide is where tokens minted before it get thrown out.
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 14, "Stamped").await;
+    sqlx::query("UPDATE users SET login = 'stamped', permissions = 1 WHERE id = 14")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let aged = SLIDE_INTERVAL.as_secs() as i64 + 60;
+    // Stamped after the cookie was minted, but long enough ago that the cookie
+    // is also past the slide threshold — the check only runs on the cold path.
+    sqlx::query(
+        "UPDATE users SET sessions_valid_from = now() - interval '30 seconds' WHERE id = 14",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(
+                    header::COOKIE,
+                    make_cookie_with_aged_iat(14, "Stamped", aged),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let set = session_set_cookie(&resp).expect("a stale-stamped cookie is cleared");
+    assert!(set.contains("Max-Age=0"), "got {set:?}");
+    let body = body_json(resp).await;
+    assert!(body.is_null(), "expected null /me, got {body}");
+
+    // A cookie minted after the stamp is none of the stamp's business, even
+    // though it's equally due for a slide.
+    sqlx::query("UPDATE users SET sessions_valid_from = now() - interval '1 hour' WHERE id = 14")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(
+                    header::COOKIE,
+                    make_cookie_with_aged_iat(14, "Stamped", aged),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let set = session_set_cookie(&resp).expect("it slides as usual");
+    assert!(!set.contains("Max-Age=0"), "got {set:?}");
+    assert_eq!(body_json(resp).await["id"], 14);
+}
+
+#[tokio::test]
+#[serial]
+async fn changing_a_password_keeps_the_session_that_changed_it() {
+    // The write stamps `sessions_valid_from`, and the acting session's own
+    // cookie predates it — logging the user out of the page they just used
+    // would be a silly way to confirm a password change.
+    let (app, pool) = common::test_app().await;
+    let hash = tengri_server::auth::password::hash_argon2("hunter2").unwrap();
+    seed_login_user(
+        &pool,
+        15,
+        "Changer",
+        "changer",
+        Some("changer@example.com"),
+        &hash,
+    )
+    .await;
+
+    let aged = SLIDE_INTERVAL.as_secs() as i64 + 60;
+    let old = make_cookie_with_aged_iat(15, "Changer", aged);
+    let resp = app
+        .clone()
+        .oneshot(common::json_post_with_cookie(
+            "/users/me/password",
+            json!({ "current_password": "hunter2", "new_password": "brandnewpass9" }),
+            &old,
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let fresh = session_set_cookie(&resp).expect("the caller gets a replacement cookie");
+    let jwt = cookie_pair_from_set_cookie(&fresh)
+        .strip_prefix("tengri-jwt=")
+        .expect("the session cookie");
+    let claims = tengri_server::auth::token::decode_jwt(
+        jwt,
+        &jsonwebtoken::DecodingKey::from_secret(TEST_JWT_SECRET),
+    )
+    .expect("decode the replacement");
+    let stamp: chrono::DateTime<chrono::Utc> =
+        sqlx::query_scalar("SELECT sessions_valid_from FROM users WHERE id = 15")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        claims.iat >= stamp.timestamp(),
+        "the replacement must not predate the stamp it wrote: {} vs {}",
+        claims.iat,
+        stamp.timestamp()
+    );
+
+    // The cookie that made the change, on the other hand, is spent.
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/users/me")
+                .header(header::COOKIE, &old)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let set = session_set_cookie(&resp).expect("the old cookie is cleared");
+    assert!(set.contains("Max-Age=0"), "got {set:?}");
+    assert!(body_json(resp).await.is_null());
+}
+
+#[tokio::test]
+#[serial]
 async fn login_with_cleared_can_authorize_bit_says_the_account_is_disabled() {
     // Not folded into the wrong-password 401: the caller proved the password,
     // so naming the reason costs nothing and spares them the reset loop.

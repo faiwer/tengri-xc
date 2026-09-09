@@ -1,13 +1,19 @@
-use axum::{Json, extract::State};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    response::{IntoResponse, Response},
+};
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use super::into_internal;
+use super::{into_internal, jwt_to_internal};
 use crate::{
     AppError, AppState,
-    auth::{Identity, password},
+    auth::{Identity, password, token::mint_session_cookie_at},
     db::Update,
-    user::{MeDto, fetch_me, weak_password},
+    user::{fetch_me, weak_password},
     validation::FieldErrors,
 };
 
@@ -27,7 +33,7 @@ pub(super) async fn change_password(
     State(state): State<AppState>,
     identity: Identity,
     Json(req): Json<ChangePasswordRequest>,
-) -> Result<Json<MeDto>, AppError> {
+) -> Result<Response, AppError> {
     let user_id = identity.user_id;
 
     let account = load_account(state.pool(), user_id).await?;
@@ -40,8 +46,16 @@ pub(super) async fn change_password(
     let hash =
         password::hash_argon2(&req.new_password).map_err(|e| AppError::Internal(e.into()))?;
 
+    // One instant for both the stamp and the replacement cookie's `iat`, so the
+    // slide middleware doesn't read the cookie we're about to hand back as
+    // predating the stamp and revoke it.
+    let now = Utc::now();
+
     let mut q = Update::new("users");
     q.set("password_hash", hash);
+    // Every other session is done, and an outstanding reset link with it.
+    q.set("sessions_valid_from", now);
+    q.set("password_reset_sends", Vec::<DateTime<Utc>>::new());
     if let Some(login) = new_login {
         q.set("login", login);
     }
@@ -53,7 +67,23 @@ pub(super) async fn change_password(
             "user {user_id} vanished mid-password-change"
         ))
     })?;
-    Ok(Json(body))
+
+    let cookie = mint_session_cookie_at(
+        user_id,
+        body.user.name.clone(),
+        identity.permissions,
+        now.timestamp(),
+        state.jwt_encoding_key(),
+        state.https(),
+    )
+    .map_err(jwt_to_internal)?;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie).map_err(into_internal)?,
+    );
+
+    Ok((StatusCode::OK, headers, Json(body)).into_response())
 }
 
 /// What the caller can sign in with today. All three are nullable: an imported

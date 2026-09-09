@@ -8,6 +8,7 @@
 //!   age < SLIDE_INTERVAL           → identity from JWT, response untouched
 //!   age ≥ SLIDE_INTERVAL           → DB lookup by sub:
 //!     row gone OR !CAN_AUTHORIZE   → no identity, clear cookie
+//!     iat < sessions_valid_from    → no identity, clear cookie
 //!     row ok                       → identity + re-mint cookie with
 //!                                    fresh name/permissions
 //! ```
@@ -22,7 +23,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use cookie::Cookie;
 use sqlx::Row;
 
@@ -130,7 +131,7 @@ async fn decide(state: &AppState, claims: Claims) -> Decision {
         return Decision::keep(claims);
     }
 
-    let row = sqlx::query("SELECT name, permissions FROM users WHERE id = $1")
+    let row = sqlx::query("SELECT name, permissions, sessions_valid_from FROM users WHERE id = $1")
         .bind(claims.sub)
         .fetch_optional(state.pool())
         .await;
@@ -171,6 +172,17 @@ async fn decide(state: &AppState, claims: Claims) -> Decision {
             user_id = claims.sub,
             "session revoked: CAN_AUTHORIZE bit cleared"
         );
+        return Decision::revoked(clear_session(state.https()));
+    }
+
+    // A password write (or anything else that should end existing sessions)
+    // stamps `sessions_valid_from`; tokens minted before it are done. The write
+    // re-mints the acting session's own cookie, so it survives.
+    let valid_from = row
+        .try_get::<Option<DateTime<Utc>>, _>("sessions_valid_from")
+        .unwrap_or(None);
+    if valid_from.is_some_and(|from| claims.iat < from.timestamp()) {
+        tracing::info!(user_id = claims.sub, "session revoked: predates valid-from");
         return Decision::revoked(clear_session(state.https()));
     }
 

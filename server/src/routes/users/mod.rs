@@ -11,7 +11,8 @@
 //!   [`crate::user::plan_email_edit`].
 //! - `POST /users/me/password` — owner-self change/set password. Sets an
 //!   initial `login` too when the account has none. Returns the refreshed
-//!   `/users/me` body.
+//!   `/users/me` body plus a replacement cookie: the write ends every other
+//!   session, and the caller's own would otherwise be among them.
 
 use axum::{
     Router,
