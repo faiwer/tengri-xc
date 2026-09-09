@@ -7,6 +7,7 @@ import { OAuthRow } from '../oauth/OAuthRow';
 import { SignInForm } from './SignInForm';
 import { useLayoutEffect, useState } from 'react';
 import { RegisterForm } from './RegisterForm';
+import { ResetPasswordForm } from './ResetPasswordForm';
 
 interface LoginModalProps {
   open: boolean;
@@ -66,6 +67,8 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
       )}
 
       {form === 'register' && <RegisterForm onClose={onClose} />}
+
+      {form === 'reset' && <ResetPasswordForm onClose={onClose} />}
     </Modal>
   );
 }

@@ -2,6 +2,7 @@ export const routes = {
   home: () => '/',
   flights: () => '/flights',
   login: () => '/login',
+  resetPassword: () => '/reset-password',
   flight: (id: string) => `/flight/${id}`,
   compare: (ids: string[]) => `/compare/${ids.join(',')}`,
   terms: () => '/terms',

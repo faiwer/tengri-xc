@@ -147,3 +147,17 @@ export interface RegisterRequest {
   email: string;
   password: string;
 }
+
+/** Body for `POST /users/reset-password`. */
+export interface RequestPasswordResetRequest {
+  email: string;
+}
+
+/**
+ * Body for `POST /users/reset-password/confirm`. `token` comes from the `?token`
+ * on the link in the reset mail.
+ */
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}

@@ -12,6 +12,8 @@ import {
   type ChangePasswordRequest,
   type Me,
   type RegisterRequest,
+  type RequestPasswordResetRequest,
+  type ResetPasswordRequest,
   type UpdateMeRequest,
   type UpdateMeResponse,
 } from './users.io';
@@ -90,3 +92,28 @@ export const changeMyPassword = async (
   body: ChangePasswordRequest,
   options: ApiRequestOptions = {},
 ): Promise<Me> => apiPost('/users/me/password', body, MeIo, options);
+
+/**
+ * `POST /users/reset-password` — mail a reset link. 204 whether or not the
+ * address belongs to an account, so the caller learns nothing about who is
+ * registered and the UI must say the same thing either way. 409 means outgoing
+ * mail isn't configured; 422 that the address is malformed.
+ */
+export const requestPasswordReset = async (
+  body: RequestPasswordResetRequest,
+  options: ApiRequestOptions = {},
+): Promise<void> => apiPostVoid('/users/reset-password', body, options);
+
+/**
+ * `POST /users/reset-password/confirm` — spend a link on a new password.
+ * Returns the refreshed {@link Me} and sets the session cookie, so the caller
+ * can drop it straight into the identity context.
+ *
+ * On 403, `error` is `reset_link_expired`, `reset_link_used` (already spent,
+ * superseded, or the password changed since), or `account_disabled`. On 422,
+ * throws {@link ValidationError} keyed `password`.
+ */
+export const resetPassword = async (
+  body: ResetPasswordRequest,
+  options: ApiRequestOptions = {},
+): Promise<Me> => apiPost('/users/reset-password/confirm', body, MeIo, options);

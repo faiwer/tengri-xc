@@ -10,6 +10,7 @@ import { OAuthReturnHandler } from './features/oauth/OAuthReturnHandler';
 import { UploadFlightProvider } from './features/uploadFlight';
 import { PrivacyPage, TermsPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import {
   AppOAuthSettings,
   AuthorizationSettings,
@@ -51,6 +52,7 @@ export function App() {
               <Route path="/" element={<TracksPage />} />
               <Route path="/flights" element={<TracksPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/flight/:id" element={<TrackPage />} />
               <Route path="/compare/:ids" element={<ComparePage />} />
               <Route path="/terms" element={<TermsPage />} />
