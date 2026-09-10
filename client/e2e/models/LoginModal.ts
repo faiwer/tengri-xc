@@ -43,6 +43,16 @@ export class LoginModal {
     return this.root.getByRole('button', { name: 'Register' }).click();
   }
 
+  /** Footer link to the "mail me a reset link" form. */
+  openResetPassword(): Promise<void> {
+    return this.root.getByText('Reset', { exact: true }).click();
+  }
+
+  async requestResetPassword(email: string): Promise<void> {
+    await findField(this.root, 'email').fill(email);
+    await this.root.getByRole('button', { name: 'Send the link' }).click();
+  }
+
   /** Fills and submits the sign-in form the modal opens on. */
   async signIn(credentials: Credentials): Promise<void> {
     await findField(this.root, 'identifier').fill(credentials.identifier);

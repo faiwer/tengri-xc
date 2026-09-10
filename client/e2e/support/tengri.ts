@@ -1,18 +1,21 @@
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
 
 export const repoRoot = path.resolve(
   fileURLToPath(new URL('../../..', import.meta.url)),
 );
 
-export async function tengri(
+interface TengriOptions {
+  /** Fed to the child's stdin, for flags like `user add --password-stdin`. */
+  stdin?: string;
+}
+
+export function tengri(
   args: string[],
+  options: TengriOptions = {},
 ): Promise<{ stdout: string; stderr: string }> {
-  return execFileAsync(
+  const child = spawn(
     'cargo',
     [
       'run',
@@ -27,9 +30,34 @@ export async function tengri(
     {
       cwd: repoRoot,
       env: { ...process.env, DATABASE_URL: e2eDatabaseUrl() },
-      maxBuffer: 10 * 1024 * 1024,
     },
   );
+
+  // Closed either way: a subcommand that reads stdin hangs on an open pipe
+  // with nothing coming.
+  child.stdin.end(options.stdin ?? '');
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+
+  return new Promise((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        reject(
+          new Error(`tengri ${args.join(' ')} exited with ${code}\n${stderr}`),
+        );
+      }
+    });
+  });
 }
 
 export function e2eDatabaseUrl(): string {

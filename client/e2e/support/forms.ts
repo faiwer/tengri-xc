@@ -10,3 +10,7 @@ import type { Locator } from '@playwright/test';
  */
 export const findField = (scope: Locator, name: string): Locator =>
   scope.locator(`#${name}`);
+
+/** The validation messages antd renders under a field, if any. */
+export const findFieldError = (scope: Locator, name: string): Locator =>
+  scope.locator(`#${name}_help`);
