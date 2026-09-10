@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnv } from 'vite';
+import { getOAuthEndpointBase } from './e2e/support/fakeOAuth';
 import {
   getBaseUrl,
   getClientOrigin,
@@ -52,6 +53,9 @@ export default defineConfig({
             `CLIENT_ORIGINS=${shellQuote(CLIENT_ORIGIN)}`,
             `API_PUBLIC_URL=${shellQuote(SERVER_URL)}`,
             `APP_BASE_URL=${shellQuote(BASE_URL)}`,
+            // Sends the OAuth token/userinfo calls to the suite's stand-in
+            // provider instead of out to the real one.
+            `OAUTH_ENDPOINT_BASE=${shellQuote(getOAuthEndpointBase())}`,
             'cargo run --manifest-path ../server/Cargo.toml --bin tengri-server',
           ].join(' '),
           // Playwright waits for this readiness URL before running tests.

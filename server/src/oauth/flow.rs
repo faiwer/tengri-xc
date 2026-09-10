@@ -62,19 +62,21 @@ pub struct FlowState {
 
 /// Build the provider authorize URL and the matching [`FlowState`]. The caller
 /// sets the flow cookie from the returned state and 303s the browser to the URL.
+#[allow(clippy::too_many_arguments)]
 pub fn build_authorize_redirect(
     provider: OAuthProvider,
     creds: &ProviderCredentials,
+    endpoint_base: Option<&str>,
     redirect_uri: &str,
     intent: OAuthIntent,
     return_to: String,
     user_id: Option<i32>,
 ) -> Result<(String, FlowState), AppError> {
-    let endpoints = provider.endpoints();
+    let endpoints = provider.endpoints(endpoint_base);
     let client = BasicClient::new(ClientId::new(creds.client_id.clone()))
         .set_client_secret(ClientSecret::new(creds.client_secret.clone()))
-        .set_auth_uri(AuthUrl::new(endpoints.auth_url.to_owned()).map_err(into_internal)?)
-        .set_token_uri(TokenUrl::new(endpoints.token_url.to_owned()).map_err(into_internal)?)
+        .set_auth_uri(AuthUrl::new(endpoints.auth_url).map_err(into_internal)?)
+        .set_token_uri(TokenUrl::new(endpoints.token_url).map_err(into_internal)?)
         .set_redirect_uri(RedirectUrl::new(redirect_uri.to_owned()).map_err(into_internal)?);
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -103,15 +105,16 @@ pub fn build_authorize_redirect(
 pub async fn exchange_and_identify(
     provider: OAuthProvider,
     creds: &ProviderCredentials,
+    endpoint_base: Option<&str>,
     redirect_uri: &str,
     code: String,
     pkce_verifier: String,
 ) -> Result<OAuthIdentity, AppError> {
-    let endpoints = provider.endpoints();
+    let endpoints = provider.endpoints(endpoint_base);
     let client = BasicClient::new(ClientId::new(creds.client_id.clone()))
         .set_client_secret(ClientSecret::new(creds.client_secret.clone()))
-        .set_auth_uri(AuthUrl::new(endpoints.auth_url.to_owned()).map_err(into_internal)?)
-        .set_token_uri(TokenUrl::new(endpoints.token_url.to_owned()).map_err(into_internal)?)
+        .set_auth_uri(AuthUrl::new(endpoints.auth_url).map_err(into_internal)?)
+        .set_token_uri(TokenUrl::new(endpoints.token_url).map_err(into_internal)?)
         .set_redirect_uri(RedirectUrl::new(redirect_uri.to_owned()).map_err(into_internal)?);
 
     // Following redirects on the token endpoint would open us to SSRF.

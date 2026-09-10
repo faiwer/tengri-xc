@@ -57,7 +57,17 @@ export class LoginModal {
   async signIn(credentials: Credentials): Promise<void> {
     await findField(this.root, 'identifier').fill(credentials.identifier);
     await findField(this.root, 'password').fill(credentials.password);
-    await this.root.getByRole('button', { name: 'Sign in' }).click();
+    // Exact, or it also matches the "Sign in with <provider>" buttons.
+    await this.root
+      .getByRole('button', { name: 'Sign in', exact: true })
+      .click();
+  }
+
+  /** One of the provider buttons under the sign-in form's "or" divider. */
+  signInWith(provider: string): Promise<void> {
+    return this.root
+      .getByRole('button', { name: `Sign in with ${provider}` })
+      .click();
   }
 
   /** The `×` in the corner, which every form in the dialog shares. */

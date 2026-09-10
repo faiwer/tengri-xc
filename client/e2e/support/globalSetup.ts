@@ -1,3 +1,4 @@
+import { seedOAuthProvider } from '../fixtures/oauth';
 import { seedSiteSettings } from '../fixtures/site';
 import { tengri } from './tengri';
 
@@ -9,4 +10,5 @@ export default async function globalSetup(): Promise<void> {
   await tengri(['migrate']);
   await tengri(['prune', '--yes']);
   await seedSiteSettings();
+  await seedOAuthProvider();
 }

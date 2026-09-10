@@ -36,6 +36,11 @@ pub struct Config {
     /// browser back to `{app_base_url}{return_to}`. `APP_BASE_URL` env var;
     /// trailing slash trimmed. Defaults to `http://localhost:5173`.
     pub app_base_url: String,
+    /// Stand-in for every provider's OAuth endpoints, as
+    /// `{base}/{provider}/authorize|token|userinfo`. Set by the E2E harness so
+    /// the flow runs end to end without leaving the machine; leave it unset
+    /// anywhere real. `OAUTH_ENDPOINT_BASE` env var.
+    pub oauth_endpoint_base: Option<String>,
 }
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
@@ -78,6 +83,8 @@ impl Config {
         let leonardo_cookie_domain = parse_optional_string("LEONARDO_COOKIE_DOMAIN");
         let api_public_url = parse_base_url("API_PUBLIC_URL", "http://localhost:5757/api");
         let app_base_url = parse_base_url("APP_BASE_URL", "http://localhost:5173");
+        let oauth_endpoint_base = parse_optional_string("OAUTH_ENDPOINT_BASE")
+            .map(|base| base.trim_end_matches('/').to_owned());
         Ok(Self {
             server_addr,
             database_url,
@@ -87,6 +94,7 @@ impl Config {
             leonardo_cookie_domain,
             api_public_url,
             app_base_url,
+            oauth_endpoint_base,
         })
     }
 }

@@ -13,6 +13,8 @@
 //! - `user` — manage users for local/dev/test data setup.
 //! - `site` — read or patch the `site_settings` singleton (registration
 //!   switch, SMTP credentials) for local/dev/test data setup.
+//! - `oauth` — read or patch per-provider OAuth credentials for local/dev/test
+//!   data setup.
 //! - `migrate` — apply outstanding SQL migrations to the configured DB, then
 //!   run any Rust-side data backfills that depend on those schema changes (e.g.
 //!   re-encoding `.tengri` blobs after a version bump).
@@ -36,6 +38,7 @@ mod export;
 mod import_gliders;
 mod inspect;
 mod migrate;
+mod oauth;
 mod prune;
 mod score;
 mod shared;
@@ -144,6 +147,13 @@ enum Cmd {
         cmd: site::Cmd,
     },
 
+    /// Read or patch per-provider OAuth credentials for local/dev/test data
+    /// setup.
+    Oauth {
+        #[command(subcommand)]
+        cmd: oauth::Cmd,
+    },
+
     /// Evaluate route distances/points for a stored flight.
     Score {
         /// Flight id to evaluate (`flights.id`, e.g. `LEO-1350`).
@@ -222,6 +232,7 @@ fn run() -> anyhow::Result<()> {
         } => run_async(export::run(flight_id, format, destination)),
         Cmd::User { cmd } => run_async(user::run(cmd)),
         Cmd::Site { cmd } => run_async(site::run(cmd)),
+        Cmd::Oauth { cmd } => run_async(oauth::run(cmd)),
         Cmd::Score {
             flight_id,
             update_db,

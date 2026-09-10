@@ -28,6 +28,9 @@ struct AppStateInner {
     /// Public SPA origin; OAuth callbacks redirect the browser back under it.
     /// Trailing slash already trimmed by `Config`.
     app_base_url: String,
+    /// Stand-in for the providers' own OAuth endpoints; `None` everywhere but
+    /// the E2E harness. See [`Config::oauth_endpoint_base`](crate::Config).
+    oauth_endpoint_base: Option<String>,
     /// Global route-scoring queue; drains its worker pool in the background.
     scoring_queue: ScoringQueue,
 }
@@ -45,6 +48,7 @@ impl AppState {
             None,
             String::new(),
             String::new(),
+            None,
         )
     }
 
@@ -57,6 +61,7 @@ impl AppState {
         leonardo_cookie_domain: Option<String>,
         api_public_url: String,
         app_base_url: String,
+        oauth_endpoint_base: Option<String>,
     ) -> Self {
         let scoring_queue = ScoringQueue::spawn(pool.clone(), default_worker_count());
         Self {
@@ -69,6 +74,7 @@ impl AppState {
                 leonardo_cookie_domain,
                 api_public_url,
                 app_base_url,
+                oauth_endpoint_base,
                 scoring_queue,
             }),
         }
@@ -108,5 +114,9 @@ impl AppState {
 
     pub fn app_base_url(&self) -> &str {
         &self.inner.app_base_url
+    }
+
+    pub fn oauth_endpoint_base(&self) -> Option<&str> {
+        self.inner.oauth_endpoint_base.as_deref()
     }
 }

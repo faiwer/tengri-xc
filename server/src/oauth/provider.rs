@@ -40,13 +40,14 @@ impl OAuthVisibility {
     }
 }
 
-/// Fixed OAuth 2.0 endpoints + scopes for a provider. Static because these are
-/// public, well-known URLs — only `client_id`/`client_secret` are per-install
-/// (those live in `oauth_provider_settings`).
+/// OAuth 2.0 endpoints + scopes for a provider. The URLs are the provider's own
+/// well-known ones unless a stand-in is configured; only
+/// `client_id`/`client_secret` are per-install (those live in
+/// `oauth_provider_settings`).
 pub struct ProviderEndpoints {
-    pub auth_url: &'static str,
-    pub token_url: &'static str,
-    pub userinfo_url: &'static str,
+    pub auth_url: String,
+    pub token_url: String,
+    pub userinfo_url: String,
     /// Scopes requested at authorize time. Kept minimal: a stable subject id
     /// plus (where the provider offers it) an email + display name for the
     /// link snapshot.
@@ -92,36 +93,52 @@ impl OAuthProvider {
     }
 
     /// Authorize / token / userinfo URLs + scopes per provider.
-    pub fn endpoints(self) -> ProviderEndpoints {
+    ///
+    /// `base` swaps all three for `{base}/{provider}/authorize|token|userinfo`,
+    /// which is how the E2E suite runs the flow against a local stand-in. It
+    /// doesn't reach the second call GitHub's email resolution makes, so a
+    /// stand-in has to be one of the providers that answers from userinfo.
+    pub fn endpoints(self, base: Option<&str>) -> ProviderEndpoints {
+        let mut endpoints = self.public_endpoints();
+        if let Some(base) = base {
+            let provider = self.pg_enum_value();
+            endpoints.auth_url = format!("{base}/{provider}/authorize");
+            endpoints.token_url = format!("{base}/{provider}/token");
+            endpoints.userinfo_url = format!("{base}/{provider}/userinfo");
+        }
+        endpoints
+    }
+
+    fn public_endpoints(self) -> ProviderEndpoints {
         match self {
             OAuthProvider::Google => ProviderEndpoints {
-                auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
-                token_url: "https://oauth2.googleapis.com/token",
-                userinfo_url: "https://openidconnect.googleapis.com/v1/userinfo",
+                auth_url: "https://accounts.google.com/o/oauth2/v2/auth".into(),
+                token_url: "https://oauth2.googleapis.com/token".into(),
+                userinfo_url: "https://openidconnect.googleapis.com/v1/userinfo".into(),
                 scopes: &["openid", "email", "profile"],
             },
             OAuthProvider::Facebook => ProviderEndpoints {
-                auth_url: "https://www.facebook.com/v19.0/dialog/oauth",
-                token_url: "https://graph.facebook.com/v19.0/oauth/access_token",
-                userinfo_url: "https://graph.facebook.com/me?fields=id,name,email",
+                auth_url: "https://www.facebook.com/v19.0/dialog/oauth".into(),
+                token_url: "https://graph.facebook.com/v19.0/oauth/access_token".into(),
+                userinfo_url: "https://graph.facebook.com/me?fields=id,name,email".into(),
                 scopes: &["email", "public_profile"],
             },
             OAuthProvider::X => ProviderEndpoints {
-                auth_url: "https://twitter.com/i/oauth2/authorize",
-                token_url: "https://api.twitter.com/2/oauth2/token",
-                userinfo_url: "https://api.twitter.com/2/users/me",
+                auth_url: "https://twitter.com/i/oauth2/authorize".into(),
+                token_url: "https://api.twitter.com/2/oauth2/token".into(),
+                userinfo_url: "https://api.twitter.com/2/users/me".into(),
                 scopes: &["tweet.read", "users.read"],
             },
             OAuthProvider::Microsoft => ProviderEndpoints {
-                auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-                token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-                userinfo_url: "https://graph.microsoft.com/oidc/userinfo",
+                auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize".into(),
+                token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token".into(),
+                userinfo_url: "https://graph.microsoft.com/oidc/userinfo".into(),
                 scopes: &["openid", "email", "profile"],
             },
             OAuthProvider::Github => ProviderEndpoints {
-                auth_url: "https://github.com/login/oauth/authorize",
-                token_url: "https://github.com/login/oauth/access_token",
-                userinfo_url: "https://api.github.com/user",
+                auth_url: "https://github.com/login/oauth/authorize".into(),
+                token_url: "https://github.com/login/oauth/access_token".into(),
+                userinfo_url: "https://api.github.com/user".into(),
                 scopes: &["read:user", "user:email"],
             },
         }

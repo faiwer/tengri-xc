@@ -147,8 +147,15 @@ async fn start(
 
     let return_to = resolve_return_to(query.return_to.as_deref().unwrap_or("/"));
     let redirect_uri = callback_uri(&state, provider);
-    let (authorize_url, flow) =
-        build_authorize_redirect(provider, &creds, &redirect_uri, intent, return_to, user_id)?;
+    let (authorize_url, flow) = build_authorize_redirect(
+        provider,
+        &creds,
+        state.oauth_endpoint_base(),
+        &redirect_uri,
+        intent,
+        return_to,
+        user_id,
+    )?;
     let cookie = set_flow_cookie(&flow, state.jwt_encoding_key(), state.https())?;
 
     let mut headers = HeaderMap::new();
@@ -214,6 +221,7 @@ async fn callback(
     let identity = match exchange_and_identify(
         provider,
         &creds,
+        state.oauth_endpoint_base(),
         &redirect_uri,
         code,
         flow.pkce_verifier.clone(),
