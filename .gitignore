@@ -11,3 +11,6 @@ scripts/
 .scratch/
 # For custom rust builds via docker
 .docker-cargo-home/
+# Test artifacts
+client/test-results
+client/playwright-report

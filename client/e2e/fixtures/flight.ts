@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { repoRoot, tengri } from './tengri';
+import { repoRoot, tengri } from '../support/tengri';
 
 const FLIGHT_FIXTURES_DIR = path.join(repoRoot, 'client/e2e/flights');
 const E2E_USER_ID = 1001;

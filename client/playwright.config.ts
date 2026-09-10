@@ -1,16 +1,22 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnv } from 'vite';
+import {
+  getBaseUrl,
+  getClientOrigin,
+  getClientPort,
+  getServerPort,
+  getServerUrl,
+} from './e2e/support/urls';
 
 const CLIENT_ROOT = fileURLToPath(new URL('.', import.meta.url));
 loadClientEnv();
 
-const CLIENT_PORT = envInt('E2E_CLIENT_PORT', 5174);
-const SERVER_PORT = envInt('E2E_SERVER_PORT', 3001);
-const CLIENT_ORIGIN = `http://127.0.0.1:${CLIENT_PORT}`;
-const SERVER_URL =
-  process.env.E2E_SERVER_URL ?? `http://127.0.0.1:${SERVER_PORT}`;
-const BASE_URL = process.env.E2E_BASE_URL ?? CLIENT_ORIGIN;
+const CLIENT_PORT = getClientPort();
+const SERVER_PORT = getServerPort();
+const CLIENT_ORIGIN = getClientOrigin();
+const SERVER_URL = getServerUrl();
+const BASE_URL = getBaseUrl();
 const E2E_LOCALE = 'en-DE-u-hc-h23';
 const START_SERVERS = process.env.E2E_START_SERVERS !== '0';
 const NEED_DATABASE_URL =
@@ -44,6 +50,8 @@ export default defineConfig({
             `DATABASE_URL=${shellQuote(DATABASE_URL)}`,
             `SERVER_ADDR=127.0.0.1:${SERVER_PORT}`,
             `CLIENT_ORIGINS=${shellQuote(CLIENT_ORIGIN)}`,
+            `API_PUBLIC_URL=${shellQuote(SERVER_URL)}`,
+            `APP_BASE_URL=${shellQuote(BASE_URL)}`,
             'cargo run --manifest-path ../server/Cargo.toml --bin tengri-server',
           ].join(' '),
           // Playwright waits for this readiness URL before running tests.
@@ -72,15 +80,6 @@ export default defineConfig({
       ]
     : undefined,
 });
-
-function envInt(name: string, fallback: number): number {
-  const raw = process.env[name]?.trim();
-  const value = raw ? Number(raw) : fallback;
-  if (!Number.isInteger(value)) {
-    throw new Error(`${name} must be an integer, got ${raw}`);
-  }
-  return value;
-}
 
 function requiredEnv(name: string): string {
   const value = process.env[name];

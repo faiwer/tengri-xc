@@ -11,6 +11,8 @@
 //! - `delete` — remove a flight by id (cascades to its track + source rows).
 //! - `export` — write the stored source flight file to a path or stdout.
 //! - `user` — manage users for local/dev/test data setup.
+//! - `site` — read or patch the `site_settings` singleton (registration
+//!   switch, SMTP credentials) for local/dev/test data setup.
 //! - `migrate` — apply outstanding SQL migrations to the configured DB, then
 //!   run any Rust-side data backfills that depend on those schema changes (e.g.
 //!   re-encoding `.tengri` blobs after a version bump).
@@ -37,6 +39,7 @@ mod migrate;
 mod prune;
 mod score;
 mod shared;
+mod site;
 mod user;
 
 use std::{path::PathBuf, process};
@@ -134,6 +137,13 @@ enum Cmd {
         cmd: user::Cmd,
     },
 
+    /// Read or patch the site-settings singleton (registration switch, SMTP
+    /// credentials, mail templates) for local/dev/test data setup.
+    Site {
+        #[command(subcommand)]
+        cmd: site::Cmd,
+    },
+
     /// Evaluate route distances/points for a stored flight.
     Score {
         /// Flight id to evaluate (`flights.id`, e.g. `LEO-1350`).
@@ -211,6 +221,7 @@ fn run() -> anyhow::Result<()> {
             destination,
         } => run_async(export::run(flight_id, format, destination)),
         Cmd::User { cmd } => run_async(user::run(cmd)),
+        Cmd::Site { cmd } => run_async(site::run(cmd)),
         Cmd::Score {
             flight_id,
             update_db,
