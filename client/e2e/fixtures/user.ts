@@ -6,6 +6,8 @@ export interface SeededUser {
   email: string;
   /** Left out for accounts that never had one, the way an OAuth sign-up is. */
   password?: string;
+  /** `users.permissions` bitfield. Defaults to what the CLI hands a new user. */
+  permissions?: number;
 }
 
 /**
@@ -24,6 +26,9 @@ export async function seedUser(user: SeededUser): Promise<SeededUser> {
       user.login,
       '--email',
       user.email,
+      ...(user.permissions == null
+        ? []
+        : ['--permissions', String(user.permissions)]),
       ...(user.password ? ['--password-stdin'] : []),
     ],
     { stdin: user.password },
