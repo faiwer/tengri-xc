@@ -106,6 +106,43 @@ test('a visitor registers an account with an existing login, email, name', async
   expect(mailbox.countFor(taken.email)).toBe(0);
 });
 
+test('a visitor is refused once registration is switched off', async ({
+  page,
+  mailbox,
+  site,
+}) => {
+  const account: NewAccount = {
+    login: `latecomer-${makeId()}`,
+    name: 'Latecomer Pilot',
+    email: `latecomer-${makeId()}@example.test`,
+    password: 'thermals4days',
+  };
+
+  const header = new Header(page);
+  const modal = new LoginModal(page);
+
+  await page.goto('/');
+  await header.signIn.click();
+  await modal.openRegister();
+
+  // Switched off with the form already open, which is the only way a visitor
+  // reaches the endpoint with the flag against them — and the reason the
+  // server gates it rather than trusting the hidden link.
+  await site.setCanRegister(false);
+  await modal.fillNewAccount(account);
+  await modal.submitRegistration();
+
+  await expect(page.getByText("Couldn't create your account")).toBeVisible();
+  await expect(modal.root).not.toContainText("We've sent a confirmation link");
+  expect(mailbox.countFor(account.email)).toBe(0);
+
+  // And on the next load there's no way in to begin with.
+  await page.reload();
+  await header.signIn.click();
+  await expect(modal.root).toBeVisible();
+  await expect(modal.register).toHaveCount(0);
+});
+
 const REGISTER_FIELDS = [
   'login',
   'name',

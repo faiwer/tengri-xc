@@ -21,14 +21,16 @@ export interface Credentials {
 export class LoginModal {
   /** The dialog itself, for asserting on titles and post-submit copy. */
   root: Locator;
+  /** Footer link to registration, rendered only while `can_register` is on. */
+  register: Locator;
 
   constructor(page: Page) {
     this.root = page.getByRole('dialog');
+    this.register = this.root.getByText('Register', { exact: true });
   }
 
-  /** Footer link to registration, rendered only while `can_register` is on. */
   openRegister(): Promise<void> {
-    return this.root.getByText('Register', { exact: true }).click();
+    return this.register.click();
   }
 
   async fillNewAccount(account: NewAccount): Promise<void> {

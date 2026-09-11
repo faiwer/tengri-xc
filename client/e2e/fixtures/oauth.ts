@@ -1,3 +1,4 @@
+import type { FakeIdentity } from '../support/fakeOAuth';
 import { tengri } from '../support/tengri';
 
 /**
@@ -25,5 +26,28 @@ export async function seedOAuthProvider(): Promise<void> {
       client_secret: 'e2e-secret',
       visibility: 'public',
     }),
+  ]);
+}
+
+/**
+ * Attach a provider identity to a user, as a finished link flow would — so a
+ * test that starts from "already connected" doesn't have to walk the redirects
+ * first. Takes the same identity the stand-in hands out.
+ */
+export async function seedOAuthLink(
+  login: string,
+  identity: FakeIdentity,
+): Promise<void> {
+  await tengri([
+    'oauth',
+    'link',
+    '--login',
+    login,
+    '--provider',
+    OAUTH_PROVIDER,
+    '--subject',
+    identity.sub,
+    ...(identity.email ? ['--email', identity.email] : []),
+    ...(identity.name ? ['--name', identity.name] : []),
   ]);
 }

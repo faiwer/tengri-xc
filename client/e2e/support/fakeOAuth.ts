@@ -24,6 +24,12 @@ export interface FakeIdentity {
 export interface FakeOAuth {
   /** Who the next authorize hop consents as. */
   signInAs(identity: FakeIdentity): void;
+  /**
+   * Refuse to redeem authorization codes from here on, the way an outage or a
+   * rotated client secret does. Consent still succeeds, so the browser is
+   * already back at our callback when the flow falls over.
+   */
+  breakTokenExchange(): void;
   /** Forget the identity and any codes/tokens still outstanding. */
   reset(): void;
   close(): Promise<void>;
@@ -39,10 +45,11 @@ export interface FakeOAuth {
  * a test sets it before clicking and each flow keeps the one it started with.
  */
 export async function startFakeOAuth(port = OAUTH_PORT): Promise<FakeOAuth> {
-  const state = {
-    identity: null as FakeIdentity | null,
-    codes: new Map<string, FakeIdentity>(),
-    tokens: new Map<string, FakeIdentity>(),
+  const state: ProviderState = {
+    identity: null,
+    tokenExchangeBroken: false,
+    codes: new Map(),
+    tokens: new Map(),
   };
 
   const server = createServer((request, response) => {
@@ -56,8 +63,12 @@ export async function startFakeOAuth(port = OAUTH_PORT): Promise<FakeOAuth> {
     signInAs: (identity) => {
       state.identity = identity;
     },
+    breakTokenExchange: () => {
+      state.tokenExchangeBroken = true;
+    },
     reset: () => {
       state.identity = null;
+      state.tokenExchangeBroken = false;
       state.codes.clear();
       state.tokens.clear();
     },
@@ -70,6 +81,7 @@ export async function startFakeOAuth(port = OAUTH_PORT): Promise<FakeOAuth> {
 
 interface ProviderState {
   identity: FakeIdentity | null;
+  tokenExchangeBroken: boolean;
   codes: Map<string, FakeIdentity>;
   tokens: Map<string, FakeIdentity>;
 }
@@ -128,6 +140,10 @@ function exchangeCode(
   response: ServerResponse,
   state: ProviderState,
 ): void {
+  if (state.tokenExchangeBroken) {
+    return sendJson(response, 503, { error: 'temporarily_unavailable' });
+  }
+
   const code = new URLSearchParams(body).get('code') ?? '';
   const identity = state.codes.get(code);
   if (!identity) {
