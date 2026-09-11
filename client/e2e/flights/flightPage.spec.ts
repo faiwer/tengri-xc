@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
-import { seedFlightFixture } from './fixtures/flight';
+import { seedFlightFixture } from '../fixtures/flight';
 
 const COORDINATES_READOUT = /^[0-9]+\.[0-9]+,\s+[0-9]+\.[0-9]+$/;
 

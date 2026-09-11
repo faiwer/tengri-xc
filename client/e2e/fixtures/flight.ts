@@ -13,11 +13,11 @@ export async function seedFlightFixture(
   name: string,
 ): Promise<{ flightId: string }> {
   await ensureUser();
-  await ensureGliders();
+  await seedGliders();
 
   const add = await tengri([
     'add',
-    path.join(FLIGHT_FIXTURES_DIR, name),
+    flightFixturePath(name),
     '--user-id',
     String(E2E_USER_ID),
     '--brand',
@@ -32,6 +32,28 @@ export async function seedFlightFixture(
   return { flightId };
 }
 
+/** A track file the browser can be handed, by its name in `client/e2e/flights`. */
+export const flightFixturePath = (name: string): string =>
+  path.join(FLIGHT_FIXTURES_DIR, name);
+
+/**
+ * Import the public glider catalog. Uploading through the UI needs it: the
+ * details form picks a brand and model out of it, and the server refuses a
+ * flight naming a glider nobody has.
+ */
+export async function seedGliders(): Promise<void> {
+  if (!glidersImported) {
+    await tengri([
+      'import-gliders',
+      '--kind',
+      E2E_GLIDER_KIND,
+      '--file',
+      path.join(repoRoot, `server/data/${E2E_GLIDER_KIND}.json`),
+    ]);
+    glidersImported = true;
+  }
+}
+
 async function ensureUser(): Promise<void> {
   if (!createdUsers.has(E2E_USER_ID)) {
     await tengri([
@@ -44,19 +66,6 @@ async function ensureUser(): Promise<void> {
       '--if-absent',
     ]);
     createdUsers.add(E2E_USER_ID);
-  }
-}
-
-async function ensureGliders(): Promise<void> {
-  if (!glidersImported) {
-    await tengri([
-      'import-gliders',
-      '--kind',
-      E2E_GLIDER_KIND,
-      '--file',
-      path.join(repoRoot, `server/data/${E2E_GLIDER_KIND}.json`),
-    ]);
-    glidersImported = true;
   }
 }
 
