@@ -34,7 +34,8 @@ test('a visitor recovers a forgotten password', async ({ page, mailbox }) => {
 
   // Unlike the confirmation mail, this one points at the SPA: the click has no
   // side effect, it just opens the form.
-  await page.goto(findLink(mail.body, '/reset-password'));
+  const link = findLink(mail.body, '/reset-password');
+  await page.goto(link);
 
   const reset = new ResetPasswordPage(page);
   await reset.setPassword(newPassword);
@@ -51,6 +52,14 @@ test('a visitor recovers a forgotten password', async ({ page, mailbox }) => {
 
   await modal.signIn({ identifier: account.login, password: newPassword });
   await expect(header.signOut).toBeVisible();
+
+  // The link named one send, and that send is spent. Nothing on the page can
+  // tell until it's submitted, so the form comes up again and then replaces
+  // itself with the refusal.
+  await page.goto(link);
+  await reset.setPassword('anotherthermal7');
+  await expect(page.getByText("That link isn't valid any more")).toBeVisible();
+  await expect(reset.submit).toHaveCount(0);
 });
 
 test('a visitor asks to recover an address nobody registered', async ({
