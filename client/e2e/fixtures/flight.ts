@@ -7,13 +7,13 @@ const E2E_GLIDER_BRAND = 'icaro';
 const E2E_GLIDER_KIND = 'hg';
 const E2E_GLIDER_MODEL = 'laminar';
 const createdUsers = new Set<number>();
-let glidersImported = false;
+const importedCatalogs = new Set<string>();
 
 export async function seedFlightFixture(
   name: string,
 ): Promise<{ flightId: string }> {
   await ensureUser();
-  await seedGliders();
+  await seedGliders(E2E_GLIDER_KIND);
 
   const add = await tengri([
     'add',
@@ -37,22 +37,25 @@ export const flightFixturePath = (name: string): string =>
   path.join(FLIGHT_FIXTURES_DIR, name);
 
 /**
- * Import the public glider catalog. Uploading through the UI needs it: the
- * details form picks a brand and model out of it, and the server refuses a
- * flight naming a glider nobody has.
+ * Import a discipline's public glider catalog. Uploading through the UI needs
+ * it: the details form picks a brand and model out of it, and the server
+ * refuses a flight naming a glider nobody has.
  */
-export async function seedGliders(): Promise<void> {
-  if (!glidersImported) {
+export async function seedGliders(kind: GliderKind = 'hg'): Promise<void> {
+  if (!importedCatalogs.has(kind)) {
     await tengri([
       'import-gliders',
       '--kind',
-      E2E_GLIDER_KIND,
+      kind,
       '--file',
-      path.join(repoRoot, `server/data/${E2E_GLIDER_KIND}.json`),
+      path.join(repoRoot, `server/data/${kind}.json`),
     ]);
-    glidersImported = true;
+    importedCatalogs.add(kind);
   }
 }
+
+/** The disciplines that come with a catalog. */
+type GliderKind = 'hg' | 'pg' | 'sp';
 
 async function ensureUser(): Promise<void> {
   if (!createdUsers.has(E2E_USER_ID)) {
