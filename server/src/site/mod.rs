@@ -8,6 +8,6 @@ pub mod store;
 
 pub use dto::{AdminSiteDto, DocKind, SiteDto};
 pub use store::{
-    UpdateSiteRequest, apply_site_update, fetch_site_admin, fetch_site_doc, fetch_site_public,
-    validate_site_update,
+    SiteMeta, UpdateSiteRequest, apply_site_update, fetch_site_admin, fetch_site_doc,
+    fetch_site_meta, fetch_site_public, validate_site_update,
 };

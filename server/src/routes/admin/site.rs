@@ -52,6 +52,9 @@ async fn update(
     }
 
     apply_site_update(state.pool(), &validated).await?;
+    // The name/description ride in every server-rendered <head>; drop the
+    // cached copy so the next document request picks the edit up.
+    state.clear_site_meta();
     fetch_site_admin(state.pool()).await.map(Json)
 }
 

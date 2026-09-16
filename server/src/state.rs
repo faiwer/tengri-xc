@@ -1,9 +1,16 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
 
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use sqlx::PgPool;
 
-use crate::flight::{ScoringQueue, queue::default_worker_count};
+use crate::{
+    flight::{ScoringQueue, queue::default_worker_count},
+    html::HtmlShell,
+    site::SiteMeta,
+};
 
 /// Shared app state. Cheap to clone — everything's behind `Arc`.
 #[derive(Clone)]
@@ -36,8 +43,16 @@ struct AppStateInner {
     /// The SPA's `index.html`, fetched from `app_base_url` on the first
     /// document request. A failed fetch isn't cached, so a server that starts
     /// before the static host recovers on the next request.
-    html_shell: RwLock<Option<String>>,
+    html_shell: RwLock<Option<Arc<HtmlShell>>>,
+    /// Site name + description for the rendered `<head>`. Every document
+    /// request reads it, so it's cached rather than re-queried per page view.
+    site_meta: RwLock<Option<(Instant, Arc<SiteMeta>)>>,
 }
+
+/// How long a cached [`SiteMeta`] stays usable. Editing the settings clears the
+/// entry outright, so this only bounds staleness from writes that bypass
+/// `PATCH /admin/site` (the `tengri site set` CLI, a manual UPDATE).
+const SITE_META_TTL: Duration = Duration::from_secs(5 * 60);
 
 /// Stand-in URL for tests whose route never touches Postgres: `connect_lazy`
 /// defers the connection, and nothing in the test triggers one. Pair with
@@ -86,6 +101,7 @@ impl AppState {
                 oauth_endpoint_base,
                 scoring_queue,
                 html_shell: RwLock::new(None),
+                site_meta: RwLock::new(None),
             }),
         }
     }
@@ -130,7 +146,7 @@ impl AppState {
         self.inner.oauth_endpoint_base.as_deref()
     }
 
-    pub(crate) fn html_shell(&self) -> Option<String> {
+    pub(crate) fn html_shell(&self) -> Option<Arc<HtmlShell>> {
         self.inner
             .html_shell
             .read()
@@ -138,7 +154,7 @@ impl AppState {
             .clone()
     }
 
-    pub(crate) fn cache_html_shell(&self, shell: String) {
+    pub(crate) fn cache_html_shell(&self, shell: Arc<HtmlShell>) {
         *self
             .inner
             .html_shell
@@ -154,5 +170,34 @@ impl AppState {
             .html_shell
             .write()
             .expect("html shell lock poisoned") = None;
+    }
+
+    /// `None` once the entry has aged past [`SITE_META_TTL`].
+    pub(crate) fn site_meta(&self) -> Option<Arc<SiteMeta>> {
+        self.inner
+            .site_meta
+            .read()
+            .expect("site meta lock poisoned")
+            .as_ref()
+            .filter(|(cached_at, _)| cached_at.elapsed() < SITE_META_TTL)
+            .map(|(_, site)| site.clone())
+    }
+
+    pub(crate) fn cache_site_meta(&self, site: Arc<SiteMeta>) {
+        *self
+            .inner
+            .site_meta
+            .write()
+            .expect("site meta lock poisoned") = Some((Instant::now(), site));
+    }
+
+    /// Called after `PATCH /admin/site` so an operator's edit shows up on the
+    /// next reload instead of within [`SITE_META_TTL`].
+    pub(crate) fn clear_site_meta(&self) {
+        *self
+            .inner
+            .site_meta
+            .write()
+            .expect("site meta lock poisoned") = None;
     }
 }

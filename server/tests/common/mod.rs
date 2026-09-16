@@ -50,7 +50,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use tengri_server::{
     AppState,
     auth::{Claims, token::encode_jwt},
-    build_app,
+    build_app, build_root,
     user::Permissions,
 };
 
@@ -241,6 +241,24 @@ pub async fn test_app() -> (Router, PgPool) {
     // dropped by the cookie crate.
     let app = build_app(AppState::new_for_tests(pool.clone(), &[0u8; 32], false));
     (app, pool)
+}
+
+/// Like [`test_app`] but mounts the root router — the API under `/api` plus the
+/// SPA-shell fallback — and points `APP_BASE_URL` at `app_base_url`, where the
+/// caller is serving a stand-in `index.html`.
+pub async fn test_root_app(app_base_url: String) -> (Router, PgPool) {
+    let pool = test_pool().await;
+    let state = AppState::with_origins(
+        pool.clone(),
+        &[0u8; 32],
+        false,
+        Vec::new(),
+        None,
+        String::new(),
+        app_base_url,
+        None,
+    );
+    (build_root(state), pool)
 }
 
 /// Insert a user with the given id/name. Returns the id. Idempotent —

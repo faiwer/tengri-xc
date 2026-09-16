@@ -56,6 +56,23 @@ pub async fn fetch_site_public(pool: &sqlx::PgPool) -> Result<SiteDto, AppError>
     })
 }
 
+/// The two columns the server-rendered `index.html` needs. Read on every
+/// document request, so it's cached — see `AppState::site_meta`.
+#[derive(Debug, sqlx::FromRow)]
+pub struct SiteMeta {
+    pub site_name: String,
+    pub site_description: Option<String>,
+}
+
+pub async fn fetch_site_meta(pool: &sqlx::PgPool) -> Result<SiteMeta, AppError> {
+    sqlx::query_as::<_, SiteMeta>(
+        "SELECT site_name, site_description FROM site_settings WHERE id = TRUE",
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(into_internal)
+}
+
 /// Fetch the full admin view, including raw markdown and SMTP credentials.
 pub async fn fetch_site_admin(pool: &sqlx::PgPool) -> Result<AdminSiteDto, AppError> {
     sqlx::query_as::<_, AdminSiteDto>(
