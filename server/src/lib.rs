@@ -4,6 +4,7 @@ pub mod db;
 pub mod error;
 pub mod flight;
 pub mod glider;
+mod html;
 pub mod ids;
 pub mod mail;
 pub mod migrate;
@@ -31,6 +32,20 @@ use tracing::Level;
 
 pub use crate::{config::Config, error::AppError, state::AppState};
 
+/// The whole surface: the `/api` tree, plus the SPA's `index.html` as the
+/// fallback so client-side routes survive a reload. `nest_service` (rather
+/// than `nest`) keeps `/api/nope` answering with the API's own JSON 404
+/// instead of falling through to the HTML shell.
+pub fn build_root(state: AppState) -> Router {
+    let cors = cors_layer(state.client_origins());
+
+    Router::new()
+        .nest_service("/api", build_app(state.clone()))
+        .fallback(html::handler)
+        .with_state(state)
+        .layer(cors)
+}
+
 pub fn build_app(state: AppState) -> Router {
     let trace = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -52,8 +67,8 @@ pub fn build_app(state: AppState) -> Router {
 /// `origins` (`CLIENT_ORIGINS`). Empty list = same-origin only, fine when the
 /// SPA is served by us.
 ///
-/// Applied as the outermost layer (see `main`) so it covers the 404 fallback
-/// too. Layered inside the router it would miss unmatched routes, and a
+/// Applied as the outermost layer (see [`build_root`]) so it covers the
+/// fallback too. Layered inside the router it would miss unmatched routes, and a
 /// headerless 404 reads to the browser as a CORS error rather than a plain 404.
 pub fn cors_layer(origins: &[String]) -> CorsLayer {
     let mut cors = CorsLayer::new()

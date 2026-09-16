@@ -7,12 +7,15 @@ use sqlx::postgres::PgPoolOptions;
 use tengri_server::{AppState, build_app};
 use tower::ServiceExt;
 
+mod common;
+use common::PLACEHOLDER_DB_URL;
+
 #[tokio::test]
 async fn health_returns_ok_with_version() {
-    // /health doesn't touch the DB, so a lazy pool against a placeholder URL
-    // is enough — no connection is attempted.
+    // /health doesn't touch the DB, so a lazy pool is enough — no connection
+    // is attempted.
     let pool = PgPoolOptions::new()
-        .connect_lazy("postgres://test:test@localhost/test")
+        .connect_lazy(PLACEHOLDER_DB_URL)
         .expect("build lazy pool");
     let app = build_app(AppState::new_for_tests(pool, &[0u8; 32], false));
 

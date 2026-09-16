@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use sqlx::PgPool;
+use tokio::sync::OnceCell;
 
 use crate::flight::{ScoringQueue, queue::default_worker_count};
 
@@ -33,6 +34,10 @@ struct AppStateInner {
     oauth_endpoint_base: Option<String>,
     /// Global route-scoring queue; drains its worker pool in the background.
     scoring_queue: ScoringQueue,
+    /// The SPA's `index.html`, fetched from `app_base_url` on the first
+    /// document request. A failed fetch isn't cached, so a server that starts
+    /// before the static host recovers on the next request.
+    html_shell: OnceCell<String>,
 }
 
 impl AppState {
@@ -76,6 +81,7 @@ impl AppState {
                 app_base_url,
                 oauth_endpoint_base,
                 scoring_queue,
+                html_shell: OnceCell::new(),
             }),
         }
     }
@@ -118,5 +124,9 @@ impl AppState {
 
     pub fn oauth_endpoint_base(&self) -> Option<&str> {
         self.inner.oauth_endpoint_base.as_deref()
+    }
+
+    pub(crate) fn html_shell(&self) -> &OnceCell<String> {
+        &self.inner.html_shell
     }
 }

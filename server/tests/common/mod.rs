@@ -56,6 +56,10 @@ use tengri_server::{
 
 const DEFAULT_TEST_DB_URL: &str = "postgres://tengri:tengri@localhost:5432/tengri_test";
 
+/// Stand-in URL for tests whose route never touches Postgres: `connect_lazy`
+/// defers the connection, and nothing in the test triggers one.
+pub const PLACEHOLDER_DB_URL: &str = "postgres://test:test@localhost/test";
+
 /// Resolves the test DB URL once and caches it. We don't want to re-read the
 /// env on every test call (and risk inconsistent values mid-run).
 fn test_db_url() -> &'static str {
