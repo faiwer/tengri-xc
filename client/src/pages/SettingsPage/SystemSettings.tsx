@@ -95,6 +95,7 @@ function SystemSettingsLoader() {
 
 type SystemSettingsFormValues = {
   siteName: string;
+  siteDescription: string;
   canRegister: boolean;
   tosMd: string;
   privacyMd: string;
@@ -179,6 +180,17 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
           <Input maxLength={64} showCount />
         </Form.Item>
         <Form.Item
+          name="siteDescription"
+          label={<span>Site description</span>}
+          tooltip="Default page description for search results and link previews."
+        >
+          <Input.TextArea
+            autoSize={{ minRows: 2, maxRows: 4 }}
+            maxLength={SITE_DESCRIPTION_MAX_LEN}
+            showCount
+          />
+        </Form.Item>
+        <Form.Item
           name="canRegister"
           label={<span>Allow public registration</span>}
           tooltip="Off: only admins can create users. (Forward-looking — the public signup endpoint isn't built yet.)"
@@ -205,9 +217,13 @@ function SystemSettingsForm({ initial }: SystemSettingsFormProps) {
   );
 }
 
+/** Mirrors the server's `SITE_DESCRIPTION_MAX_LEN`. */
+const SITE_DESCRIPTION_MAX_LEN = 300;
+
 function toFormValues(site: AdminSite): SystemSettingsFormValues {
   return {
     siteName: site.siteName,
+    siteDescription: site.siteDescription ?? '',
     canRegister: site.canRegister,
     // Form fields are non-null strings; `null` in the DB renders as
     // an empty textarea, and submitting empty round-trips back to
@@ -220,6 +236,7 @@ function toFormValues(site: AdminSite): SystemSettingsFormValues {
 function fromFormValues(values: SystemSettingsFormValues) {
   return {
     siteName: values.siteName.trim(),
+    siteDescription: values.siteDescription.trim(),
     canRegister: values.canRegister,
     tosMd: values.tosMd,
     privacyMd: values.privacyMd,

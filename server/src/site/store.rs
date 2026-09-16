@@ -24,6 +24,11 @@ const DOC_MAX_LEN: usize = 64 * 1024;
 /// Cap on single-line settings values (hostnames, usernames, addresses).
 const SHORT_TEXT_MAX_LEN: usize = 512;
 
+/// Cap on `site_description`. Search engines and link previews truncate around
+/// 160-200 characters; the extra headroom keeps the editor from fighting the
+/// limit while still ruling out paste-bombs.
+const SITE_DESCRIPTION_MAX_LEN: usize = 300;
+
 /// TCP port range. The column is `int4` because Postgres has no unsigned types,
 /// so the bounds have to be checked rather than encoded in the type.
 const PORT_MIN: i32 = 1;
@@ -54,7 +59,7 @@ pub async fn fetch_site_public(pool: &sqlx::PgPool) -> Result<SiteDto, AppError>
 /// Fetch the full admin view, including raw markdown and SMTP credentials.
 pub async fn fetch_site_admin(pool: &sqlx::PgPool) -> Result<AdminSiteDto, AppError> {
     sqlx::query_as::<_, AdminSiteDto>(
-        "SELECT site_name, can_register, tos_md, privacy_md, \
+        "SELECT site_name, site_description, can_register, tos_md, privacy_md, \
                 smtp_host, smtp_port, smtp_tls, smtp_username, smtp_password, \
                 from_address, title_template, body_template \
          FROM site_settings \
@@ -99,6 +104,8 @@ pub async fn fetch_site_doc(
 pub struct UpdateSiteRequest {
     #[serde(default)]
     pub site_name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub site_description: Option<Option<String>>,
     #[serde(default)]
     pub can_register: Option<bool>,
     #[serde(default, deserialize_with = "deserialize_some")]
@@ -131,6 +138,7 @@ pub struct UpdateSiteRequest {
 #[derive(Debug, Default)]
 pub struct SiteUpdate {
     pub site_name: Option<String>,
+    pub site_description: Option<Option<String>>,
     pub can_register: Option<bool>,
     pub tos_md: Option<Option<String>>,
     pub privacy_md: Option<Option<String>>,
@@ -149,6 +157,7 @@ pub struct SiteUpdate {
 impl SiteUpdate {
     pub fn is_noop(&self) -> bool {
         self.site_name.is_none()
+            && self.site_description.is_none()
             && self.can_register.is_none()
             && self.tos_md.is_none()
             && self.privacy_md.is_none()
@@ -185,11 +194,28 @@ pub fn validate_site_update(input: UpdateSiteRequest) -> Result<SiteUpdate, Fiel
         }
     };
 
+    let site_description = validate_optional_text(
+        &mut errors,
+        "site_description",
+        input.site_description,
+        SITE_DESCRIPTION_MAX_LEN,
+    );
+
     let tos_md = validate_doc(&mut errors, "tos_md", input.tos_md);
     let privacy_md = validate_doc(&mut errors, "privacy_md", input.privacy_md);
 
-    let smtp_host = validate_optional_text(&mut errors, "smtp_host", input.smtp_host);
-    let smtp_username = validate_optional_text(&mut errors, "smtp_username", input.smtp_username);
+    let smtp_host = validate_optional_text(
+        &mut errors,
+        "smtp_host",
+        input.smtp_host,
+        SHORT_TEXT_MAX_LEN,
+    );
+    let smtp_username = validate_optional_text(
+        &mut errors,
+        "smtp_username",
+        input.smtp_username,
+        SHORT_TEXT_MAX_LEN,
+    );
     let smtp_password = validate_smtp_password(&mut errors, input.smtp_password);
     let from_address = validate_from_address(&mut errors, input.from_address);
     let smtp_port = validate_port(&mut errors, "smtp_port", input.smtp_port);
@@ -206,6 +232,7 @@ pub fn validate_site_update(input: UpdateSiteRequest) -> Result<SiteUpdate, Fiel
     if errors.is_empty() {
         Ok(SiteUpdate {
             site_name,
+            site_description,
             can_register: input.can_register,
             tos_md,
             privacy_md,
@@ -247,6 +274,7 @@ fn validate_optional_text(
     errors: &mut FieldErrors,
     field: &'static str,
     value: Option<Option<String>>,
+    max_len: usize,
 ) -> Option<Option<String>> {
     match value {
         None => None,
@@ -255,11 +283,8 @@ fn validate_optional_text(
             let trimmed = s.trim();
             if trimmed.is_empty() {
                 Some(None)
-            } else if trimmed.chars().count() > SHORT_TEXT_MAX_LEN {
-                errors.add(
-                    field,
-                    format!("Must be at most {SHORT_TEXT_MAX_LEN} characters"),
-                );
+            } else if trimmed.chars().count() > max_len {
+                errors.add(field, format!("Must be at most {max_len} characters"));
                 None
             } else {
                 Some(Some(trimmed.to_owned()))
@@ -394,6 +419,9 @@ pub async fn apply_site_update(pool: &sqlx::PgPool, update: &SiteUpdate) -> Resu
     let mut q = Update::new("site_settings");
     if let Some(ref v) = update.site_name {
         q.set("site_name", v.as_str());
+    }
+    if let Some(ref v) = update.site_description {
+        q.set("site_description", v.as_deref());
     }
     if let Some(v) = update.can_register {
         q.set("can_register", v);

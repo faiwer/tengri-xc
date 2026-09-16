@@ -183,6 +183,7 @@ async fn get_admin_site_returns_full_state_for_admin() {
     assert!(body["smtp_username"].is_null());
     assert!(body["smtp_password"].is_null());
     assert!(body["from_address"].is_null());
+    assert!(body["site_description"].is_null());
     assert_eq!(body["title_template"], "%title%");
     assert_eq!(body["body_template"], "%body%");
 }
@@ -299,6 +300,74 @@ async fn patch_admin_site_treats_empty_string_doc_as_clear() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_json(resp).await;
     assert!(body["tos_md"].is_null());
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_writes_trims_and_clears_site_description() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "site_description": "  Cross-country flights in Kyrgyzstan.  " }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert_eq!(
+        body["site_description"],
+        "Cross-country flights in Kyrgyzstan."
+    );
+    let stored = sqlx::query("SELECT site_description FROM site_settings WHERE id = TRUE")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        stored
+            .try_get::<Option<String>, _>("site_description")
+            .unwrap()
+            .as_deref(),
+        Some("Cross-country flights in Kyrgyzstan.")
+    );
+
+    // An empty box clears the column, same as the markdown fields.
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "site_description": "" }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_json(resp).await;
+    assert!(body["site_description"].is_null());
+}
+
+#[tokio::test]
+#[serial]
+async fn patch_admin_site_rejects_oversized_site_description() {
+    let (app, pool) = common::test_app().await;
+    common::seed_user(&pool, 1, "Operator").await;
+    let cookie = admin_cookie();
+
+    let resp = app
+        .oneshot(common::json_patch_with_cookie(
+            "/admin/site",
+            json!({ "site_description": "x".repeat(301) }),
+            &cookie,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = body_json(resp).await;
+    assert!(body["fields"]["site_description"].is_string());
 }
 
 #[tokio::test]

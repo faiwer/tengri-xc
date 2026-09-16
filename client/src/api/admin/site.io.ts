@@ -17,6 +17,7 @@ export type SmtpTls = z.infer<typeof SmtpTlsIo>;
  */
 export const AdminSiteIo = z.object({
   siteName: z.string(),
+  siteDescription: z.string().nullable(),
   canRegister: z.boolean(),
   tosMd: z.string().nullable(),
   privacyMd: z.string().nullable(),
@@ -63,6 +64,7 @@ export interface SendTestEmailRequest {
 
 export interface UpdateAdminSiteRequest {
   siteName?: string;
+  siteDescription?: string | null;
   canRegister?: boolean;
   tosMd?: string | null;
   privacyMd?: string | null;

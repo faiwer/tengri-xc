@@ -35,6 +35,7 @@ pub enum SmtpTls {
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct AdminSiteDto {
     pub site_name: String,
+    pub site_description: Option<String>,
     pub can_register: bool,
     pub tos_md: Option<String>,
     pub privacy_md: Option<String>,
