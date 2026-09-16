@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 1. Build the tengri-client image (React SPA behind nginx) on this mashine
 # 2. Push it to the prod server's loopback registry over the SSH tunnel
-# 3. Restart the service, and verify the public root.
+# 3. Restart the service, verify it, and drop the API's cached HTML shell.
 #
 # The server never builds images. Mirrors deploy-server.sh for the API.
 #
@@ -24,8 +24,12 @@ DOCKERFILE="client/Dockerfile"
 CONTEXT="client"
 # The step in the Dockerfile to build
 TARGET="runtime"
-HEALTH_URL="${ORIGIN%/}/"
+# Must be a path nginx serves. Extensionless routes reach the API, which answers
+# them from its cached shell — a 200 there would say nothing about this service.
+HEALTH_URL="${ORIGIN%/}/index.html"
 HEALTH_TIMEOUT=30
+# The API caches nginx's index.html, so a new build stays invisible until dropped.
+RELOAD_URL="${ORIGIN%/}/api/html/reload"
 
 IMAGE="localhost:5000/${NAME}:latest"
 
@@ -45,6 +49,11 @@ echo "==> verify ${HEALTH_URL}"
 for ((i = 1; i <= HEALTH_TIMEOUT; i++)); do
   code="$(curl -fsS -o /dev/null -w '%{http_code}' "${HEALTH_URL}" || echo 000)"
   if [[ "${code}" == "200" ]]; then
+    echo "==> reload ${RELOAD_URL}"
+    curl -fsS -o /dev/null -X POST "${RELOAD_URL}" || {
+      echo "ERROR: reload failed; the API keeps serving the previous index.html" >&2
+      exit 1
+    }
     echo "==> done (healthy after ${i}s)"
     exit 0
   fi
