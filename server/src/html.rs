@@ -20,12 +20,18 @@ pub(crate) async fn handler(
         return Err(AppError::NotFound);
     }
 
-    let shell = state
-        .html_shell()
-        .get_or_try_init(|| fetch_shell(state.app_base_url()))
-        .await?;
+    // Concurrent misses each fetch and the last one wins; they all write the
+    // same bytes, so single-flighting isn't worth a lock held across the await.
+    let shell = match state.html_shell() {
+        Some(shell) => shell,
+        None => {
+            let shell = fetch_shell(state.app_base_url()).await?;
+            state.cache_html_shell(shell.clone());
+            shell
+        }
+    };
 
-    Ok(([(header::CACHE_CONTROL, "no-cache")], Html(shell.clone())).into_response())
+    Ok(([(header::CACHE_CONTROL, "no-cache")], Html(shell)).into_response())
 }
 
 async fn fetch_shell(app_base_url: &str) -> anyhow::Result<String> {

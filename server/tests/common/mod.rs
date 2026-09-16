@@ -1,7 +1,7 @@
 // Shared test harness: each `tests/*.rs` integration test is its own crate,
-// so any helper not used by a given test trips `dead_code` for that crate.
-// Silence at the module level.
-#![allow(dead_code)]
+// so any helper not used by a given test trips `dead_code` — or, for the
+// re-exports, `unused_imports` — for that crate. Silence at the module level.
+#![allow(dead_code, unused_imports)]
 
 //! Shared test harness for integration tests that need a real Postgres.
 //!
@@ -56,9 +56,7 @@ use tengri_server::{
 
 const DEFAULT_TEST_DB_URL: &str = "postgres://tengri:tengri@localhost:5432/tengri_test";
 
-/// Stand-in URL for tests whose route never touches Postgres: `connect_lazy`
-/// defers the connection, and nothing in the test triggers one.
-pub const PLACEHOLDER_DB_URL: &str = "postgres://test:test@localhost/test";
+pub use tengri_server::state::PLACEHOLDER_DB_URL;
 
 /// Resolves the test DB URL once and caches it. We don't want to re-read the
 /// env on every test call (and risk inconsistent values mid-run).

@@ -4,6 +4,7 @@ use crate::{AppState, auth::session_layer};
 
 mod admin;
 mod health;
+mod html;
 mod me;
 mod oauth;
 mod register;
@@ -37,6 +38,7 @@ pub fn router(state: AppState) -> Router<AppState> {
 
     Router::new()
         .merge(users::public_router())
+        .merge(html::public_router())
         .merge(register::public_router())
         .merge(reset_password::public_router())
         .merge(oauth::public_router())

@@ -1,8 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use sqlx::PgPool;
-use tokio::sync::OnceCell;
 
 use crate::flight::{ScoringQueue, queue::default_worker_count};
 
@@ -37,8 +36,13 @@ struct AppStateInner {
     /// The SPA's `index.html`, fetched from `app_base_url` on the first
     /// document request. A failed fetch isn't cached, so a server that starts
     /// before the static host recovers on the next request.
-    html_shell: OnceCell<String>,
+    html_shell: RwLock<Option<String>>,
 }
+
+/// Stand-in URL for tests whose route never touches Postgres: `connect_lazy`
+/// defers the connection, and nothing in the test triggers one. Pair with
+/// [`AppState::new_for_tests`].
+pub const PLACEHOLDER_DB_URL: &str = "postgres://test:test@localhost/test";
 
 impl AppState {
     /// Minimal constructor for tests: no client origins, no OAuth URLs. The
@@ -81,7 +85,7 @@ impl AppState {
                 app_base_url,
                 oauth_endpoint_base,
                 scoring_queue,
-                html_shell: OnceCell::new(),
+                html_shell: RwLock::new(None),
             }),
         }
     }
@@ -126,7 +130,29 @@ impl AppState {
         self.inner.oauth_endpoint_base.as_deref()
     }
 
-    pub(crate) fn html_shell(&self) -> &OnceCell<String> {
-        &self.inner.html_shell
+    pub(crate) fn html_shell(&self) -> Option<String> {
+        self.inner
+            .html_shell
+            .read()
+            .expect("html shell lock poisoned")
+            .clone()
+    }
+
+    pub(crate) fn cache_html_shell(&self, shell: String) {
+        *self
+            .inner
+            .html_shell
+            .write()
+            .expect("html shell lock poisoned") = Some(shell);
+    }
+
+    /// Next document request re-fetches. Called by `POST /api/html/reload`
+    /// after the static host gets a new `index.html`.
+    pub(crate) fn clear_html_shell(&self) {
+        *self
+            .inner
+            .html_shell
+            .write()
+            .expect("html shell lock poisoned") = None;
     }
 }
