@@ -9,6 +9,7 @@ use tengri_geo::{PointE5, mercator_bounds, project_points_mercator_m};
 
 use crate::{config::SatelliteMap, flight::Route};
 
+mod attribution;
 mod basemap;
 mod jpeg;
 mod layout;
@@ -51,6 +52,9 @@ pub fn render_flight_image(
     let mut pixmap = layout.canvas()?;
     if let Some(basemap) = basemap {
         basemap::draw_basemap(&mut pixmap, &layout, basemap);
+        if let Some(credit) = basemap.attribution() {
+            attribution::draw_attribution(&mut pixmap, credit);
+        }
     }
     track::draw_track(
         &mut pixmap,

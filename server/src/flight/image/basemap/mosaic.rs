@@ -15,12 +15,25 @@ pub struct Basemap {
     /// North-west corner of `image`, in Mercator metres.
     origin: Point,
     metres_per_px: f64,
+    attribution: Option<String>,
+}
+
+impl Basemap {
+    /// The credit the imagery has to carry. It rides on the mosaic because a
+    /// backdrop that never arrived shouldn't credit anyone.
+    pub(in crate::flight::image) fn attribution(&self) -> Option<&str> {
+        self.attribution.as_deref()
+    }
 }
 
 /// `None` if a tile isn't the size `SATELLITE_MAP_TILE_SIZE` promised: the
 /// offsets are spaced by the configured size, so a mismatch would stack the
 /// tiles on top of each other instead of beside each other.
-pub(super) fn stitch(plan: &TilePlan, tiles: &[(XyzTile, Pixmap)]) -> Option<Basemap> {
+pub(super) fn stitch(
+    plan: &TilePlan,
+    tiles: &[(XyzTile, Pixmap)],
+    attribution: Option<&str>,
+) -> Option<Basemap> {
     let side = plan.tile_size;
     let mut image = Pixmap::new(plan.columns * side, plan.rows * side)?;
     for (tile, source) in tiles {
@@ -42,6 +55,7 @@ pub(super) fn stitch(plan: &TilePlan, tiles: &[(XyzTile, Pixmap)]) -> Option<Bas
         image,
         origin: plan.origin,
         metres_per_px: plan.metres_per_px,
+        attribution: attribution.map(str::to_owned),
     })
 }
 
@@ -102,7 +116,7 @@ mod tests {
             .map(|(index, &tile)| (tile, solid(TILE_SIZE, index as u8 * 40, 0, 0)))
             .collect();
 
-        let basemap = stitch(&plan, &tiles).unwrap();
+        let basemap = stitch(&plan, &tiles, None).unwrap();
 
         assert_eq!(basemap.image.width(), plan.columns * TILE_SIZE);
         for (index, _) in tiles.iter().enumerate() {
@@ -124,7 +138,7 @@ mod tests {
             .map(|&tile| (tile, solid(2 * TILE_SIZE, 0xff, 0, 0)))
             .collect();
 
-        assert!(stitch(&plan, &tiles).is_none());
+        assert!(stitch(&plan, &tiles, None).is_none());
     }
 
     #[test]
@@ -136,7 +150,7 @@ mod tests {
             .iter()
             .map(|&tile| (tile, solid(TILE_SIZE, 0xff, 0, 0)))
             .collect();
-        let basemap = stitch(&plan, &tiles).unwrap();
+        let basemap = stitch(&plan, &tiles, None).unwrap();
         let mut canvas = layout.canvas().unwrap();
 
         draw_basemap(&mut canvas, &layout, &basemap);

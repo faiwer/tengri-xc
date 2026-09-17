@@ -29,7 +29,7 @@ pub(in crate::flight::image) async fn fetch(
     let tiles = tokio::time::timeout(BUDGET, fetch_tiles(&satellite.url, &plan.tiles))
         .await
         .ok()??;
-    stitch(&plan, &tiles)
+    stitch(&plan, &tiles, satellite.attribution.as_deref())
 }
 
 async fn fetch_tiles(template: &str, tiles: &[XyzTile]) -> Option<Vec<(XyzTile, Pixmap)>> {

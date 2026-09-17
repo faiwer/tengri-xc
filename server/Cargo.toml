@@ -16,6 +16,7 @@ members = [
 resolver = "3"
 
 [dependencies]
+ab_glyph = "0.2.32"
 ammonia = "4.1.4"
 anyhow = "1.0.102"
 argon2 = "0.5.3"

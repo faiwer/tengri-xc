@@ -55,6 +55,9 @@ pub struct SatelliteMap {
     /// (retina); getting it wrong scrambles the mosaic, so it's configured
     /// alongside the URL rather than assumed.
     pub tile_size: u32,
+    /// Credit drawn over the imagery. `None` leaves the preview uncredited,
+    /// which most providers' terms don't allow.
+    pub attribution: Option<String>,
 }
 
 /// Nine tiles this wide are a 37 MB mosaic buffer; past here a typo in the
@@ -176,7 +179,11 @@ fn parse_satellite_map() -> Result<Option<SatelliteMap>, ConfigError> {
         });
     }
 
-    Ok(Some(SatelliteMap { url, tile_size }))
+    Ok(Some(SatelliteMap {
+        url,
+        tile_size,
+        attribution: parse_optional_string("SATELLITE_MAP_ATTRIBUTION"),
+    }))
 }
 
 fn parse_optional_string(var: &'static str) -> Option<String> {
