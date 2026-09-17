@@ -29,6 +29,7 @@ cookie = "0.18.1"
 dotenvy = "0.15.7"
 flate2 = "1.1.9"
 html-escape = "0.2.15"
+jpeg-decoder = "0.3.2"
 jpeg-encoder = "0.7.1"
 jsonwebtoken = { version = "10.3.0", default-features = false, features = ["rust_crypto"] }
 # Default features pull in `native-tls`; this workspace is rustls-only, and

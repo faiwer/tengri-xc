@@ -3548,6 +3548,7 @@ dependencies = [
  "flate2",
  "html-escape",
  "http-body-util",
+ "jpeg-decoder",
  "jpeg-encoder",
  "jsonwebtoken",
  "lettre",

@@ -36,12 +36,30 @@ pub struct Config {
     /// browser back to `{app_base_url}{return_to}`. `APP_BASE_URL` env var;
     /// trailing slash trimmed. Defaults to `http://localhost:5173`.
     pub app_base_url: String,
+    /// Imagery behind the flight preview image. `SATELLITE_MAP_URL` unset
+    /// means the preview renders on plain white.
+    pub satellite_map: Option<SatelliteMap>,
     /// Stand-in for every provider's OAuth endpoints, as
     /// `{base}/{provider}/authorize|token|userinfo`. Set by the E2E harness so
     /// the flow runs end to end without leaving the machine; leave it unset
     /// anywhere real. `OAUTH_ENDPOINT_BASE` env var.
     pub oauth_endpoint_base: Option<String>,
 }
+
+/// A tile service for the flight preview image's backdrop.
+#[derive(Debug, Clone)]
+pub struct SatelliteMap {
+    /// Tile URL template carrying `{z}`, `{x}` and `{y}`.
+    pub url: String,
+    /// Pixel side of the tiles `url` serves. Providers cut 256 or 512
+    /// (retina); getting it wrong scrambles the mosaic, so it's configured
+    /// alongside the URL rather than assumed.
+    pub tile_size: u32,
+}
+
+/// Nine tiles this wide are a 37 MB mosaic buffer; past here a typo in the
+/// env var costs real memory.
+const MAX_TILE_SIZE_PX: u32 = 1024;
 
 /// Minimum key length for HS256. RFC 8725 §3.1 says "the keys
 /// used MUST be of size equal to or greater than the size of the
@@ -72,6 +90,17 @@ pub enum ConfigError {
 #[error("expected true/false/1/0/yes/no, got {0:?}")]
 struct BoolParseError(String);
 
+#[derive(Debug, Error)]
+#[error("expected a tile URL template with {{z}}, {{x}} and {{y}}, got {0:?}")]
+struct TileTemplateError(String);
+
+#[derive(Debug, Error)]
+#[error("expected a tile size of 1..={max} pixels, got {got}")]
+struct TileSizeError {
+    got: u32,
+    max: u32,
+}
+
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let server_addr = parse_env("SERVER_ADDR", "0.0.0.0:3000")?;
@@ -83,6 +112,7 @@ impl Config {
         let leonardo_cookie_domain = parse_optional_string("LEONARDO_COOKIE_DOMAIN");
         let api_public_url = parse_base_url("API_PUBLIC_URL", "http://localhost:5757/api");
         let app_base_url = parse_base_url("APP_BASE_URL", "http://localhost:5173");
+        let satellite_map = parse_satellite_map()?;
         let oauth_endpoint_base = parse_optional_string("OAUTH_ENDPOINT_BASE")
             .map(|base| base.trim_end_matches('/').to_owned());
         Ok(Self {
@@ -94,6 +124,7 @@ impl Config {
             leonardo_cookie_domain,
             api_public_url,
             app_base_url,
+            satellite_map,
             oauth_endpoint_base,
         })
     }
@@ -118,6 +149,34 @@ fn parse_origins(var: &'static str) -> Vec<String> {
 fn parse_base_url(var: &'static str, default: &str) -> String {
     let raw = env::var(var).unwrap_or_else(|_| default.to_owned());
     raw.trim().trim_end_matches('/').to_owned()
+}
+
+/// `None` when `SATELLITE_MAP_URL` is unset; the tile size is then moot. A
+/// template missing a placeholder would fetch the same tile for every cell, so
+/// it fails the boot instead.
+fn parse_satellite_map() -> Result<Option<SatelliteMap>, ConfigError> {
+    let Some(url) = parse_optional_string("SATELLITE_MAP_URL") else {
+        return Ok(None);
+    };
+    if !["{z}", "{x}", "{y}"].iter().all(|slot| url.contains(slot)) {
+        return Err(ConfigError::InvalidValue {
+            var: "SATELLITE_MAP_URL",
+            source: Box::new(TileTemplateError(url)),
+        });
+    }
+
+    let tile_size = parse_env("SATELLITE_MAP_TILE_SIZE", "256")?;
+    if !(1..=MAX_TILE_SIZE_PX).contains(&tile_size) {
+        return Err(ConfigError::InvalidValue {
+            var: "SATELLITE_MAP_TILE_SIZE",
+            source: Box::new(TileSizeError {
+                got: tile_size,
+                max: MAX_TILE_SIZE_PX,
+            }),
+        });
+    }
+
+    Ok(Some(SatelliteMap { url, tile_size }))
 }
 
 fn parse_optional_string(var: &'static str) -> Option<String> {

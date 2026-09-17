@@ -257,6 +257,7 @@ pub async fn test_root_app(app_base_url: String) -> (Router, PgPool) {
         String::new(),
         app_base_url,
         None,
+        None,
     );
     (build_root(state), pool)
 }

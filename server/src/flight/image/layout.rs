@@ -1,7 +1,7 @@
-//! The projected metre plane mapped onto canvas pixels.
+//! The Mercator metre plane mapped onto canvas pixels.
 
 use anyhow::anyhow;
-use tengri_geo::Point;
+use tengri_geo::{MercatorRect, Point};
 use tiny_skia::{Color, Pixmap};
 
 /// Longer side of the drawing area, before padding.
@@ -20,20 +20,11 @@ pub(super) struct Layout {
 }
 
 impl Layout {
-    /// Sized to the bounding box of `points`; anything drawn outside it lands
-    /// in the padding, or off the canvas entirely.
-    pub(super) fn new(points: &[Point]) -> Self {
-        let (mut min_x, mut max_x) = (f64::MAX, f64::MIN);
-        let (mut min_y, mut max_y) = (f64::MAX, f64::MIN);
-        for point in points {
-            min_x = min_x.min(point.x);
-            max_x = max_x.max(point.x);
-            min_y = min_y.min(point.y);
-            max_y = max_y.max(point.y);
-        }
-
-        let span_x = max_x - min_x;
-        let span_y = max_y - min_y;
+    /// Sized to `bounds`; anything drawn outside it lands in the padding, or
+    /// off the canvas entirely.
+    pub(super) fn new(bounds: MercatorRect) -> Self {
+        let span_x = bounds.width();
+        let span_y = bounds.height();
         let longest = span_x.max(span_y);
         // A single fix (or a pilot who never moved) has nothing to scale to.
         let scale = if longest > 0.0 {
@@ -46,16 +37,33 @@ impl Layout {
             width: canvas_side(span_x * scale),
             height: canvas_side(span_y * scale),
             scale,
-            min_x,
-            max_y,
+            min_x: bounds.min_x,
+            max_y: bounds.max_y,
         }
     }
 
-    /// Convert a projected metre plane point to canvas pixels.
+    /// Convert a Mercator metre point to canvas pixels.
     pub(super) fn to_canvas(&self, point: Point) -> (f32, f32) {
         (
             (PADDING_PX + (point.x - self.min_x) * self.scale) as f32,
             (PADDING_PX + (self.max_y - point.y) * self.scale) as f32,
+        )
+    }
+
+    /// Pixels per Mercator metre.
+    pub(super) fn scale(&self) -> f64 {
+        self.scale
+    }
+
+    /// What the whole canvas covers, padding included — the area a backdrop
+    /// has to fill, which is wider than the track's own box.
+    pub(super) fn covered_bounds(&self) -> MercatorRect {
+        let padding_m = PADDING_PX / self.scale;
+        MercatorRect::new(
+            self.min_x - padding_m,
+            self.max_y + padding_m - f64::from(self.height) / self.scale,
+            self.min_x - padding_m + f64::from(self.width) / self.scale,
+            self.max_y + padding_m,
         )
     }
 
@@ -75,13 +83,13 @@ fn canvas_side(drawn_px: f64) -> u32 {
 mod tests {
     use super::*;
 
-    fn point(x: f64, y: f64) -> Point {
-        Point::new(x, y)
+    fn bounds(min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> MercatorRect {
+        MercatorRect::new(min_x, min_y, max_x, max_y)
     }
 
     #[test]
     fn the_longer_span_sets_the_scale() {
-        let wide = Layout::new(&[point(0.0, 0.0), point(10_000.0, 2_500.0)]);
+        let wide = Layout::new(bounds(0.0, 0.0, 10_000.0, 2_500.0));
 
         assert_eq!(wide.width, 500);
         assert_eq!(wide.height, 200);
@@ -89,7 +97,7 @@ mod tests {
 
     #[test]
     fn a_tall_track_caps_its_height() {
-        let tall = Layout::new(&[point(0.0, 0.0), point(2_500.0, 10_000.0)]);
+        let tall = Layout::new(bounds(0.0, 0.0, 2_500.0, 10_000.0));
 
         assert_eq!(tall.width, 200);
         assert_eq!(tall.height, 500);
@@ -97,19 +105,34 @@ mod tests {
 
     #[test]
     fn a_stationary_track_is_all_padding() {
-        let still = Layout::new(&[point(12.0, -4.0), point(12.0, -4.0)]);
+        let still = Layout::new(bounds(12.0, -4.0, 12.0, -4.0));
 
         assert_eq!(still.width, 100);
         assert_eq!(still.height, 100);
-        assert_eq!(still.to_canvas(point(12.0, -4.0)), (50.0, 50.0));
+        assert_eq!(still.to_canvas(Point::new(12.0, -4.0)), (50.0, 50.0));
     }
 
     #[test]
     fn north_is_up() {
-        let layout = Layout::new(&[point(0.0, 0.0), point(0.0, 10_000.0)]);
+        let layout = Layout::new(bounds(0.0, 0.0, 0.0, 10_000.0));
 
-        let (_, south) = layout.to_canvas(point(0.0, 0.0));
-        let (_, north) = layout.to_canvas(point(0.0, 10_000.0));
+        let (_, south) = layout.to_canvas(Point::new(0.0, 0.0));
+        let (_, north) = layout.to_canvas(Point::new(0.0, 10_000.0));
         assert!(north < south);
+    }
+
+    #[test]
+    fn the_covered_bounds_are_the_canvas_corners() {
+        let layout = Layout::new(bounds(0.0, 0.0, 10_000.0, 2_500.0));
+
+        let covered = layout.covered_bounds();
+
+        assert_eq!(
+            layout.to_canvas(Point::new(covered.min_x, covered.max_y)),
+            (0.0, 0.0)
+        );
+        let (right, bottom) = layout.to_canvas(Point::new(covered.max_x, covered.min_y));
+        assert!((right - layout.width as f32).abs() < 0.01, "{right}");
+        assert!((bottom - layout.height as f32).abs() < 0.01, "{bottom}");
     }
 }

@@ -41,6 +41,7 @@ async fn main() -> anyhow::Result<()> {
         config.leonardo_cookie_domain.clone(),
         config.api_public_url.clone(),
         config.app_base_url.clone(),
+        config.satellite_map.clone(),
         config.oauth_endpoint_base.clone(),
     );
     let app = build_root(state);
