@@ -1,9 +1,10 @@
-//! Renders a flight into a small JPEG for link previews: the RDP-simplified
-//! track as a polyline, plus the waypoints drawn like the client's `TrackRoute`
-//! markers. The route legs and persisting the render are still to come.
+//! Renders a flight into a small JPEG for link previews: the track as a
+//! vario-coloured polyline, plus the waypoints drawn like the client's
+//! `TrackRoute` markers. The route legs and persisting the render are still to
+//! come.
 
 use anyhow::anyhow;
-use tengri_formats::Track;
+use tengri_formats::{Track, find_flight_window};
 use tengri_geo::{PointE5, project_track_points_m};
 
 use crate::flight::Route;
@@ -12,6 +13,7 @@ mod jpeg;
 mod layout;
 mod paint;
 mod track;
+mod vario;
 mod waypoints;
 
 #[cfg(test)]
@@ -24,18 +26,24 @@ pub fn render_flight_image(flight: &Track, route: Option<&Route>) -> anyhow::Res
         return Err(anyhow!("track has no points"));
     }
 
+    let window = find_flight_window(flight);
+
     // One projection for both layers: `project_track_points_m` centres on the
     // mean of what it's given, so projecting the waypoints separately would put
     // them in a different frame.
     let mut all: Vec<PointE5> = flight.points.iter().map(PointE5::from_e5_coords).collect();
-    all.extend(waypoints::fixes(flight, route));
+    all.extend(waypoints::fixes(flight, route, window));
     let projected = project_track_points_m(&all);
     let (track_points, waypoints_points) = projected.split_at(flight.points.len());
 
-    let simplified = track::simplify(track_points);
-    let layout = layout::Layout::new(&simplified);
+    let layout = layout::Layout::new(track_points);
     let mut pixmap = layout.canvas()?;
-    track::draw_track(&mut pixmap, &layout, &simplified);
+    track::draw_track(
+        &mut pixmap,
+        &layout,
+        track_points,
+        &vario::runs(flight, window),
+    );
     waypoints::draw_waypoints(&mut pixmap, &layout, waypoints_points);
 
     jpeg::encode(&pixmap)

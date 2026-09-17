@@ -3,7 +3,7 @@
 //! itself is drawn end to end, ground segments included; only the markers stop
 //! at the flight window.
 
-use tengri_formats::{Track, TrackPoint, find_flight_window};
+use tengri_formats::{FlightWindow, Track, TrackPoint};
 use tengri_geo::{Point, PointE5};
 use tiny_skia::{FillRule, PathBuilder, Pixmap, Stroke, Transform};
 
@@ -22,7 +22,11 @@ const BORDER_COLOR: Rgb = (0x65, 0xc8, 0x32);
 /// `[closure start, turnpoints…, closure end]`, deduplicated — mirroring
 /// `buildRouteGeometry.tsx`. An unscored flight marks its takeoff and landing
 /// instead, so the preview always says where the pilot started and stopped.
-pub(super) fn fixes(track: &Track, route: Option<&Route>) -> Vec<PointE5> {
+pub(super) fn fixes(
+    track: &Track,
+    route: Option<&Route>,
+    window: Option<FlightWindow>,
+) -> Vec<PointE5> {
     let mut fixes: Vec<PointE5> = Vec::new();
     let mut push = |point: PointE5| {
         if !fixes.contains(&point) {
@@ -41,7 +45,7 @@ pub(super) fn fixes(track: &Track, route: Option<&Route>) -> Vec<PointE5> {
             }
         }
         None => {
-            for fix in airborne_ends(track).into_iter().flatten() {
+            for fix in airborne_ends(track, window).into_iter().flatten() {
                 push(PointE5::new(fix.lat, fix.lon));
             }
         }
@@ -74,8 +78,8 @@ pub(super) fn draw_waypoints(pixmap: &mut Pixmap, layout: &Layout, points: &[Poi
 /// Takeoff and landing, not the ends of the file — the stored track keeps the
 /// hike up and the drive home, and neither deserves a marker. Tracks with no
 /// detectable window (all stationary) fall back to the file's ends.
-fn airborne_ends(track: &Track) -> [Option<&TrackPoint>; 2] {
-    match find_flight_window(track) {
+fn airborne_ends(track: &Track, window: Option<FlightWindow>) -> [Option<&TrackPoint>; 2] {
+    match window {
         Some(window) => [
             track.points.get(window.takeoff_idx),
             track.points.get(window.landing_idx),
@@ -104,6 +108,11 @@ mod tests {
     use super::super::fixtures::{sample_track, triangle, waypoint};
     use super::*;
     use crate::flight::RouteClosure;
+    use tengri_formats::find_flight_window;
+
+    fn unscored(track: &Track) -> Vec<PointE5> {
+        fixes(track, None, find_flight_window(track))
+    }
 
     #[test]
     fn olc_routes_bracket_the_turnpoints_with_the_closure() {
@@ -114,7 +123,7 @@ mod tests {
         };
         let route = triangle(RouteSubType::OlcOpen, Some(closure));
 
-        let marked = fixes(&sample_track(), Some(&route));
+        let marked = fixes(&sample_track(), Some(&route), None);
 
         assert_eq!(marked.len(), 5);
         assert_eq!(marked[0].lat, 42_00000);
@@ -130,7 +139,7 @@ mod tests {
         };
         let route = triangle(RouteSubType::FaiCylinders, Some(closure));
 
-        assert_eq!(fixes(&sample_track(), Some(&route)).len(), 3);
+        assert_eq!(fixes(&sample_track(), Some(&route), None).len(), 3);
     }
 
     #[test]
@@ -142,14 +151,14 @@ mod tests {
         };
         let route = triangle(RouteSubType::OlcClosed, Some(closure));
 
-        assert_eq!(fixes(&sample_track(), Some(&route)).len(), 4);
+        assert_eq!(fixes(&sample_track(), Some(&route), None).len(), 4);
     }
 
     #[test]
     fn an_unscored_flight_marks_takeoff_and_landing() {
         let track = sample_track();
 
-        let marked = fixes(&track, None);
+        let marked = unscored(&track);
 
         assert_eq!(marked.len(), 2);
         assert_eq!(marked[0].lat, track.points[0].lat);
@@ -160,7 +169,7 @@ mod tests {
     fn the_walk_up_and_the_pack_up_get_no_marker() {
         let track = track_with_ground_segments();
 
-        let marked = fixes(&track, None);
+        let marked = unscored(&track);
 
         // Fix 400 leaves the ground; fix 1000 is the first one back on it.
         assert_eq!(marked.len(), 2);
@@ -206,6 +215,6 @@ mod tests {
         let takeoff = track.points[0];
         track.points.push(takeoff);
 
-        assert_eq!(fixes(&track, None).len(), 1);
+        assert_eq!(unscored(&track).len(), 1);
     }
 }
