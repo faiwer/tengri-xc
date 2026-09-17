@@ -8,7 +8,7 @@ use sqlx::PgPool;
 
 use crate::{
     config::SatelliteMap,
-    flight::{ScoringQueue, queue::default_worker_count},
+    flight::{ScoringQueue, image::RenderGate, queue::default_worker_count},
     html::HtmlShell,
     site::SiteMeta,
 };
@@ -44,6 +44,9 @@ struct AppStateInner {
     oauth_endpoint_base: Option<String>,
     /// Global route-scoring queue; drains its worker pool in the background.
     scoring_queue: ScoringQueue,
+    /// Keeps concurrent requests for the same cold flight preview from each
+    /// drawing their own copy.
+    image_renders: RenderGate,
     /// The SPA's `index.html`, fetched from `app_base_url` on the first
     /// document request. A failed fetch isn't cached, so a server that starts
     /// before the static host recovers on the next request.
@@ -107,6 +110,7 @@ impl AppState {
                 satellite_map,
                 oauth_endpoint_base,
                 scoring_queue,
+                image_renders: RenderGate::default(),
                 html_shell: RwLock::new(None),
                 site_meta: RwLock::new(None),
             }),
@@ -119,6 +123,10 @@ impl AppState {
 
     pub fn scoring_queue(&self) -> &ScoringQueue {
         &self.inner.scoring_queue
+    }
+
+    pub fn image_renders(&self) -> &RenderGate {
+        &self.inner.image_renders
     }
 
     pub fn jwt_encoding_key(&self) -> &EncodingKey {

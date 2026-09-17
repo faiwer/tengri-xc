@@ -33,11 +33,14 @@
 //!   [`fetch_source_download`] ([`SourceDownload`]).
 //! - `tracks` — the compact binary track the client decodes: [`insert_track`],
 //!   [`fetch_full_track`].
+//! - `images` — the cached link-preview JPEG: [`fetch_image_etag`],
+//!   [`fetch_image`] ([`StoredImage`]), [`upsert_image`], [`delete_image`].
 //! - `routes` — scoring persistence/readback: [`upsert_scored_routes`],
 //!   [`upsert_scored_route`], [`fetch_scored_routes`], [`fetch_main_route`],
 //!   plus the `route_type` / `route_sub_type` enum mapping.
 
 mod flights;
+mod images;
 mod meta;
 mod routes;
 mod sites;
@@ -46,6 +49,7 @@ mod tracks;
 mod transfer;
 
 pub use flights::{FlightRow, InsertFlightError, insert_flight, insert_flight_idempotent};
+pub use images::{StoredImage, delete_image, fetch_image, fetch_image_etag, upsert_image};
 pub use meta::{FlightMetaUpdate, model_exists, update_flight_meta};
 pub use routes::{
     fetch_main_route, fetch_scored_routes, upsert_scored_route, upsert_scored_routes,

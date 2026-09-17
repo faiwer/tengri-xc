@@ -11,6 +11,7 @@ use crate::{config::SatelliteMap, flight::Route};
 
 mod attribution;
 mod basemap;
+mod gate;
 mod jpeg;
 mod layout;
 mod legs;
@@ -24,6 +25,7 @@ mod waypoints;
 mod fixtures;
 
 pub use basemap::Basemap;
+pub use gate::{RenderGate, RenderLease, Turn};
 
 /// The track's polyline, with the route's legs and waypoints on top — or just
 /// takeoff and landing when the flight hasn't been scored.

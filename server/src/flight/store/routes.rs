@@ -5,7 +5,9 @@
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::flight::{Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome};
+use crate::flight::{
+    Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome, store::images::delete_image,
+};
 
 const ROUTE_COLUMNS: &str = "r.id, r.flight_id, r.type::text AS route_type, \
      r.sub_type::text AS sub_type, r.turnpoints::text AS turnpoints, r.leg_distances, \
@@ -54,6 +56,10 @@ pub async fn upsert_scored_routes(
     }
     if saved > 0 {
         update_flight_main_route(tx, flight_id).await?;
+        // The preview draws the main route's legs and waypoints, so a new
+        // score makes the stored picture wrong. Dropping it in the same
+        // transaction means no request can serve one that disagrees.
+        delete_image(tx, flight_id).await?;
     }
     Ok(saved)
 }
