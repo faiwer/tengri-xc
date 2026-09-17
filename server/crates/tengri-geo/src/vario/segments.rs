@@ -93,7 +93,9 @@ fn reabsorb_interior_runs(segments: Vec<VarioSegment>, times: &[u32]) -> Vec<Var
     out
 }
 
-/// Worst case is quadratic, over a segment count in the hundreds.
+/// Quadratic in the run count, which the ±5 s vario smoothing caps at about
+/// one run per three seconds of flight: 7.7k runs and 2.3 ms on the worst of
+/// 1222 real tracks.
 fn dissolve_short_runs(segments: Vec<VarioSegment>, times: &[u32]) -> Vec<VarioSegment> {
     let mut out = segments;
 

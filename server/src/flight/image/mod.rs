@@ -1,6 +1,6 @@
 //! Renders a flight into a small JPEG for link previews: the track as a
-//! vario-coloured polyline, plus the waypoints drawn like the client's
-//! `TrackRoute` markers. The route legs and persisting the render are still to
+//! vario-coloured polyline, with the scored route's legs and waypoints drawn
+//! over it like the client's `TrackRoute`. Persisting the render is still to
 //! come.
 
 use anyhow::anyhow;
@@ -11,7 +11,9 @@ use crate::flight::Route;
 
 mod jpeg;
 mod layout;
+mod legs;
 mod paint;
+mod route_shape;
 mod track;
 mod vario;
 mod waypoints;
@@ -19,20 +21,25 @@ mod waypoints;
 #[cfg(test)]
 mod fixtures;
 
-/// The track's polyline, with the route's waypoints on top — or takeoff and
-/// landing when the flight hasn't been scored.
+/// The track's polyline, with the route's legs and waypoints on top — or just
+/// takeoff and landing when the flight hasn't been scored.
 pub fn render_flight_image(flight: &Track, route: Option<&Route>) -> anyhow::Result<Vec<u8>> {
     if flight.points.is_empty() {
         return Err(anyhow!("track has no points"));
     }
 
     let window = find_flight_window(flight);
+    let fixes = waypoints::fixes(flight, route, window);
+    // An unscored flight has two lone markers and nothing to join them with.
+    let legs = route
+        .map(|route| legs::legs(route, &fixes))
+        .unwrap_or_default();
 
     // One projection for both layers: `project_track_points_m` centres on the
     // mean of what it's given, so projecting the waypoints separately would put
     // them in a different frame.
     let mut all: Vec<PointE5> = flight.points.iter().map(PointE5::from_e5_coords).collect();
-    all.extend(waypoints::fixes(flight, route, window));
+    all.extend(fixes);
     let projected = project_track_points_m(&all);
     let (track_points, waypoints_points) = projected.split_at(flight.points.len());
 
@@ -44,6 +51,7 @@ pub fn render_flight_image(flight: &Track, route: Option<&Route>) -> anyhow::Res
         track_points,
         &vario::runs(flight, window),
     );
+    legs::draw_legs(&mut pixmap, &layout, waypoints_points, &legs);
     waypoints::draw_waypoints(&mut pixmap, &layout, waypoints_points);
 
     jpeg::encode(&pixmap)

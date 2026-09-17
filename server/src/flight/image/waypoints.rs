@@ -9,53 +9,39 @@ use tiny_skia::{FillRule, PathBuilder, Pixmap, Stroke, Transform};
 
 use super::{
     layout::Layout,
-    paint::{Rgb, WHITE, solid_brush},
+    paint::{SCORED, WHITE, solid_brush},
+    route_shape::RouteShape,
 };
-use crate::flight::{Route, RouteSubType, RouteWaypoint};
+use crate::flight::Route;
 
 /// Matches the client's 10×10 marker with its 2 px border.
 const RADIUS_PX: f32 = 5.0;
 const BORDER_PX: f32 = 2.0;
-/// The client's `SCORED_COLOR`.
-const BORDER_COLOR: Rgb = (0x65, 0xc8, 0x32);
 
-/// `[closure start, turnpoints…, closure end]`, deduplicated — mirroring
-/// `buildRouteGeometry.tsx`. An unscored flight marks its takeoff and landing
+/// The route's waypoints. An unscored flight marks its takeoff and landing
 /// instead, so the preview always says where the pilot started and stopped.
 pub(super) fn fixes(
     track: &Track,
     route: Option<&Route>,
     window: Option<FlightWindow>,
 ) -> Vec<PointE5> {
-    let mut fixes: Vec<PointE5> = Vec::new();
-    let mut push = |point: PointE5| {
-        if !fixes.contains(&point) {
-            fixes.push(point);
+    let Some(route) = route else {
+        let mut fixes: Vec<PointE5> = Vec::new();
+        for fix in airborne_ends(track, window).into_iter().flatten() {
+            let point = PointE5::new(fix.lat, fix.lon);
+            if !fixes.contains(&point) {
+                fixes.push(point);
+            }
         }
+        return fixes;
     };
 
-    match route {
-        Some(route) => {
-            for waypoint in ordered_waypoints(route) {
-                // Cylinder and line waypoints are dropped, as on the client;
-                // nothing produces them yet.
-                if let RouteWaypoint::Point { fix } = waypoint {
-                    push(PointE5::new(fix.lat, fix.lon));
-                }
-            }
-        }
-        None => {
-            for fix in airborne_ends(track, window).into_iter().flatten() {
-                push(PointE5::new(fix.lat, fix.lon));
-            }
-        }
-    }
-    fixes
+    RouteShape::new(route).waypoints()
 }
 
 pub(super) fn draw_waypoints(pixmap: &mut Pixmap, layout: &Layout, points: &[Point]) {
     let fill = solid_brush(WHITE);
-    let border = solid_brush(BORDER_COLOR);
+    let border = solid_brush(SCORED);
     let stroke = Stroke {
         width: BORDER_PX,
         ..Stroke::default()
@@ -88,26 +74,11 @@ fn airborne_ends(track: &Track, window: Option<FlightWindow>) -> [Option<&TrackP
     }
 }
 
-fn ordered_waypoints(route: &Route) -> impl Iterator<Item = &RouteWaypoint> {
-    let closure = matches!(
-        route.sub_type,
-        RouteSubType::OlcOpen | RouteSubType::OlcClosed
-    )
-    .then_some(route.closure.as_ref())
-    .flatten();
-
-    closure
-        .map(|closure| &closure.start)
-        .into_iter()
-        .chain(route.turnpoints.iter())
-        .chain(closure.map(|closure| &closure.end))
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::fixtures::{sample_track, triangle, waypoint};
     use super::*;
-    use crate::flight::RouteClosure;
+    use crate::flight::{RouteClosure, RouteSubType};
     use tengri_formats::find_flight_window;
 
     fn unscored(track: &Track) -> Vec<PointE5> {
