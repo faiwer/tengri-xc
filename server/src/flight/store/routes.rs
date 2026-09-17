@@ -7,21 +7,37 @@ use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::flight::{Route, RouteEvaluation, RouteSubType, RouteType, ScoringOutcome};
 
+const ROUTE_COLUMNS: &str = "r.id, r.flight_id, r.type::text AS route_type, \
+     r.sub_type::text AS sub_type, r.turnpoints::text AS turnpoints, r.leg_distances, \
+     r.distance, r.score::float8 AS score, r.factor::float8 AS factor, r.optimal, \
+     r.closure::text AS closure, r.scored_ms";
+
 pub async fn fetch_scored_routes(pool: &PgPool, flight_id: &str) -> anyhow::Result<Vec<Route>> {
-    let rows = sqlx::query_as::<_, StoredRouteRow>(
-        "SELECT id, flight_id, type::text AS route_type, sub_type::text AS sub_type, \
-                turnpoints::text AS turnpoints, leg_distances, distance, \
-                score::float8 AS score, factor::float8 AS factor, optimal, closure::text AS closure, \
-                scored_ms \
-         FROM routes \
-         WHERE flight_id = $1",
-    )
+    let rows = sqlx::query_as::<_, StoredRouteRow>(&format!(
+        "SELECT {ROUTE_COLUMNS} FROM routes r WHERE r.flight_id = $1"
+    ))
     .bind(flight_id)
     .fetch_all(pool)
     .await
     .with_context(|| format!("fetching scored routes for flight {flight_id}"))?;
 
     rows.into_iter().map(StoredRouteRow::into_route).collect()
+}
+
+/// The route the flight leads with — `flights.main_route_id`, the same one the
+/// client draws on the map. `Ok(None)` when the flight hasn't been scored.
+pub async fn fetch_main_route(pool: &PgPool, flight_id: &str) -> anyhow::Result<Option<Route>> {
+    let row = sqlx::query_as::<_, StoredRouteRow>(&format!(
+        "SELECT {ROUTE_COLUMNS} FROM routes r \
+         JOIN flights f ON f.main_route_id = r.id \
+         WHERE f.id = $1"
+    ))
+    .bind(flight_id)
+    .fetch_optional(pool)
+    .await
+    .with_context(|| format!("fetching main route for flight {flight_id}"))?;
+
+    row.map(StoredRouteRow::into_route).transpose()
 }
 
 pub async fn upsert_scored_routes(

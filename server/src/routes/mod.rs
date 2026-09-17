@@ -11,6 +11,7 @@ mod register;
 mod reset_password;
 mod site;
 mod tracks;
+mod tracks_image;
 mod tracks_list;
 mod tracks_md;
 mod tracks_peek;
@@ -30,6 +31,7 @@ pub fn router(state: AppState) -> Router<AppState> {
         .merge(oauth::session_router())
         .merge(site::public_router())
         .merge(tracks::router())
+        .merge(tracks_image::router())
         .merge(tracks_list::router())
         .merge(tracks_md::router())
         .merge(tracks_peek::router())

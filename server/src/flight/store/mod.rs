@@ -31,10 +31,11 @@
 //! - `sources` — the gzipped original upload: [`insert_source`],
 //!   [`fetch_source`] ([`StoredSource`]), [`fetch_source_track`],
 //!   [`fetch_source_download`] ([`SourceDownload`]).
-//! - `tracks` — the compact binary track the client decodes: [`insert_track`].
+//! - `tracks` — the compact binary track the client decodes: [`insert_track`],
+//!   [`fetch_full_track`].
 //! - `routes` — scoring persistence/readback: [`upsert_scored_routes`],
-//!   [`upsert_scored_route`], [`fetch_scored_routes`], plus the
-//!   `route_type` / `route_sub_type` enum mapping.
+//!   [`upsert_scored_route`], [`fetch_scored_routes`], [`fetch_main_route`],
+//!   plus the `route_type` / `route_sub_type` enum mapping.
 
 mod flights;
 mod meta;
@@ -46,11 +47,13 @@ mod transfer;
 
 pub use flights::{FlightRow, InsertFlightError, insert_flight, insert_flight_idempotent};
 pub use meta::{FlightMetaUpdate, model_exists, update_flight_meta};
-pub use routes::{fetch_scored_routes, upsert_scored_route, upsert_scored_routes};
+pub use routes::{
+    fetch_main_route, fetch_scored_routes, upsert_scored_route, upsert_scored_routes,
+};
 pub use sites::{TAKEOFF_SITE_RADIUS_M, reindex_takeoff_sites};
 pub use sources::{
     SourceDownload, StoredSource, fetch_source, fetch_source_download, fetch_source_track,
     insert_source,
 };
-pub use tracks::insert_track;
+pub use tracks::{fetch_full_track, insert_track};
 pub use transfer::{TransferOutcome, transfer_flight_owner};
