@@ -4,11 +4,12 @@ use crate::site::SiteMeta;
 /// relative `og:image` paths.
 const OG_IMAGE_PATH: &str = "/images/appIcon-1024.png";
 
-/// What a single document response says about itself. The image is site-wide
-/// for now, so it isn't here; see [`image_url`].
+/// What a single document response says about itself.
 pub(super) struct PageMeta {
     pub(super) title: String,
     pub(super) description: Option<String>,
+    /// The page's own preview, absolute. `None` falls back to the site icon.
+    pub(super) image: Option<String>,
 }
 
 pub(super) fn image_url(app_base_url: &str) -> String {
@@ -21,12 +22,14 @@ impl PageMeta {
         Self {
             title: site.site_name.clone(),
             description: site.site_description.clone(),
+            image: None,
         }
     }
 
     /// The `<title>` plus the tag block, indented to sit where the shell's own
-    /// title did.
-    pub(super) fn render(&self, image_url: &str) -> String {
+    /// title did. `site_image_url` is used by every page that has no preview of
+    /// its own.
+    pub(super) fn render(&self, site_image_url: &str) -> String {
         let mut out = format!("<title>{}</title>", html_escape::encode_text(&self.title));
 
         if let Some(ref description) = self.description {
@@ -34,10 +37,20 @@ impl PageMeta {
             push_tag(&mut out, "property", "og:description", description);
         }
         push_tag(&mut out, "property", "og:title", &self.title);
-        push_tag(&mut out, "property", "og:image", image_url);
+        push_tag(
+            &mut out,
+            "property",
+            "og:image",
+            self.image.as_deref().unwrap_or(site_image_url),
+        );
         push_tag(&mut out, "property", "og:type", "website");
-        // `summary`, not `summary_large_image`: the icon is square.
-        push_tag(&mut out, "name", "twitter:card", "summary");
+        // The site icon is square and says nothing; a page that brings its own
+        // picture has something worth the big card.
+        let card = match self.image {
+            Some(_) => "summary_large_image",
+            None => "summary",
+        };
+        push_tag(&mut out, "name", "twitter:card", card);
 
         out
     }
@@ -62,6 +75,7 @@ mod tests {
         let meta = PageMeta {
             title: "Bob & \"Ann\"".to_owned(),
             description: Some("<script>".to_owned()),
+            image: None,
         };
 
         let rendered = meta.render("https://example.test/i.png");
@@ -76,11 +90,44 @@ mod tests {
         let meta = PageMeta {
             title: "Tengri XC".to_owned(),
             description: None,
+            image: None,
         };
 
         let rendered = meta.render("https://example.test/i.png");
 
         assert!(!rendered.contains("description"));
         assert!(rendered.contains(r#"<meta property="og:title" content="Tengri XC" />"#));
+    }
+
+    #[test]
+    fn a_page_of_its_own_image_gets_it_and_the_big_card() {
+        let meta = PageMeta {
+            title: "Flight".to_owned(),
+            description: None,
+            image: Some("https://example.test/api/tracks/abc123/og.jpg".to_owned()),
+        };
+
+        let rendered = meta.render("https://example.test/i.png");
+
+        assert!(rendered.contains(
+            r#"<meta property="og:image" content="https://example.test/api/tracks/abc123/og.jpg" />"#
+        ));
+        assert!(rendered.contains(r#"content="summary_large_image""#));
+    }
+
+    #[test]
+    fn a_page_without_one_falls_back_to_the_site_icon() {
+        let rendered = PageMeta {
+            title: "Tengri XC".to_owned(),
+            description: None,
+            image: None,
+        }
+        .render("https://example.test/i.png");
+
+        assert!(
+            rendered
+                .contains(r#"<meta property="og:image" content="https://example.test/i.png" />"#)
+        );
+        assert!(rendered.contains(r#"content="summary""#));
     }
 }

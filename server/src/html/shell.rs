@@ -58,6 +58,7 @@ mod tests {
         PageMeta {
             title: "Flight".to_owned(),
             description: Some("A flight".to_owned()),
+            image: None,
         }
     }
 

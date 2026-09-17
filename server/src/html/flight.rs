@@ -12,9 +12,20 @@ use crate::{
 /// shows its own not-found screen — but the crawler gets a 404.
 pub(super) async fn resolve(state: &AppState, id: &str, site: &SiteMeta) -> Result<Page, AppError> {
     match fetch(state.pool(), id).await? {
-        Some(row) => Ok(Page::ok(build(&row, site))),
+        Some(row) => Ok(Page::ok(build(
+            &row,
+            site,
+            preview_url(state.api_public_url(), id),
+        ))),
         None => Ok(Page::not_found(PageMeta::site(site))),
     }
+}
+
+/// The flight's own preview, rendered on demand by `GET /tracks/{id}/og.jpg`.
+/// Built from `API_PUBLIC_URL` because crawlers won't resolve a relative one,
+/// and the image comes from the API rather than the static host.
+fn preview_url(api_public_url: &str, id: &str) -> String {
+    format!("{api_public_url}/tracks/{id}/og.jpg")
 }
 
 /// Deliberately not `fetch_track_md`: that one runs a second query for the full
@@ -49,7 +60,7 @@ struct FlightRow {
     takeoff_site: Option<String>,
 }
 
-fn build(row: &FlightRow, site: &SiteMeta) -> PageMeta {
+fn build(row: &FlightRow, site: &SiteMeta, image: String) -> PageMeta {
     let date = format_date(row);
 
     let headline = match (row.main_distance, row.main_route_type) {
@@ -79,6 +90,7 @@ fn build(row: &FlightRow, site: &SiteMeta) -> PageMeta {
     PageMeta {
         title: format!("{} - {} | {}", row.pilot, headline, site.site_name),
         description: Some(description),
+        image: Some(image),
     }
 }
 
@@ -136,9 +148,17 @@ mod tests {
         }
     }
 
+    fn build_meta(row: &FlightRow) -> PageMeta {
+        build(
+            row,
+            &site(),
+            preview_url("https://tengri.test/api", "abc123"),
+        )
+    }
+
     #[test]
     fn a_scored_flight_reads_as_a_headline() {
-        let meta = build(&row(), &site());
+        let meta = build_meta(&row());
 
         assert_eq!(meta.title, "Alexey - 123.4 km FAI triangle | Tengri XC");
         assert_eq!(
@@ -148,16 +168,23 @@ mod tests {
     }
 
     #[test]
-    fn an_unscored_flight_falls_back_to_the_date() {
-        let meta = build(
-            &FlightRow {
-                main_route_type: None,
-                main_score: None,
-                main_distance: None,
-                ..row()
-            },
-            &site(),
+    fn the_preview_is_the_flight_s_own_image() {
+        let meta = build_meta(&row());
+
+        assert_eq!(
+            meta.image.unwrap(),
+            "https://tengri.test/api/tracks/abc123/og.jpg"
         );
+    }
+
+    #[test]
+    fn an_unscored_flight_falls_back_to_the_date() {
+        let meta = build_meta(&FlightRow {
+            main_route_type: None,
+            main_score: None,
+            main_distance: None,
+            ..row()
+        });
 
         assert_eq!(meta.title, "Alexey - 14 Sep 2026 | Tengri XC");
         assert_eq!(
@@ -168,14 +195,11 @@ mod tests {
 
     #[test]
     fn an_unknown_takeoff_site_drops_the_clause() {
-        let meta = build(
-            &FlightRow {
-                takeoff_site: None,
-                duration: 47 * 60,
-                ..row()
-            },
-            &site(),
-        );
+        let meta = build_meta(&FlightRow {
+            takeoff_site: None,
+            duration: 47 * 60,
+            ..row()
+        });
 
         assert_eq!(
             meta.description.unwrap(),
@@ -186,13 +210,10 @@ mod tests {
     #[test]
     fn the_takeoff_timezone_decides_the_date() {
         // 22:30 UTC on the 14th is already the 15th in Bishkek (UTC+6).
-        let meta = build(
-            &FlightRow {
-                takeoff_at: DateTime::from_timestamp(1_789_425_000, 0).unwrap(),
-                ..row()
-            },
-            &site(),
-        );
+        let meta = build_meta(&FlightRow {
+            takeoff_at: DateTime::from_timestamp(1_789_425_000, 0).unwrap(),
+            ..row()
+        });
 
         assert!(meta.description.unwrap().starts_with("15 Sep 2026"));
     }
