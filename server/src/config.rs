@@ -186,11 +186,27 @@ fn parse_satellite_map() -> Result<Option<SatelliteMap>, ConfigError> {
     }))
 }
 
+/// Surrounding quotes are stripped. `.env` parsers and systemd's
+/// `EnvironmentFile` eat them, but a systemd unit's `Environment=` line and a
+/// `docker run -e` argument pass them through — and a quoted attribution then
+/// renders with the quotes drawn on the image.
 fn parse_optional_string(var: &'static str) -> Option<String> {
     env::var(var)
         .ok()
-        .map(|s| s.trim().to_owned())
+        .map(|raw| unquote(raw.trim()).to_owned())
         .filter(|s| !s.is_empty())
+}
+
+fn unquote(value: &str) -> &str {
+    for quote in ['"', '\''] {
+        if let Some(inner) = value
+            .strip_prefix(quote)
+            .and_then(|rest| rest.strip_suffix(quote))
+        {
+            return inner;
+        }
+    }
+    value
 }
 
 /// Parse a boolean env var. Accepts the same values `serde-toml` and
