@@ -13,6 +13,7 @@ import {
 import { formatDuration, formatShortDate } from '../../utils/formatDateTime';
 import { formatDistance } from '../../utils/formatUnits';
 import { useMediaQuery } from '../../utils/useMediaQuery';
+import { FlightPreview } from './FlightPreview';
 import styles from './TracksPage.module.scss';
 import { useScrollSentinel } from './useScrollSentinel';
 import { useTracksFeed } from './useTracksFeed';
@@ -118,6 +119,7 @@ function useLayout() {
     showDuration: layout !== 'tiny',
     showIdx: layout === 'normal',
     showScore: layout === 'normal' || layout === 'medium',
+    showPreview: layout === 'normal',
   };
 }
 
@@ -130,6 +132,7 @@ function useColumns(layout: ReturnType<typeof useLayout>) {
     [layout.showDuration, 'max-content'], // duration
     [layout.showScore, 'max-content'], // score
     [true, 'max-content'], // distance
+    [layout.showPreview, 'max-content'], // preview
   ]);
 
   const thead = (
@@ -146,6 +149,7 @@ function useColumns(layout: ReturnType<typeof useLayout>) {
         )}
         {layout.showScore && <th>Score</th>}
         <th>Distance</th>
+        {layout.showPreview && <th />}
       </tr>
     </thead>
   );
@@ -162,6 +166,7 @@ function buildHomeRowCells(
     showIdx,
     showDuration,
     showTakeoff,
+    showPreview,
   }: ReturnType<typeof useLayout>,
 ): TrackRowCell[] {
   const cells: Array<TrackRowCell | false> = [
@@ -210,6 +215,11 @@ function buildHomeRowCells(
       content: formatDistanceScored(item, showScore, prefs),
       align: 'left',
       muted: item.track.mainDistance == null,
+    },
+    showPreview && {
+      key: 'preview',
+      content: <FlightPreview flightId={item.track.id} />,
+      align: 'right',
     },
   ];
   return cells.filter((cell) => !!cell);

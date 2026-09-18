@@ -1,6 +1,12 @@
 import { decode as bincodeDecode } from 'bincode-ts';
 import { decodeTrack, type DecodeOptions, type Track } from '../track';
-import { apiGet, apiGetBlob, apiPostRaw, type ApiRequestOptions } from './core';
+import {
+  apiGet,
+  apiGetBlob,
+  apiPostRaw,
+  SERVER_URL,
+  type ApiRequestOptions,
+} from './core';
 import {
   TengriFileIo,
   TrackMetadataIo,
@@ -16,6 +22,14 @@ export async function getTrackMetadata(
 ): Promise<TrackMetadata> {
   return apiGet(`/tracks/${trackId}/md`, TrackMetadataIo);
 }
+
+/**
+ * The flight's rendered preview picture — the same JPEG the link-preview meta
+ * tags point at. A URL rather than a request: it's consumed by `<img src>`, and
+ * the server renders it on the first fetch.
+ */
+export const getTrackPreviewImageUrl = (trackId: string): string =>
+  `${SERVER_URL}/tracks/${trackId}/og.jpg`;
 
 export interface GetTracksPageParams {
   /** Pass through the `nextCursor` from the previous page. */
