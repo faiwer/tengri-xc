@@ -1,3 +1,6 @@
+// Must be equal PREFETCH_BUFFER_PX from ./constants.ts
+$prefetch-buffer: 256px;
+
 .container {
   position: relative;
   width: 100%;
@@ -11,8 +14,31 @@
 
 .mapBuffer {
   position: absolute;
-  // Must be equal PREFETCH_BUFFER_PX from ./constants.ts
-  inset: -256px;
+  inset: -$prefetch-buffer;
+
+  // MapLibre anchors its control corners to the oversized canvas, whose edges
+  // are clipped away. Pull each corner in by the buffer. Their shared parent
+  // would be the cheaper handle, but it lacks `pointer-events: none` and would
+  // swallow every drag and scroll aimed at the map.
+  :global(.maplibregl-ctrl-top-left),
+  :global(.maplibregl-ctrl-top-right) {
+    top: $prefetch-buffer;
+  }
+
+  :global(.maplibregl-ctrl-bottom-left),
+  :global(.maplibregl-ctrl-bottom-right) {
+    bottom: $prefetch-buffer;
+  }
+
+  :global(.maplibregl-ctrl-top-left),
+  :global(.maplibregl-ctrl-bottom-left) {
+    left: $prefetch-buffer;
+  }
+
+  :global(.maplibregl-ctrl-top-right),
+  :global(.maplibregl-ctrl-bottom-right) {
+    right: $prefetch-buffer;
+  }
 }
 
 .map {

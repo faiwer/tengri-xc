@@ -94,6 +94,8 @@ const genTengriDem = ({
   tileSize,
   minzoom: minZoom,
   maxzoom: maxZoom,
+  attribution:
+    'Terrain: AW3D30 © <a href="https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm">JAXA</a>',
 });
 
 const genContoursSource = ({

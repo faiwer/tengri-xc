@@ -10,7 +10,7 @@ export const PADDING_PX = 32;
  * side. The container clips the overflow with `overflow: hidden`, so the halo
  * is invisible — but MapLibre still fetches tiles for it, making pans into
  * freshly-revealed area paint instantly instead of showing a blank tile while
- * the request flies. Mirrored in `MapView.module.scss` (`.mapBuffer` `inset`).
+ * the request flies. Mirrored in `MapView.module.scss` (`$prefetch-buffer`).
  *
  * Any `fitBounds` / `setPadding` call has to add this to its requested padding
  * so the *visible* viewport still respects the requested inset, not the larger

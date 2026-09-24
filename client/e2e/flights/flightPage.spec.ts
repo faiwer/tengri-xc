@@ -37,6 +37,8 @@ test('map hover updates the cursor readout', async ({ page }) => {
     throw new Error('Flight map has no bounding box');
   }
 
+  await checkMapAttribution(map, box);
+
   await map.hover({
     position: { x: box.width / 2, y: box.height / 2 },
   });
@@ -91,6 +93,33 @@ async function checkChartHelpTooltip(
     .hover();
   await expect(page.getByRole('tooltip')).toContainText(expectedText);
   await moveMouseToPageCorner(page);
+}
+
+type BoundingBox = NonNullable<Awaited<ReturnType<Locator['boundingBox']>>>;
+
+/**
+ * The MapLibre canvas overhangs its clipped container to prefetch tiles, so a
+ * credit anchored to the canvas can be `toBeVisible()` and still sit outside
+ * the viewport — hence the containment check rather than a visibility one.
+ */
+async function checkMapAttribution(map: Locator, mapBox: BoundingBox) {
+  const credit = map.locator('.maplibregl-ctrl-attrib');
+  await expect(credit).toBeVisible();
+  await expect(credit).toContainText('AW3D30 © JAXA');
+
+  const creditBox = await credit.boundingBox();
+  if (!creditBox) {
+    throw new Error('Map attribution has no bounding box');
+  }
+
+  expect(creditBox.x).toBeGreaterThanOrEqual(mapBox.x);
+  expect(creditBox.y).toBeGreaterThanOrEqual(mapBox.y);
+  expect(creditBox.x + creditBox.width).toBeLessThanOrEqual(
+    mapBox.x + mapBox.width,
+  );
+  expect(creditBox.y + creditBox.height).toBeLessThanOrEqual(
+    mapBox.y + mapBox.height,
+  );
 }
 
 async function checkCursorReadout(page: Page, readout: Locator) {

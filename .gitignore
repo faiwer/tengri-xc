@@ -14,3 +14,4 @@ scripts/
 # Test artifacts
 client/test-results
 client/playwright-report
+test-results/
